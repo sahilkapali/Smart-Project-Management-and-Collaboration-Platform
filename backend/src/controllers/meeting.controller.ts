@@ -98,7 +98,7 @@ export const getProjectMeetings = async(
  * @access  Private (reqd auth)
  */
 
-export const getMeetingByID = async(
+export const getMeetingById = async(
     req: Request,
     res: Response,
     next: NextFunction
