@@ -11,10 +11,10 @@ import {
 const router = Router();
 
 //1. Project scoped endpoints 
-router.get('/priject/:projectId', getProjectMeetings);
+router.get('/project/:projectId', getProjectMeetings);
 
 //2. General meeting CRUD endpoints
-router.get('/', createMeeting);
+router.post('/', createMeeting);
 
 
 router.route('/:id')

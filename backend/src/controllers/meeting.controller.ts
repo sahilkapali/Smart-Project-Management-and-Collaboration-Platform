@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import Meeting from '../models/meeting.models'; 
 
 // 1. CREATE A MEETING
-export const createMeeting = async (req: Request, res: Response): Promise<void> => {
+export const createMeeting = async (req: Request, res: Response) => {
   try {
     const { 
       meetingTitle, 
@@ -30,7 +30,7 @@ export const createMeeting = async (req: Request, res: Response): Promise<void> 
 };
 
 // 2. GET ALL MEETINGS FOR A PROJECT
-export const getProjectMeetings = async (req: Request, res: Response): Promise<void> => {
+export const getProjectMeetings = async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     
@@ -47,7 +47,7 @@ export const getProjectMeetings = async (req: Request, res: Response): Promise<v
 };
 
 // 3. GET A SINGLE MEETING
-export const getMeetingById = async (req: Request, res: Response): Promise<void> => {
+export const getMeetingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -66,7 +66,7 @@ export const getMeetingById = async (req: Request, res: Response): Promise<void>
 };
 
 // 4. UPDATE A MEETING
-export const updateMeeting = async (req: Request, res: Response): Promise<void> => {
+export const updateMeeting = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -89,7 +89,7 @@ export const updateMeeting = async (req: Request, res: Response): Promise<void> 
 };
 
 // 5. DELETE A MEETING
-export const deleteMeeting = async (req: Request, res: Response): Promise<void> => {
+export const deleteMeeting = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     

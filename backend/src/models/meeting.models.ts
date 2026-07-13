@@ -11,11 +11,11 @@ const meetingNoteSchema = new Schema({
     type: String 
   }
 }, { 
-  _id: true, // Gives each note its own ID so you can easily target them later
-  timestamps: true // Tracks exactly when the note/transcript was added
+  _id: true,
+  timestamps: true 
 });
 
-// 2. Define the core Meeting schema using your new Type interface
+// 2. Define the core Meeting schema 
 const meetingSchema = new Schema<IMeeting>({
   meetingTitle: { 
     type: String, 
