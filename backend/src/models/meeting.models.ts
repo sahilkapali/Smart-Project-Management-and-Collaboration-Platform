@@ -1,70 +1,48 @@
-import { Schema, model, Document, Types } from 'mongoose';
-import { Script } from 'node:vm';
+import { Schema, model } from 'mongoose';
+import { IMeeting } from '../types/global.types';
 
-
-// structure defining....
-export interface IMeeting extends Document{
-    meetingTitle: string;
-    description?: string;
-    project: Types.ObjectId;
-    manager: Types.ObjectId;
-    member: Types.ObjectId[];
-    startTime: Date;
-    endTime?: Date;
-    meetingNotes?: string;
-    aiSummary?: string;
-    aiActionItems?: string[];
-    createdAt: Date;
-}
-
-
-// schema defining.....
-
-const MeetingSchema = new Schema<IMeeting>({
-    meetingTitle:{
-        type: String,
-        required: [true, 'Meeting title is required'],
-        trim: true
-    },
-    description:{
-        type: String,
-        trim: true
-    },
-    project:{
-        type: Schema.Types.ObjectId,
-        ref: 'Project',                                  // need to match name from project model aile lai project 
-        required:[true, 'Meeting must belong to a project']
-    },
-    manager:{
-        type: Schema.Types.ObjectId,
-        ref:'User',                                   // need to match user model aile lai user
-        required:[true, 'Meeting must have an menager']
-    },
-    member:[{
-        type: Schema.Types.ObjectId,
-        ref: 'User'
-    }],
-    startTime:{
-        type: Date,
-        required:[true, 'Start time is required']
-    },
-    endTime:{
-        type: Date
-    },
-    meetingNotes:{
-        type: String
-    },
-    aiSummary:{
-        type: String
-    },
-    aiActionItems:[{
-        type: String
-    }],
-    createdAt:{
-        type: Date,
-        default: Date.now
-    }   
+// 1. Define the sub-schema for Meeting Notes 
+const meetingNoteSchema = new Schema({
+  content: { 
+    type: String, 
+    required: true 
+  },
+  aiGeneratedSummary: { 
+    type: String 
+  }
+}, { 
+  _id: true, // Gives each note its own ID so you can easily target them later
+  timestamps: true // Tracks exactly when the note/transcript was added
 });
 
+// 2. Define the core Meeting schema using your new Type interface
+const meetingSchema = new Schema<IMeeting>({
+  meetingTitle: { 
+    type: String, 
+    required: true 
+  },
+  startTime: { 
+    type: Date, 
+    required: true 
+  },
+  endTime: { 
+    type: Date
+  },
+  project: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Project', 
+    required: true 
+  },
+  attendees: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'User' 
+  }],
+ 
+  notes: [meetingNoteSchema],
+}, { 
+  timestamps: true // Automatically generates 'createdAt' and 'updatedAt'
+});
 
-export const Meeting = model<IMeeting>('Meeting', MeetingSchema);
+const Meeting = model<IMeeting>('Meeting', meetingSchema);
+
+export default Meeting;
