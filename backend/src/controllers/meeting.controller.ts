@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Meeting from '../models/meeting.models'; 
+import { generateMeetingSummary } from '../services/gemini.service';
 
 // 1. CREATE A MEETING
 export const createMeeting = async (req: Request, res: Response) => {
@@ -13,13 +14,19 @@ export const createMeeting = async (req: Request, res: Response) => {
       content // Raw transcript from the frontend
     } = req.body;
 
+    let aiSummary = '';
+    if (content){
+      console.log("Processing Transcript...");
+      aiSummary = await generateMeetingSummary(content);
+    }
+
     const newMeeting = await Meeting.create({
       meetingTitle,
       startTime,
       endTime,
       attendees,
       project,
-      notes: content ? [{ content }] : [] 
+      notes: content ? [{ content, summary: aiSummary }] : [] 
     });
 
     res.status(201).json({ success: true, data: newMeeting });
@@ -105,4 +112,4 @@ export const deleteMeeting = async (req: Request, res: Response) => {
     console.error("Error deleting meeting:", error);
     res.status(500).json({ success: false, message: "Failed to delete meeting" });
   }
-};
+};  
