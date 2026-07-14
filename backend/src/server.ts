@@ -1,6 +1,7 @@
 import express,{Request,Response,NextFunction} from "express";
 import "dotenv/config"
 import { connectDatabase } from "./config/db";
+import meetingRouter from './routes/meeting.routes';
 
 const PORT = process.env.PORT;
 const DB_URI = process.env.DB_URI ?? "";
@@ -14,6 +15,12 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
+
+app.use('/api/meetings', meetingRouter);
+
+
 app.listen(PORT, () => {
     console.log(`server is running at http://localhost:${PORT}`);
 });
+
+
