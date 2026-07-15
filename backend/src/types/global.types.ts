@@ -11,7 +11,6 @@ export interface IMeetingNote {
   aiGeneratedSummary?: string; 
 }
 
-
 export interface IMeeting extends Document {
   meetingTitle: string;         
   startTime: Date;              
