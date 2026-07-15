@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IMeeting } from '../types/global.types';
+import { IMeeting } from '../types/meeting.types';
 
 // 1. Define the sub-schema for Meeting Notes 
 const meetingNoteSchema = new Schema({
