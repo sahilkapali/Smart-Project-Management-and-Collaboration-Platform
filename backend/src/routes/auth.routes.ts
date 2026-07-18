@@ -9,7 +9,7 @@ import {
   logout,
 } from "../controllers/auth.controller";
 
-import { authenticateUser } from "../middlewares/auth.middleware";
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = express.Router();
 
@@ -28,19 +28,19 @@ router.post("/login", login);
  */
 
 // Get Logged-in User Profile
-router.get("/profile", authenticateUser, getUserProfile);
+router.get("/profile", authenticateUser(), getUserProfile);
 
 // Update Profile
-router.put("/profile", authenticateUser, updateUserProfile);
+router.put("/profile", authenticateUser(), updateUserProfile);
 
 // Change Password
 router.put(
   "/change-password",
-  authenticateUser,
+  authenticateUser(),
   changeUserPassword
 );
 
 // Logout
-router.post("/logout", authenticateUser, logout);
+router.post("/logout", authenticateUser(), logout);
 
 export default router;
