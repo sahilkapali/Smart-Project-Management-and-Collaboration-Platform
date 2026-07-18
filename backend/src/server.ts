@@ -2,6 +2,10 @@ import express, { Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import projectRoutes from './routes/project.routes';
+import taskRoutes from './routes/task.routes';
 
 import { connectDatabase } from "./config/db";
 
@@ -12,8 +16,11 @@ import { errorHandler } from "./middleware/errorHandler.middleware";
 const PORT = process.env.PORT || 8080;
 const DB_URI = process.env.DB_URI ?? "";
 
+dotenv.config();
 const app = express();
-
+app.use(express.json());
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 /**
  * Connect Database
  */
@@ -33,6 +40,10 @@ app.use(
     credentials: true,
   })
 );
+
+mongoose.connect(process.env.MONGO_URI as string)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.log(err));
 
 /**
  * Home Route
