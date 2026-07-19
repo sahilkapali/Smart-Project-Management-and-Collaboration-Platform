@@ -2,25 +2,26 @@ import express, { Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import projectRoutes from './routes/project.routes';
-import taskRoutes from './routes/task.routes';
+import dotenv from "dotenv";
 
 import { connectDatabase } from "./config/db";
 
 import authRouter from "./routes/auth.routes";
+import projectRoutes from "./routes/project.routes";
+import taskRoutes from "./routes/task.routes";
+import repositoryRoutes from "./routes/repository.routes";
+import issueRoutes from "./routes/issue.routes";
+import commentRoutes from "./routes/comment.routes";
 
 import { errorHandler } from "./middleware/errorHandler.middleware";
+
+dotenv.config();
+
+const app = express();
 
 const PORT = process.env.PORT || 8080;
 const DB_URI = process.env.DB_URI ?? "";
 
-dotenv.config();
-const app = express();
-app.use(express.json());
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
 /**
  * Connect Database
  */
@@ -31,7 +32,6 @@ connectDatabase(DB_URI);
  */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 
 app.use(
@@ -40,10 +40,6 @@ app.use(
     credentials: true,
   })
 );
-
-mongoose.connect(process.env.MONGO_URI as string)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log(err));
 
 /**
  * Home Route
@@ -59,6 +55,15 @@ app.get("/", (req: Request, res: Response) => {
  * Authentication Routes
  */
 app.use("/api/auth", authRouter);
+
+/**
+ * Project Routes
+ */
+app.use("/api/projects", projectRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/repositories", repositoryRoutes);
+app.use("/api/issues", issueRoutes);
+app.use("/api", commentRoutes);
 
 /**
  * Error Handler (Always Last)
