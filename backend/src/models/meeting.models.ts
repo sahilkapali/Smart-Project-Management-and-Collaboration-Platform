@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import { IMeeting } from '../types/meeting.types';
 
-// 1. Define the sub-schema for Meeting Notes 
+
 const meetingNoteSchema = new Schema({
   content: { 
     type: String, 
@@ -15,7 +15,7 @@ const meetingNoteSchema = new Schema({
   timestamps: true 
 });
 
-// 2. Define the core Meeting schema 
+
 const meetingSchema = new Schema<IMeeting>({
   meetingTitle: { 
     type: String, 
@@ -40,7 +40,7 @@ const meetingSchema = new Schema<IMeeting>({
  
   notes: [meetingNoteSchema],
 }, { 
-  timestamps: true // Automatically generates 'createdAt' and 'updatedAt'
+  timestamps: true 
 });
 
 const Meeting = model<IMeeting>('Meeting', meetingSchema);

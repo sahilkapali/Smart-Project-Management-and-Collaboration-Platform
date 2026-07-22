@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-//import Issue from '../models/issue.models';
+import Issue from '../models/issue.models';
 
 export const calculateSprintMetrics = async (sprintId: string) => {
   const sprintObjectId = new mongoose.Types.ObjectId(sprintId);

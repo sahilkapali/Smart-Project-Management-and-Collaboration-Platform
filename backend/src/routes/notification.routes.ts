@@ -4,11 +4,11 @@ import {
   readNotification, 
   readAllNotifications 
 } from '../controllers/notification.controller';
-//import { authenticateUser } from '../middleware/auth.middleware';
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-//router.use(authenticateUser()); 
+router.use(authenticateUser()); 
 
 router.get('/', getMyNotifications);
 router.patch('/read-all', readAllNotifications);

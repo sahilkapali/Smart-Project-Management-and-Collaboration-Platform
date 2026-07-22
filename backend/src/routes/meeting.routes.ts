@@ -1,25 +1,15 @@
 import { Router } from 'express';
-import {
-    createMeeting,
-    getProjectMeetings,
-    getMeetingById,
-    updateMeeting, 
-    deleteMeeting
-} from '../controllers/meeting.controller';
-
+import * as meetingController from '../controllers/meeting.controller';
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-//1. Project scoped endpoints 
-router.get('/project/:projectId', getProjectMeetings);
+router.use(authenticateUser());
 
-//2. General meeting CRUD endpoints
-router.post('/', createMeeting);
-
-
-router.route('/:id')
-    .get(getMeetingById)
-    .patch(updateMeeting)
-    .delete(deleteMeeting);
+router.post('/', meetingController.createMeeting);
+router.get('/project/:projectId', meetingController.getProjectMeetings);
+router.get('/:id', meetingController.getMeetingById);
+router.put('/:id', meetingController.updateMeeting);
+router.delete('/:id', meetingController.deleteMeeting);
 
 export default router;

@@ -1,115 +1,161 @@
-import { Request, Response } from 'express';
-import Meeting from '../models/meeting.models'; 
-import { generateMeetingSummary } from '../services/gemini.service';
+import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import * as meetingService from '../services/meeting.service';
 
-// 1. CREATE A MEETING
-export const createMeeting = async (req: Request, res: Response) => {
+
+const objectIdRule = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid MongoDB ID format');
+
+const createMeetingSchema = z.object({
+  title: z.string()
+    .min(3, 'Meeting title must be at least 3 characters long')
+    .max(100, 'Meeting title cannot exceed 100 characters'),
+  description: z.string().optional(),
+  meetingLink: z.string().url('Invalid meeting link URL').optional().or(z.literal('')),
+  projectId: objectIdRule,
+  participants: z.array(objectIdRule).default([]),
+  startTime: z.coerce.date({ message: 'Start time must be a valid date' }),
+  endTime: z.coerce.date({ message: 'End time must be a valid date' }),
+}).refine((data) => data.endTime > data.startTime, {
+  message: 'Meeting end time must be later than the start time',
+  path: ['endTime'],
+});
+
+const updateMeetingSchema = z.object({
+  title: z.string().min(3).max(100).optional(),
+  description: z.string().optional(),
+  meetingLink: z.string().url().optional().or(z.literal('')),
+  projectId: objectIdRule.optional(),
+  participants: z.array(objectIdRule).optional(),
+  startTime: z.coerce.date().optional(),
+  endTime: z.coerce.date().optional(),
+}).refine((data) => {
+  if (data.startTime && data.endTime) {
+    return data.endTime > data.startTime;
+  }
+  return true;
+}, {
+  message: 'Meeting end time must be later than the start time',
+  path: ['endTime'],
+});
+
+
+
+
+export const createMeeting = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { 
-      meetingTitle, 
-      startTime, 
-      endTime,  
-      attendees, 
-      project, 
-      content // Raw transcript from the frontend
-    } = req.body;
+    
+    const validatedBody = createMeetingSchema.parse(req.body);
 
-    let aiSummary = '';
-    if (content){
-      console.log("Processing Transcript...");
-      aiSummary = await generateMeetingSummary(content);
-    }
+    const userId = (req as any).user.id;
+    const meetingData = {
+      ...validatedBody,
+      createdBy: userId,
+    };
 
-    const newMeeting = await Meeting.create({
-      meetingTitle,
-      startTime,
-      endTime,
-      attendees,
-      project,
-      notes: content ? [{ content, summary: aiSummary }] : [] 
+    const meeting = await meetingService.createMeeting(meetingData);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Meeting scheduled successfully',
+      data: meeting,
     });
-
-    res.status(201).json({ success: true, data: newMeeting });
-  } catch (error: any) {
-    console.error("Error creating meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to create meeting", error: error.message });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessage = error.issues.map((err) => err.message).join(', ');
+      return res.status(400).json({
+        success: false,
+        message: errorMessage,
+        errors: error.issues,
+      });
+    }
+    next(error);
   }
 };
 
-// 2. GET ALL MEETINGS FOR A PROJECT
-export const getProjectMeetings = async (req: Request, res: Response) => {
+
+export const getProjectMeetings = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { projectId } = req.params;
-    
-    
-    const meetings = await Meeting.find({ project: projectId })
-      .populate('attendees', 'userName email') 
-      .sort({ startTime: -1 }); 
 
-    res.status(200).json({ success: true, count: meetings.length, data: meetings });
-  } catch (error: any) {
-    console.error("Error fetching project meetings:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch meetings" });
+    const meetings = await meetingService.getMeetingsByProject(projectId as string);
+
+    return res.status(200).json({
+      success: true,
+      data: meetings,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// 3. GET A SINGLE MEETING
-export const getMeetingById = async (req: Request, res: Response) => {
+
+export const getMeetingById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    
-    const meeting = await Meeting.findById(id).populate('attendees', 'userName email');
+
+    const meeting = await meetingService.getMeetingById(id as string);
 
     if (!meeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
     }
 
-    res.status(200).json({ success: true, data: meeting });
-  } catch (error: any) {
-    console.error("Error fetching meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch meeting" });
+    return res.status(200).json({
+      success: true,
+      data: meeting,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// 4. UPDATE A MEETING
-export const updateMeeting = async (req: Request, res: Response) => {
+
+export const updateMeeting = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
 
-    const updatedMeeting = await Meeting.findByIdAndUpdate(
-      id,
-      { $set: req.body },
-      { new: true, runValidators: true } 
-    );
+   
+    const validatedBody = updateMeetingSchema.parse(req.body);
+
+    const updatedMeeting = await meetingService.updateMeeting(id as string, validatedBody);
 
     if (!updatedMeeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
     }
 
-    res.status(200).json({ success: true, data: updatedMeeting });
-  } catch (error: any) {
-    console.error("Error updating meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to update meeting" });
+    return res.status(200).json({
+      success: true,
+      message: 'Meeting updated successfully',
+      data: updatedMeeting,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessage = error.issues.map((err) => err.message).join(', ');
+      return res.status(400).json({
+        success: false,
+        message: errorMessage,
+        errors: error.issues,
+      });
+    }
+    next(error);
   }
 };
 
-// 5. DELETE A MEETING
-export const deleteMeeting = async (req: Request, res: Response) => {
+
+export const deleteMeeting = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    
-    const deletedMeeting = await Meeting.findByIdAndDelete(id);
 
-    if (!deletedMeeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+    const deleted = await meetingService.deleteMeeting(id as string);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
     }
 
-    res.status(200).json({ success: true, message: "Meeting successfully deleted" });
-  } catch (error: any) {
-    console.error("Error deleting meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to delete meeting" });
+    return res.status(200).json({
+      success: true,
+      message: 'Meeting deleted successfully',
+    });
+  } catch (error) {
+    next(error);
   }
-};  
+};
