@@ -7,6 +7,7 @@ import {
 } from "../controllers/user.controller"
 
 import { authenticateUser } from "../middleware/auth.middleware";
+import { validate } from "../middleware/validation.middleware";
 
 const router = express.Router();
 
@@ -30,10 +31,10 @@ router.put(
   updateUserProfile
 );
 
-// Change Password
 router.put(
   "/change-password",
   authenticateUser(),
+  validate(validatePasswordChange),
   changeUserPassword
 );
 
