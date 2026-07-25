@@ -10,37 +10,70 @@ import {
 } from "../controllers/auth.controller";
 
 import { authenticateUser } from "../middleware/auth.middleware";
+import { validate } from "../middleware/validation.middleware";
 
 const router = express.Router();
 
-/**
- * Public Routes
- */
 
-// Register User
-router.post("/register", register);
+const isValidEmail = (email: any): boolean => {
+  if (typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
 
-// Login User
-router.post("/login", login);
+const validateRegister = (body: any): string[] => {
+  const errors: string[] = [];
+  if (!body.name || typeof body.name !== 'string' || body.name.trim().length < 2) {
+    errors.push("Name is required and must be at least 2 characters long");
+  }
+  if (!isValidEmail(body.email)) {
+    errors.push("A valid email is required");
+  }
+  if (!body.password || typeof body.password !== 'string' || body.password.length < 6) {
+    errors.push("Password is required and must be at least 6 characters long");
+  }
+  return errors;
+};
 
-/**
- * Protected Routes
- */
+const validateLogin = (body: any): string[] => {
+  const errors: string[] = [];
+  if (!isValidEmail(body.email)) {
+    errors.push("A valid email is required");
+  }
+  if (!body.password || typeof body.password !== 'string') {
+    errors.push("Password is required");
+  }
+  return errors;
+};
 
-// Get Logged-in User Profile
+const validatePasswordChange = (body: any): string[] => {
+  const errors: string[] = [];
+  if (!body.oldPassword || typeof body.oldPassword !== 'string') {
+    errors.push("Current password is required");
+  }
+  if (!body.newPassword || typeof body.newPassword !== 'string' || body.newPassword.length < 6) {
+    errors.push("New password is required and must be at least 6 characters long");
+  }
+  return errors;
+};
+
+
+router.post("/register", validate(validateRegister), register);
+
+
+router.post("/login", validate(validateLogin), login);
+
+
 router.get("/profile", authenticateUser(), getUserProfile);
 
-// Update Profile
 router.put("/profile", authenticateUser(), updateUserProfile);
 
-// Change Password
 router.put(
   "/change-password",
   authenticateUser(),
+  validate(validatePasswordChange),
   changeUserPassword
 );
 
-// Logout
 router.post("/logout", authenticateUser(), logout);
 
 export default router;
