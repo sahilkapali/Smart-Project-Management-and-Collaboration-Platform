@@ -1,49 +1,48 @@
-import express, { Request, Response } from "express";
-import "dotenv/config";
+import express, { Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import projectRoutes from './routes/project.routes';
-import taskRoutes from './routes/task.routes';
 
+// Initialize environment variables
+dotenv.config();
+
+// Database
 import { connectDatabase } from "./config/db";
 
+// Route Imports
 import authRouter from "./routes/auth.routes";
+import projectRoutes from './routes/project.routes';
+import taskRoutes from './routes/task.routes';
+import meetingRouter from './routes/meeting.routes';
+import aiRoutes from './routes/ai.routes';
+import notificationRoutes from './routes/notification.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
+// Middleware Imports
 import { errorHandler } from "./middleware/errorHandler.middleware";
 
 const PORT = process.env.PORT || 8080;
-const DB_URI = process.env.DB_URI ?? "";
+const DB_URI = process.env.DB_URI ?? process.env.MONGO_URI ?? "";
 
-dotenv.config();
 const app = express();
-app.use(express.json());
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
+
 /**
  * Connect Database
  */
 connectDatabase(DB_URI);
 
 /**
- * Middlewares
+ * Global Middlewares
  */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
-
 app.use(
   cors({
     origin: "http://localhost:5173",
     credentials: true,
   })
 );
-
-mongoose.connect(process.env.MONGO_URI as string)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log(err));
 
 /**
  * Home Route
@@ -56,9 +55,15 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 /**
- * Authentication Routes
+ * API Routes
  */
 app.use("/api/auth", authRouter);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/meetings', meetingRouter);
+app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboards', dashboardRoutes);
 
 /**
  * Error Handler (Always Last)

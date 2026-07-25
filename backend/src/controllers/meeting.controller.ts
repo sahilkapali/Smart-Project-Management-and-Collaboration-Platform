@@ -1,115 +1,234 @@
-import { Request, Response } from 'express';
-import Meeting from '../models/meeting.models'; 
-import { generateMeetingSummary } from '../services/gemini.service';
+import { Request, Response, NextFunction } from 'express';
+import * as meetingService from '../services/meeting.service';
 
-// 1. CREATE A MEETING
-export const createMeeting = async (req: Request, res: Response) => {
+
+const isValidObjectId = (id: any): boolean => {
+  if (typeof id !== 'string') return false;
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
+const isValidUrl = (urlString: any): boolean => {
+  if (typeof urlString !== 'string') return false;
   try {
-    const { 
-      meetingTitle, 
-      startTime, 
-      endTime,  
-      attendees, 
-      project, 
-      content // Raw transcript from the frontend
-    } = req.body;
+    return Boolean(new URL(urlString));
+  } catch (e) {
+    return false;
+  }
+};
 
-    let aiSummary = '';
-    if (content){
-      console.log("Processing Transcript...");
-      aiSummary = await generateMeetingSummary(content);
+
+
+/**
+ * Create a new meeting
+ * Route: POST /api/meetings
+ */
+export const createMeeting = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { title, description, meetingLink, projectId, participants, startTime, endTime } = req.body;
+    const errors: string[] = [];
+
+   
+    if (!title || typeof title !== 'string' || title.length < 3 || title.length > 100) {
+      errors.push('Meeting title must be a string between 3 and 100 characters');
     }
 
-    const newMeeting = await Meeting.create({
-      meetingTitle,
-      startTime,
-      endTime,
-      attendees,
-      project,
-      notes: content ? [{ content, summary: aiSummary }] : [] 
+  
+    if (!projectId || !isValidObjectId(projectId)) {
+      errors.push('Invalid or missing projectId');
+    }
+
+    
+    if (meetingLink && typeof meetingLink === 'string' && meetingLink.trim() !== '') {
+      if (!isValidUrl(meetingLink)) {
+        errors.push('Invalid meeting link URL');
+      }
+    }
+
+
+    let parsedParticipants = participants || [];
+    if (!Array.isArray(parsedParticipants)) {
+      errors.push('Participants must be an array');
+    } else {
+      const allValid = parsedParticipants.every(id => isValidObjectId(id));
+      if (!allValid) errors.push('One or more participant IDs are invalid MongoDB IDs');
+    }
+
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (!startTime || isNaN(start.getTime())) {
+      errors.push('Start time must be a valid date');
+    }
+    if (!endTime || isNaN(end.getTime())) {
+      errors.push('End time must be a valid date');
+    }
+    
+
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start >= end) {
+      errors.push('Meeting end time must be later than the start time');
+    }
+
+   
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+    }
+
+    
+    const userId = (req as any).user.id;
+    const meetingData = {
+      title,
+      description,
+      meetingLink,
+      projectId,
+      participants: parsedParticipants,
+      startTime: start,
+      endTime: end,
+      createdBy: userId,
+    };
+
+    const meeting = await meetingService.createMeeting(meetingData);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Meeting scheduled successfully',
+      data: meeting,
     });
-
-    res.status(201).json({ success: true, data: newMeeting });
-  } catch (error: any) {
-    console.error("Error creating meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to create meeting", error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-// 2. GET ALL MEETINGS FOR A PROJECT
-export const getProjectMeetings = async (req: Request, res: Response) => {
-  try {
-    const { projectId } = req.params;
-    
-    
-    const meetings = await Meeting.find({ project: projectId })
-      .populate('attendees', 'userName email') 
-      .sort({ startTime: -1 }); 
-
-    res.status(200).json({ success: true, count: meetings.length, data: meetings });
-  } catch (error: any) {
-    console.error("Error fetching project meetings:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch meetings" });
-  }
-};
-
-// 3. GET A SINGLE MEETING
-export const getMeetingById = async (req: Request, res: Response) => {
+/**
+ * Update an existing meeting
+ * Route: PUT /api/meetings/:id
+ */
+export const updateMeeting = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    
-    const meeting = await Meeting.findById(id).populate('attendees', 'userName email');
+    const { title, description, meetingLink, projectId, participants, startTime, endTime } = req.body;
+    const errors: string[] = [];
 
-    if (!meeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+    
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.length < 3 || title.length > 100) {
+        errors.push('Meeting title must be a string between 3 and 100 characters');
+      }
     }
 
-    res.status(200).json({ success: true, data: meeting });
-  } catch (error: any) {
-    console.error("Error fetching meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch meeting" });
-  }
-};
+    if (projectId !== undefined && !isValidObjectId(projectId)) {
+      errors.push('Invalid projectId');
+    }
 
-// 4. UPDATE A MEETING
-export const updateMeeting = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+    if (meetingLink !== undefined && typeof meetingLink === 'string' && meetingLink.trim() !== '') {
+      if (!isValidUrl(meetingLink)) {
+        errors.push('Invalid meeting link URL');
+      }
+    }
 
-    const updatedMeeting = await Meeting.findByIdAndUpdate(
-      id,
-      { $set: req.body },
-      { new: true, runValidators: true } 
-    );
+    if (participants !== undefined) {
+      if (!Array.isArray(participants)) {
+        errors.push('Participants must be an array');
+      } else {
+        const allValid = participants.every(pid => isValidObjectId(pid));
+        if (!allValid) errors.push('One or more participant IDs are invalid MongoDB IDs');
+      }
+    }
+
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    if (startTime !== undefined) {
+      start = new Date(startTime);
+      if (isNaN(start.getTime())) errors.push('Start time must be a valid date');
+    }
+
+    if (endTime !== undefined) {
+      end = new Date(endTime);
+      if (isNaN(end.getTime())) errors.push('End time must be a valid date');
+    }
+
+    if (start && end && start >= end) {
+      errors.push('Meeting end time must be later than the start time');
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+    }
+
+    
+    const updatedMeeting = await meetingService.updateMeeting(id as string, req.body);
 
     if (!updatedMeeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
     }
 
-    res.status(200).json({ success: true, data: updatedMeeting });
-  } catch (error: any) {
-    console.error("Error updating meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to update meeting" });
+    return res.status(200).json({
+      success: true,
+      message: 'Meeting updated successfully',
+      data: updatedMeeting,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// 5. DELETE A MEETING
-export const deleteMeeting = async (req: Request, res: Response) => {
+/**
+ * Get all meetings for a specific project
+ * Route: GET /api/meetings/project/:projectId
+ */
+export const getProjectMeetings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { projectId } = req.params;
+    const meetings = await meetingService.getMeetingsByProject(projectId as string);
+    return res.status(200).json({ success: true, data: meetings });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get a single meeting by ID
+ * Route: GET /api/meetings/:id
+ */
+export const getMeetingById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    
-    const deletedMeeting = await Meeting.findByIdAndDelete(id);
+    const meeting = await meetingService.getMeetingById(id as string);
 
-    if (!deletedMeeting) {
-      res.status(404).json({ success: false, message: "Meeting not found" });
-      return;
+    if (!meeting) {
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
     }
 
-    res.status(200).json({ success: true, message: "Meeting successfully deleted" });
-  } catch (error: any) {
-    console.error("Error deleting meeting:", error);
-    res.status(500).json({ success: false, message: "Failed to delete meeting" });
+    return res.status(200).json({ success: true, data: meeting });
+  } catch (error) {
+    next(error);
   }
-};  
+};
+
+/**
+ * Delete a meeting
+ * Route: DELETE /api/meetings/:id
+ */
+export const deleteMeeting = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const deleted = await meetingService.deleteMeeting(id as string);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Meeting not found' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Meeting deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
