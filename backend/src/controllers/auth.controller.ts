@@ -1,12 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-
-import {
-  registerUser,
-  loginUser,
-  getProfile,
-  updateProfile,
-  changePassword,
-} from "../services/auth.service";
+import { registerUser, loginUser } from "../services/auth.service";
 
 /**
  * Register User
@@ -17,7 +10,22 @@ export const register = async (
   next: NextFunction
 ) => {
   try {
-    const result = await registerUser(req.body);
+    const { first_Name, last_Name, email, password, phone } = req.body;
+
+    if (!first_Name || !last_Name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "first_Name, last_Name, email and password are required",
+      });
+    }
+
+    const result = await registerUser({
+      first_Name,
+      last_Name,
+      email,
+      password,
+      phone,
+    });
 
     return res.status(201).json(result);
   } catch (error) {
@@ -34,70 +42,19 @@ export const login = async (
   next: NextFunction
 ) => {
   try {
-    const result = await loginUser(req.body);
+    const { email, password } = req.body;
 
-    return res.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "email and password are required",
+      });
+    }
 
-/**
- * Get Logged-in User Profile
- */
-export const getUserProfile = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = (req as any).user.id;
-
-    const result = await getProfile(userId);
-
-    return res.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Update User Profile
- */
-export const updateUserProfile = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = (req as any).user.id;
-
-    const result = await updateProfile(userId, req.body);
-
-    return res.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Change Password
- */
-export const changeUserPassword = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = (req as any).user.id;
-
-    const { currentPassword, newPassword } = req.body;
-
-    const result = await changePassword(
-      userId,
-      currentPassword,
-      newPassword
-    );
+    const result = await loginUser({
+      email,
+      password,
+    });
 
     return res.status(200).json(result);
   } catch (error) {
@@ -107,6 +64,7 @@ export const changeUserPassword = async (
 
 /**
  * Logout User
+ * (If you are using Bearer token, logout is handled on the client side)
  */
 export const logout = async (
   req: Request,

@@ -1,6 +1,6 @@
 export interface RegisterUserInput {
-  first_name: string;
-  last_name: string;
+  first_Name: string;
+  last_Name: string;
   email: string;
   password: string;
   phone?: string;

@@ -1,26 +1,17 @@
 import { Document, Types } from "mongoose";
 import { ROLE } from "./enum.types";
 
-/**
- * JWT Payload
- */
 export interface IJwtPayload {
   id: string;
   email: string;
   role: ROLE;
 }
 
-/**
- * Meeting Note Interface
- */
 export interface IMeetingNote {
   content: string;
   aiGeneratedSummary?: string;
 }
 
-/**
- * Meeting Interface
- */
 export interface IMeeting extends Document {
   meetingTitle: string;
   startTime: Date;
@@ -30,3 +21,13 @@ export interface IMeeting extends Document {
   notes?: IMeetingNote[];
   createdAt: Date;
 }
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: IJwtPayload;
+    }
+  }
+}
+
+export {};
