@@ -1,37 +1,34 @@
 import express from "express";
 
 import {
-  register,
-  login,
   getUserProfile,
   updateUserProfile,
   changeUserPassword,
-  logout,
-} from "../controllers/auth.controller";
+} from "../controllers/user.controller"
 
 import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = express.Router();
 
 /**
- * Public Routes
- */
-
-// Register User
-router.post("/register", register);
-
-// Login User
-router.post("/login", login);
-
-/**
- * Protected Routes
+ * ===============================
+ * Protected User Routes
+ * ===============================
  */
 
 // Get Logged-in User Profile
-router.get("/profile", authenticateUser(), getUserProfile);
+router.get(
+  "/profile",
+  authenticateUser(),
+  getUserProfile
+);
 
 // Update Profile
-router.put("/profile", authenticateUser(), updateUserProfile);
+router.put(
+  "/profile",
+  authenticateUser(),
+  updateUserProfile
+);
 
 // Change Password
 router.put(
@@ -39,8 +36,5 @@ router.put(
   authenticateUser(),
   changeUserPassword
 );
-
-// Logout
-router.post("/logout", authenticateUser(), logout);
 
 export default router;
