@@ -1,7 +1,13 @@
 import { Response } from "express";
-import Repository from "../models/repository.models";
-import RepositoryVersion from "../models/repositoryVersion.models";
 import { AuthRequest } from "../types/custom";
+
+import {
+  createRepositoryService,
+  getRepositoriesService,
+  getRepositoryByIdService,
+  updateRepositoryService,
+  deleteRepositoryService,
+} from "../services/repository.service";
 
 // Create Repository
 export const createRepository = async (
@@ -11,7 +17,15 @@ export const createRepository = async (
   try {
     const { project, name, description, githubUrl } = req.body;
 
-    const repository = new Repository({
+    if (!project || !name) {
+      res.status(400).json({
+        success: false,
+        message: "Project and Repository name are required.",
+      });
+      return;
+    }
+
+    const repository = await createRepositoryService({
       project,
       name,
       description,
@@ -19,11 +33,16 @@ export const createRepository = async (
       createdBy: req.user?.id,
     });
 
-    const savedRepository = await repository.save();
-
-    res.status(201).json(savedRepository);
+    res.status(201).json({
+      success: true,
+      message: "Repository created successfully.",
+      data: repository,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -33,13 +52,18 @@ export const getRepositories = async (
   res: Response
 ): Promise<void> => {
   try {
-    const repositories = await Repository.find()
-      .populate("project")
-      .populate("createdBy");
+    const repositories = await getRepositoriesService();
 
-    res.status(200).json(repositories);
+    res.status(200).json({
+      success: true,
+      count: repositories.length,
+      data: repositories,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -49,20 +73,25 @@ export const getRepositoryById = async (
   res: Response
 ): Promise<void> => {
   try {
-    const repository = await Repository.findById(req.params.id)
-      .populate("project")
-      .populate("createdBy");
+    const repository = await getRepositoryByIdService(req.params.id);
 
     if (!repository) {
       res.status(404).json({
-        message: "Repository not found",
+        success: false,
+        message: "Repository not found.",
       });
       return;
     }
 
-    res.status(200).json(repository);
+    res.status(200).json({
+      success: true,
+      data: repository,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -72,24 +101,40 @@ export const updateRepository = async (
   res: Response
 ): Promise<void> => {
   try {
-    const repository = await Repository.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-      }
-    );
+    const { name, description, githubUrl } = req.body;
 
-    if (!repository) {
-      res.status(404).json({
-        message: "Repository not found",
+    if (!name) {
+      res.status(400).json({
+        success: false,
+        message: "Repository name is required.",
       });
       return;
     }
 
-    res.status(200).json(repository);
+    const repository = await updateRepositoryService(req.params.id, {
+      name,
+      description,
+      githubUrl,
+    });
+
+    if (!repository) {
+      res.status(404).json({
+        success: false,
+        message: "Repository not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Repository updated successfully.",
+      data: repository,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -99,65 +144,24 @@ export const deleteRepository = async (
   res: Response
 ): Promise<void> => {
   try {
-    const repository = await Repository.findByIdAndDelete(req.params.id);
+    const repository = await deleteRepositoryService(req.params.id);
 
     if (!repository) {
       res.status(404).json({
-        message: "Repository not found",
+        success: false,
+        message: "Repository not found.",
       });
       return;
     }
 
     res.status(200).json({
-      message: "Repository deleted successfully",
+      success: true,
+      message: "Repository deleted successfully.",
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Create Repository Version
-export const createVersion = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const repository = req.params.id;
-    const { version, message } = req.body;
-
-    const uploadedFile =
-      req.file?.filename || req.file?.originalname || "";
-
-    const repositoryVersion = new RepositoryVersion({
-      repository,
-      version,
-      message,
-      file: uploadedFile,
-      uploadedBy: req.user?.id,
+    res.status(500).json({
+      success: false,
+      message: err.message,
     });
-
-    const savedVersion = await repositoryVersion.save();
-
-    res.status(201).json(savedVersion);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Get Repository Version History
-export const getVersions = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const versions = await RepositoryVersion.find({
-      repository: req.params.id,
-    })
-      .populate("uploadedBy")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(versions);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
   }
 };

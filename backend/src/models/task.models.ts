@@ -1,27 +1,54 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITask extends Document {
-  title: string;
-  description: string;
   project: mongoose.Types.ObjectId;
-  status: 'To Do' | 'In Progress' | 'Review' | 'Done';
-  comments: { user: mongoose.Types.ObjectId; text: string; createdAt: Date }[];
+  title: string;
+  description?: string;
+  status: "Todo" | "In Progress" | "Completed";
+  assignedTo?: mongoose.Types.ObjectId;
+  dueDate?: Date;
+  createdBy: mongoose.Types.ObjectId;
 }
 
-const TaskSchema: Schema = new Schema({
-  title: { type: String, required: true },
-  description: { type: String },
-  project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-  status: { 
-    type: String, 
-    enum: ['To Do', 'In Progress', 'Review', 'Done'], 
-    default: 'To Do' 
-  },
-  comments: [{
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    text: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-  }]
-}, { timestamps: true });
+const TaskSchema: Schema = new Schema(
+  {
+    project: {
+      type: Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+    },
 
-export default mongoose.model<ITask>('Task', TaskSchema);
+    title: {
+      type: String,
+      required: true,
+    },
+
+    description: {
+      type: String,
+    },
+
+    status: {
+      type: String,
+      enum: ["Todo", "In Progress", "Completed"],
+      default: "Todo",
+    },
+
+    assignedTo: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    dueDate: {
+      type: Date,
+    },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model<ITask>("Task", TaskSchema);

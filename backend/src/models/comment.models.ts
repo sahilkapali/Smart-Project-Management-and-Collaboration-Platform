@@ -13,14 +13,17 @@ const CommentSchema: Schema = new Schema(
       ref: "Issue",
       required: true,
     },
+
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+
     comment: {
       type: String,
       required: true,
+      trim: true,
     },
   },
   { timestamps: true }

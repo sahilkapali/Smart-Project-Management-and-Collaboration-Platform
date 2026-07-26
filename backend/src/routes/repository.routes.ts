@@ -1,27 +1,30 @@
 import { Router } from "express";
+
 import {
   createRepository,
   getRepositories,
   getRepositoryById,
   updateRepository,
   deleteRepository,
-  createVersion,
-  getVersions,
 } from "../controllers/repository.controller";
 
 import { verifyToken } from "../utils/generateToken.utils";
 
 const router = Router();
 
-// Repository CRUD
+// Create Repository
 router.post("/", verifyToken, createRepository);
-router.get("/", verifyToken, getRepositories);
-router.get("/:id", verifyToken, getRepositoryById);
-router.put("/:id", verifyToken, updateRepository);
-router.delete("/:id", verifyToken, deleteRepository);
 
-// Repository Version History
-router.post("/:id/versions", verifyToken, createVersion);
-router.get("/:id/versions", verifyToken, getVersions);
+// Get All Repositories
+router.get("/", verifyToken, getRepositories);
+
+// Get Repository By ID
+router.get("/:id", verifyToken, getRepositoryById);
+
+// Update Repository
+router.put("/:id", verifyToken, updateRepository);
+
+// Delete Repository
+router.delete("/:id", verifyToken, deleteRepository);
 
 export default router;

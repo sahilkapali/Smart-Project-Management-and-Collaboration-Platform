@@ -5,21 +5,25 @@ import {
   getIssueById,
   updateIssue,
   deleteIssue,
-  updateIssueStatus,
 } from "../controllers/issue.controller";
 
 import { verifyToken } from "../utils/generateToken.utils";
 
 const router = Router();
 
-// Issue CRUD
+// Create Issue
 router.post("/", verifyToken, createIssue);
-router.get("/", verifyToken, getIssues);
-router.get("/:id", verifyToken, getIssueById);
-router.put("/:id", verifyToken, updateIssue);
-router.delete("/:id", verifyToken, deleteIssue);
 
-// Update Issue Status
-router.patch("/:id/status", verifyToken, updateIssueStatus);
+// Get All Issues
+router.get("/", verifyToken, getIssues);
+
+// Get Issue By ID
+router.get("/:id", verifyToken, getIssueById);
+
+// Update Issue
+router.put("/:id", verifyToken, updateIssue);
+
+// Delete Issue
+router.delete("/:id", verifyToken, deleteIssue);
 
 export default router;

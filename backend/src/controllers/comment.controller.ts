@@ -1,42 +1,132 @@
 import { Response } from "express";
-import Comment from "../models/comment.models";
 import { AuthRequest } from "../types/custom";
 
-// Add Comment
-export const addComment = async (
+import {
+  createCommentService,
+  getCommentsService,
+  getCommentsByIssueService,
+  updateCommentService,
+  deleteCommentService,
+} from "../services/comment.service";
+
+// Create Comment
+export const createComment = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const comment = new Comment({
-      issue: req.params.id,
+    const { issue, comment } = req.body;
+
+    // Validation
+    if (!issue || !comment) {
+      res.status(400).json({
+        success: false,
+        message: "Issue and Comment are required.",
+      });
+      return;
+    }
+
+    const newComment = await createCommentService({
+      issue,
+      comment,
       user: req.user?.id,
-      comment: req.body.comment,
     });
 
-    const savedComment = await comment.save();
-
-    res.status(201).json(savedComment);
+    res.status(201).json({
+      success: true,
+      message: "Comment added successfully.",
+      data: newComment,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// Get Comments for an Issue
+// Get All Comments
 export const getComments = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const comments = await Comment.find({
-      issue: req.params.id,
-    })
-      .populate("user")
-      .sort({ createdAt: 1 });
+    const comments = await getCommentsService();
 
-    res.status(200).json(comments);
+    res.status(200).json({
+      success: true,
+      count: comments.length,
+      data: comments,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Get Comments By Issue
+export const getCommentsByIssue = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const comments = await getCommentsByIssueService(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      count: comments.length,
+      data: comments,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Update Comment
+export const updateComment = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { comment } = req.body;
+
+    // Validation
+    if (!comment) {
+      res.status(400).json({
+        success: false,
+        message: "Comment cannot be empty.",
+      });
+      return;
+    }
+
+    const updatedComment = await updateCommentService(
+      req.params.id,
+      { comment }
+    );
+
+    if (!updatedComment) {
+      res.status(404).json({
+        success: false,
+        message: "Comment not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Comment updated successfully.",
+      data: updatedComment,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -46,19 +136,24 @@ export const deleteComment = async (
   res: Response
 ): Promise<void> => {
   try {
-    const comment = await Comment.findByIdAndDelete(req.params.id);
+    const deletedComment = await deleteCommentService(req.params.id);
 
-    if (!comment) {
+    if (!deletedComment) {
       res.status(404).json({
-        message: "Comment not found",
+        success: false,
+        message: "Comment not found.",
       });
       return;
     }
 
     res.status(200).json({
-      message: "Comment deleted successfully",
+      success: true,
+      message: "Comment deleted successfully.",
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

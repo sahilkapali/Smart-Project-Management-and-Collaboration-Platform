@@ -1,47 +1,183 @@
-import { Response } from 'express';
-import Task from '../models/task.models';
-import { AuthRequest } from '../types/custom';
+import { Response } from "express";
+import { AuthRequest } from "../types/custom";
 
-export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const task = new Task(req.body);
-    const savedTask = await task.save();
-    res.status(201).json(savedTask);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
+import {
+  createTaskService,
+  getTasksService,
+  getTaskByIdService,
+  updateTaskService,
+  deleteTaskService,
+} from "../services/task.service";
 
-export const updateKanbanStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+// Create Task
+export const createTask = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
   try {
-    const task = await Task.findByIdAndUpdate(
-      req.params.id, 
-      { status: req.body.status }, 
-      { new: true }
-    );
-    res.status(200).json(task);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
+    const {
+      project,
+      title,
+      description,
+      assignedTo,
+      dueDate,
+    } = req.body;
 
-export const addTaskComment = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const task = await Task.findById(req.params.id);
-    if (!task) {
-      res.status(404).json({ message: 'Task not found' });
+    // Validation
+    if (!project || !title) {
+      res.status(400).json({
+        success: false,
+        message: "Project and Task title are required.",
+      });
       return;
     }
 
-    task.comments.push({ 
-      user: req.user?.id as any, 
-      text: req.body.text, 
-      createdAt: new Date() 
+    const task = await createTaskService({
+      project,
+      title,
+      description,
+      assignedTo,
+      dueDate,
+      createdBy: req.user?.id,
     });
-    
-    await task.save();
-    res.status(201).json(task);
+
+    res.status(201).json({
+      success: true,
+      message: "Task created successfully.",
+      data: task,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Get All Tasks
+export const getTasks = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const tasks = await getTasksService();
+
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Get Task By ID
+export const getTaskById = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const task = await getTaskByIdService(req.params.id);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Update Task
+export const updateTask = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      title,
+      description,
+      status,
+      assignedTo,
+      dueDate,
+    } = req.body;
+
+    if (!title) {
+      res.status(400).json({
+        success: false,
+        message: "Task title is required.",
+      });
+      return;
+    }
+
+    const task = await updateTaskService(req.params.id, {
+      title,
+      description,
+      status,
+      assignedTo,
+      dueDate,
+    });
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Task updated successfully.",
+      data: task,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Delete Task
+export const deleteTask = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const task = await deleteTaskService(req.params.id);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Task deleted successfully.",
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

@@ -1,7 +1,10 @@
 import { Router } from "express";
+
 import {
-  addComment,
+  createComment,
   getComments,
+  getCommentsByIssue,
+  updateComment,
   deleteComment,
 } from "../controllers/comment.controller";
 
@@ -9,13 +12,19 @@ import { verifyToken } from "../utils/generateToken.utils";
 
 const router = Router();
 
-// Add Comment to an Issue
-router.post("/issues/:id/comments", verifyToken, addComment);
+// Create Comment
+router.post("/", verifyToken, createComment);
 
-// Get Comments for an Issue
-router.get("/issues/:id/comments", verifyToken, getComments);
+// Get All Comments
+router.get("/", verifyToken, getComments);
+
+// Get Comments of an Issue
+router.get("/issue/:id", verifyToken, getCommentsByIssue);
+
+// Update Comment
+router.put("/:id", verifyToken, updateComment);
 
 // Delete Comment
-router.delete("/comments/:id", verifyToken, deleteComment);
+router.delete("/:id", verifyToken, deleteComment);
 
 export default router;
