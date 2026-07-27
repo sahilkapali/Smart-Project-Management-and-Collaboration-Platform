@@ -3,7 +3,11 @@ import * as notificationService from '../services/notification.service';
 
 export const getMyNotifications = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const notifications = await notificationService.getUserNotifications(userId);
 
     return res.status(200).json({
@@ -17,7 +21,12 @@ export const getMyNotifications = async (req: Request, res: Response, next: Next
 
 export const readNotification = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const { id } = req.params;
     const updated = await notificationService.markAsRead(id as string, userId);
 
@@ -37,7 +46,12 @@ export const readNotification = async (req: Request, res: Response, next: NextFu
 
 export const readAllNotifications = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     await notificationService.markAllAsRead(userId);
 
     return res.status(200).json({

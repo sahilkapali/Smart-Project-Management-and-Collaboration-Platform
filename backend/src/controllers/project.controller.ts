@@ -1,8 +1,7 @@
-import { Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Project from '../models/project.models';
-import { AuthRequest } from '../types/custom';
 
-export const createProject = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createProject = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { name, description } = req.body;
@@ -16,12 +15,12 @@ export const createProject = async (req: AuthRequest, res: Response): Promise<vo
 
     const savedProject = await newProject.save();
     res.status(201).json(savedProject);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err); 
   }
 };
 
-export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
+export const addMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
@@ -37,7 +36,7 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
     project.members.push(req.body.userId);
     await project.save();
     res.status(200).json({ message: 'Member added', project });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 };
