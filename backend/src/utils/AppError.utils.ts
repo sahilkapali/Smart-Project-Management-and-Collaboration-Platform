@@ -1,5 +1,3 @@
-import { NextFunction, Request, Response } from "express";
-import { ENV_CONFIG } from "../config/env";
 import { ERROR_CODES } from "../types/error.types";
 
 class AppError extends Error {
@@ -24,41 +22,5 @@ class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
-
-export const errorHandler = (
-  error: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const message = error?.message || "Internal Server Error";
-
-  const statusCode =
-    error?.statusCode || 500;
-
-  const code =
-    error?.code ||
-    ERROR_CODES.INTERNAL_SERVER_ERROR;
-
-  const status =
-    error?.status || "error";
-
-  console.error("========== ERROR ==========");
-  console.error(error);
-
-  res.status(statusCode).json({
-    success: false,
-    status,
-    code,
-    message,
-    data: null,
-
-    // Uncomment during development if needed
-    stack:
-      ENV_CONFIG.node_env === "development"
-        ? error.stack
-        : undefined,
-  });
-};
 
 export default AppError;

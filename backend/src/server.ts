@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import "dotenv/config";
+import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import mongoose from 'mongoose';
@@ -8,24 +8,36 @@ import projectRoutes from './routes/project.routes';
 import teamRoutes from './routes/team.routes';
 import taskRoutes from './routes/task.routes';
 
+// Initialize environment variables
+dotenv.config();
+
+// Database
 import { connectDatabase } from "./config/db";
 
+// Route Imports
 import authRouter from "./routes/auth.routes";
+import userRouter from "./routes/user.routes"; // <-- Added
 
+import projectRoutes from "./routes/project.routes";
+import taskRoutes from "./routes/task.routes";
+import meetingRouter from "./routes/meeting.routes";
+import aiRoutes from "./routes/ai.routes";
+import notificationRoutes from "./routes/notification.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
+
+// Middleware Imports
 import { errorHandler } from "./middleware/errorHandler.middleware";
 
 const PORT = process.env.PORT || 8080;
-const DB_URI = process.env.DB_URI ?? "";
+const DB_URI = process.env.DB_URI ?? process.env.MONGO_URI ?? "";
 
-dotenv.config();
 const app = express();
 
 /**
- * Middlewares
+ * Global Middlewares
  */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 
 app.use(
@@ -57,10 +69,33 @@ app.get("/", (req: Request, res: Response) => {
 /**
  * API Routes
  */
+
+// Authentication Routes
 app.use("/api/auth", authRouter);
 app.use('/api/projects', projectRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/tasks', taskRoutes);
+
+// User Routes <-- Added
+app.use("/api/users", userRouter);
+
+// Project Routes
+app.use("/api/projects", projectRoutes);
+
+// Task Routes
+app.use("/api/tasks", taskRoutes);
+
+// Meeting Routes
+app.use("/api/meetings", meetingRouter);
+
+// AI Routes
+app.use("/api/ai", aiRoutes);
+
+// Notification Routes
+app.use("/api/notifications", notificationRoutes);
+
+// Dashboard Routes
+app.use("/api/dashboards", dashboardRoutes);
 
 /**
  * Error Handler (Always Last)
