@@ -2,6 +2,11 @@ import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import projectRoutes from './routes/project.routes';
+import teamRoutes from './routes/team.routes';
+import taskRoutes from './routes/task.routes';
 
 // Initialize environment variables
 dotenv.config();
@@ -29,11 +34,6 @@ const DB_URI = process.env.DB_URI ?? process.env.MONGO_URI ?? "";
 const app = express();
 
 /**
- * Connect Database
- */
-connectDatabase(DB_URI);
-
-/**
  * Global Middlewares
  */
 app.use(express.json());
@@ -46,6 +46,15 @@ app.use(
     credentials: true,
   })
 );
+
+/**
+ * Connect Database
+ */
+connectDatabase(DB_URI);
+
+mongoose.connect(process.env.MONGO_URI as string)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.log(err));
 
 /**
  * Home Route
@@ -63,6 +72,9 @@ app.get("/", (req: Request, res: Response) => {
 
 // Authentication Routes
 app.use("/api/auth", authRouter);
+app.use('/api/projects', projectRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // User Routes <-- Added
 app.use("/api/users", userRouter);
