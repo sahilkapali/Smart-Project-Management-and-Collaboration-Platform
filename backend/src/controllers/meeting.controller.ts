@@ -79,7 +79,7 @@ export const createMeeting = async (req: Request, res: Response, next: NextFunct
     }
 
     
-    const userId = (req as any).user.id;
+    const userId = req.user?.id  
     const meetingData = {
       title,
       description,

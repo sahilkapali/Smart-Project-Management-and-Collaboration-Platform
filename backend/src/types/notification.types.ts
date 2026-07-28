@@ -1,5 +1,4 @@
-import { Schema, model, Document, Types } from 'mongoose';
-
+import { Document, Types } from 'mongoose';
 
 export enum NotificationType {
   TASK_ASSIGNED = 'TASK_ASSIGNED',

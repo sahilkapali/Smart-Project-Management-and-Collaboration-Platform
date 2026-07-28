@@ -1,18 +1,17 @@
-import { Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Task from '../models/task.models';
-import { AuthRequest } from '../types/custom';
 
-export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const task = new Task(req.body);
     const savedTask = await task.save();
     res.status(201).json(savedTask);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const updateKanbanStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateKanbanStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const task = await Task.findByIdAndUpdate(
       req.params.id, 
@@ -20,12 +19,12 @@ export const updateKanbanStatus = async (req: AuthRequest, res: Response): Promi
       { new: true }
     );
     res.status(200).json(task);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const addTaskComment = async (req: AuthRequest, res: Response): Promise<void> => {
+export const addTaskComment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) {
@@ -41,7 +40,7 @@ export const addTaskComment = async (req: AuthRequest, res: Response): Promise<v
     
     await task.save();
     res.status(201).json(task);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 };
