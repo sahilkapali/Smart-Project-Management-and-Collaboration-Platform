@@ -17,7 +17,6 @@ export const authenticateUser = (roles?: ROLE[]) => {
     next: NextFunction
   ) => {
     try {
-      // Get Authorization Header
       const authHeader = req.headers.authorization;
 
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -28,13 +27,9 @@ export const authenticateUser = (roles?: ROLE[]) => {
         );
       }
 
-      // Extract Token
       const token = authHeader.split(" ")[1];
-
-      // Verify Token
       const decoded = verifyToken(token);
 
-      // Find User
       const user = await User.findById(decoded.id);
 
       if (!user) {
@@ -45,11 +40,10 @@ export const authenticateUser = (roles?: ROLE[]) => {
         );
       }
 
-      // Role Authorization
       if (
         roles &&
         roles.length > 0 &&
-        !roles.includes(user.role)
+        !roles.includes(user.role as ROLE)
       ) {
         throw new AppError(
           "Access forbidden.",
@@ -58,11 +52,11 @@ export const authenticateUser = (roles?: ROLE[]) => {
         );
       }
 
-      // Attach User to Request
-      (req as any).user = {
-        id: user._id,
+     
+      req.user = {
+        id: user._id.toString(),
         email: user.email,
-        role: user.role,
+        role: user.role as ROLE,
       };
 
       next();

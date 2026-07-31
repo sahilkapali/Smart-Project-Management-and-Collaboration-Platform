@@ -6,25 +6,25 @@ import {
   getTaskById,
   updateTask,
   deleteTask,
+  updateKanbanStatus,
+  addTaskComment,
 } from "../controllers/task.controller";
 
 import { verifyToken } from "../utils/generateToken.utils";
 
 const router = Router();
 
-// Create Task
+// CRUD Routes
 router.post("/", verifyToken, createTask);
-
-// Get All Tasks
 router.get("/", verifyToken, getTasks);
-
-// Get Task By ID
 router.get("/:id", verifyToken, getTaskById);
-
-// Update Task
 router.put("/:id", verifyToken, updateTask);
-
-// Delete Task
 router.delete("/:id", verifyToken, deleteTask);
+
+// Kanban
+router.patch("/:id/status", verifyToken, updateKanbanStatus);
+
+// Comments
+router.post("/:id/comments", verifyToken, addTaskComment);
 
 export default router;

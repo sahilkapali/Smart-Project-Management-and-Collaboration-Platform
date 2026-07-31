@@ -1,26 +1,38 @@
 import express, { Request, Response } from "express";
-import "dotenv/config";
+import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 
+// Initialize environment variables
+dotenv.config();
+
+// Database
 import { connectDatabase } from "./config/db";
 
+// Route Imports
 import authRouter from "./routes/auth.routes";
+import userRouter from "./routes/user.routes";
+
 import projectRoutes from "./routes/project.routes";
+import teamRoutes from "./routes/team.routes";
 import taskRoutes from "./routes/task.routes";
+
 import repositoryRoutes from "./routes/repository.routes";
 import issueRoutes from "./routes/issue.routes";
 import commentRoutes from "./routes/comment.routes";
 
-import { errorHandler } from "./middleware/errorHandler.middleware";
+import meetingRouter from "./routes/meeting.routes";
+import aiRoutes from "./routes/ai.routes";
+import notificationRoutes from "./routes/notification.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 
-dotenv.config();
+// Middleware
+import { errorHandler } from "./middleware/errorHandler.middleware";
 
 const app = express();
 
 const PORT = process.env.PORT || 8080;
-const DB_URI = process.env.DB_URI ?? "";
+const DB_URI = process.env.DB_URI ?? process.env.MONGO_URI ?? "";
 
 /**
  * Connect Database
@@ -28,7 +40,7 @@ const DB_URI = process.env.DB_URI ?? "";
 connectDatabase(DB_URI);
 
 /**
- * Middlewares
+ * Global Middlewares
  */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,18 +64,60 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 /**
- * Authentication Routes
+ * Authentication
  */
 app.use("/api/auth", authRouter);
 
 /**
- * Project Routes
+ * User
+ */
+app.use("/api/users", userRouter);
+
+/**
+ * Project & Team
  */
 app.use("/api/projects", projectRoutes);
+app.use("/api/teams", teamRoutes);
+
+/**
+ * Task
+ */
 app.use("/api/tasks", taskRoutes);
+
+/**
+ * Repository Module (Naomi)
+ */
 app.use("/api/repositories", repositoryRoutes);
+
+/**
+ * Issue Module (Naomi)
+ */
 app.use("/api/issues", issueRoutes);
+
+/**
+ * Comment Module (Naomi)
+ */
 app.use("/api", commentRoutes);
+
+/**
+ * Meeting
+ */
+app.use("/api/meetings", meetingRouter);
+
+/**
+ * AI
+ */
+app.use("/api/ai", aiRoutes);
+
+/**
+ * Notifications
+ */
+app.use("/api/notifications", notificationRoutes);
+
+/**
+ * Dashboard
+ */
+app.use("/api/dashboards", dashboardRoutes);
 
 /**
  * Error Handler (Always Last)

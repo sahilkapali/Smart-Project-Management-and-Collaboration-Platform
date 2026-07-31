@@ -1,11 +1,6 @@
 import { Request } from "express";
+import { IJwtPayload } from "./global.types";
 
 export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-  };
-
-  params: {
-    id: string;
-  };
+  user?: IJwtPayload;
 }

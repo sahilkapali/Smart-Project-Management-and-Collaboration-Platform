@@ -1,5 +1,6 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { AuthRequest } from "../types/custom";
+import Task from "../models/task.models";
 
 import {
   createTaskService,
@@ -9,7 +10,7 @@ import {
   deleteTaskService,
 } from "../services/task.service";
 
-// Create Task
+// ================= CREATE TASK =================
 export const createTask = async (
   req: AuthRequest,
   res: Response
@@ -23,7 +24,6 @@ export const createTask = async (
       dueDate,
     } = req.body;
 
-    // Validation
     if (!project || !title) {
       res.status(400).json({
         success: false,
@@ -54,7 +54,7 @@ export const createTask = async (
   }
 };
 
-// Get All Tasks
+// ================= GET ALL TASKS =================
 export const getTasks = async (
   req: AuthRequest,
   res: Response
@@ -75,13 +75,15 @@ export const getTasks = async (
   }
 };
 
-// Get Task By ID
+// ================= GET TASK BY ID =================
 export const getTaskById = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const task = await getTaskByIdService(req.params.id);
+    const id = req.params.id as string;
+
+    const task = await getTaskByIdService(id);
 
     if (!task) {
       res.status(404).json({
@@ -103,7 +105,7 @@ export const getTaskById = async (
   }
 };
 
-// Update Task
+// ================= UPDATE TASK =================
 export const updateTask = async (
   req: AuthRequest,
   res: Response
@@ -125,7 +127,9 @@ export const updateTask = async (
       return;
     }
 
-    const task = await updateTaskService(req.params.id, {
+    const id = req.params.id as string;
+
+    const task = await updateTaskService(id, {
       title,
       description,
       status,
@@ -154,13 +158,15 @@ export const updateTask = async (
   }
 };
 
-// Delete Task
+// ================= DELETE TASK =================
 export const deleteTask = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const task = await deleteTaskService(req.params.id);
+    const id = req.params.id as string;
+
+    const task = await deleteTaskService(id);
 
     if (!task) {
       res.status(404).json({
@@ -179,5 +185,72 @@ export const deleteTask = async (
       success: false,
       message: err.message,
     });
+  }
+};
+
+// ================= UPDATE KANBAN STATUS =================
+export const updateKanbanStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: req.body.status,
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Task status updated successfully.",
+      data: task,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ================= ADD COMMENT =================
+export const addTaskComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    // Uncomment if your Task schema has comments
+    // task.comments.push(req.body.comment);
+
+    await task.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Comment added successfully.",
+      data: task,
+    });
+  } catch (err) {
+    next(err);
   }
 };
