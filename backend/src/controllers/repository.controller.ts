@@ -9,7 +9,7 @@ import {
   deleteRepositoryService,
 } from "../services/repository.service";
 
-// Create Repository
+
 export const createRepository = async (
   req: AuthRequest,
   res: Response
@@ -46,7 +46,7 @@ export const createRepository = async (
   }
 };
 
-// Get All Repositories
+
 export const getRepositories = async (
   req: AuthRequest,
   res: Response
@@ -67,13 +67,14 @@ export const getRepositories = async (
   }
 };
 
-// Get Repository By ID
+
 export const getRepositoryById = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const repository = await getRepositoryByIdService(req.params.id);
+    
+    const repository = await getRepositoryByIdService(req.params.id as string);
 
     if (!repository) {
       res.status(404).json({
@@ -95,7 +96,7 @@ export const getRepositoryById = async (
   }
 };
 
-// Update Repository
+
 export const updateRepository = async (
   req: AuthRequest,
   res: Response
@@ -111,7 +112,8 @@ export const updateRepository = async (
       return;
     }
 
-    const repository = await updateRepositoryService(req.params.id, {
+    
+    const repository = await updateRepositoryService(req.params.id as string, {
       name,
       description,
       githubUrl,
@@ -138,13 +140,13 @@ export const updateRepository = async (
   }
 };
 
-// Delete Repository
+
 export const deleteRepository = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const repository = await deleteRepositoryService(req.params.id);
+    const repository = await deleteRepositoryService(req.params.id as string);
 
     if (!repository) {
       res.status(404).json({

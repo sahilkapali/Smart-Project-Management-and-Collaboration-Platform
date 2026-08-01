@@ -7,23 +7,24 @@ import {
   deleteIssue,
 } from "../controllers/issue.controller";
 
-import { verifyToken } from "../utils/generateToken.utils";
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
+
 // Create Issue
-router.post("/", verifyToken, createIssue);
+router.post("/", authenticateUser(), createIssue);
 
 // Get All Issues
-router.get("/", verifyToken, getIssues);
+router.get("/", authenticateUser(), getIssues);
 
 // Get Issue By ID
-router.get("/:id", verifyToken, getIssueById);
+router.get("/:id", authenticateUser(), getIssueById);
 
 // Update Issue
-router.put("/:id", verifyToken, updateIssue);
+router.put("/:id", authenticateUser(), updateIssue);
 
 // Delete Issue
-router.delete("/:id", verifyToken, deleteIssue);
+router.delete("/:id", authenticateUser(), deleteIssue);
 
 export default router;

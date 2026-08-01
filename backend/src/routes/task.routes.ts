@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import {
   createTask,
   getTasks,
@@ -10,21 +9,19 @@ import {
   addTaskComment,
 } from "../controllers/task.controller";
 
-import { verifyToken } from "../utils/generateToken.utils";
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
-// CRUD Routes
-router.post("/", verifyToken, createTask);
-router.get("/", verifyToken, getTasks);
-router.get("/:id", verifyToken, getTaskById);
-router.put("/:id", verifyToken, updateTask);
-router.delete("/:id", verifyToken, deleteTask);
 
-// Kanban
-router.patch("/:id/status", verifyToken, updateKanbanStatus);
+router.post("/", authenticateUser(), createTask);
+router.get("/", authenticateUser(), getTasks);
+router.get("/:id", authenticateUser(), getTaskById);
+router.put("/:id", authenticateUser(), updateTask);
+router.delete("/:id", authenticateUser(), deleteTask);
 
-// Comments
-router.post("/:id/comments", verifyToken, addTaskComment);
+router.patch("/:id/status", authenticateUser(), updateKanbanStatus);
+
+router.post("/:id/comments", authenticateUser(), addTaskComment);
 
 export default router;

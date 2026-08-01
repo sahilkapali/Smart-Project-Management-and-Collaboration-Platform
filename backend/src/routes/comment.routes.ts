@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import {
   createComment,
   getComments,
@@ -8,23 +7,25 @@ import {
   deleteComment,
 } from "../controllers/comment.controller";
 
-import { verifyToken } from "../utils/generateToken.utils";
+
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
+
 // Create Comment
-router.post("/", verifyToken, createComment);
+router.post("/", authenticateUser(), createComment);
 
 // Get All Comments
-router.get("/", verifyToken, getComments);
+router.get("/", authenticateUser(), getComments);
 
 // Get Comments of an Issue
-router.get("/issue/:id", verifyToken, getCommentsByIssue);
+router.get("/issue/:id", authenticateUser(), getCommentsByIssue);
 
 // Update Comment
-router.put("/:id", verifyToken, updateComment);
+router.put("/:id", authenticateUser(), updateComment);
 
 // Delete Comment
-router.delete("/:id", verifyToken, deleteComment);
+router.delete("/:id", authenticateUser(), deleteComment);
 
 export default router;

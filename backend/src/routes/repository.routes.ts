@@ -8,23 +8,24 @@ import {
   deleteRepository,
 } from "../controllers/repository.controller";
 
-import { verifyToken } from "../utils/generateToken.utils";
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
+
 // Create Repository
-router.post("/", verifyToken, createRepository);
+router.post("/", authenticateUser(), createRepository);
 
 // Get All Repositories
-router.get("/", verifyToken, getRepositories);
+router.get("/", authenticateUser(), getRepositories);
 
 // Get Repository By ID
-router.get("/:id", verifyToken, getRepositoryById);
+router.get("/:id", authenticateUser(), getRepositoryById);
 
 // Update Repository
-router.put("/:id", verifyToken, updateRepository);
+router.put("/:id", authenticateUser(), updateRepository);
 
 // Delete Repository
-router.delete("/:id", verifyToken, deleteRepository);
+router.delete("/:id", authenticateUser(), deleteRepository);
 
 export default router;

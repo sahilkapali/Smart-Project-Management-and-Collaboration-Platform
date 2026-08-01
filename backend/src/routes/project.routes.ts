@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { handleCreateTeam, handleGetTeams } from '../controllers/team.controller';
-import { verifyToken } from '../utils/generateToken.utils'; // Adjust path if your middleware is located elsewhere
+import { createProject, getProjects } from '../controllers/project.controller'; 
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// POST /api/teams - Create a new team (Protected by Member 1's verifyToken middleware)
-router.post('/', verifyToken, handleCreateTeam);
 
-// GET /api/teams - Get all teams for the authenticated user (Protected by verifyToken)
-router.get('/', verifyToken, handleGetTeams);
+router.post('/', authenticateUser(), createProject);
+
+
+router.get('/', authenticateUser(), getProjects);
 
 export default router;
