@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #F5F7FB;
+  font-family: "Poppins", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+}
