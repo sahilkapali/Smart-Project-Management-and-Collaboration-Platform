@@ -9,7 +9,7 @@ import {
   deleteCommentService,
 } from "../services/comment.service";
 
-// Create Comment
+
 export const createComment = async (
   req: AuthRequest,
   res: Response
@@ -45,7 +45,7 @@ export const createComment = async (
   }
 };
 
-// Get All Comments
+
 export const getComments = async (
   req: AuthRequest,
   res: Response
@@ -66,13 +66,14 @@ export const getComments = async (
   }
 };
 
-// Get Comments By Issue
+
 export const getCommentsByIssue = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const comments = await getCommentsByIssueService(req.params.id);
+    
+    const comments = await getCommentsByIssueService(req.params.id as string);
 
     res.status(200).json({
       success: true,
@@ -87,7 +88,7 @@ export const getCommentsByIssue = async (
   }
 };
 
-// Update Comment
+
 export const updateComment = async (
   req: AuthRequest,
   res: Response
@@ -104,8 +105,9 @@ export const updateComment = async (
       return;
     }
 
+    
     const updatedComment = await updateCommentService(
-      req.params.id,
+      req.params.id as string,
       { comment }
     );
 
@@ -130,13 +132,14 @@ export const updateComment = async (
   }
 };
 
-// Delete Comment
+
 export const deleteComment = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const deletedComment = await deleteCommentService(req.params.id);
+    
+    const deletedComment = await deleteCommentService(req.params.id as string);
 
     if (!deletedComment) {
       res.status(404).json({

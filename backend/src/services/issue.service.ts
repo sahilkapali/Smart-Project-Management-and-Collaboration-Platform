@@ -1,7 +1,7 @@
-import Issue from "../models/issue.models";
+import Issue, { IIssue } from "../models/issue.models";
 
 // Create Issue
-export const createIssueService = async (data: any) => {
+export const createIssueService = async (data: Partial<IIssue>) => {
   return await Issue.create(data);
 };
 
@@ -24,7 +24,7 @@ export const getIssueByIdService = async (id: string) => {
 // Update Issue
 export const updateIssueService = async (
   id: string,
-  data: any
+  data: Partial<IIssue>
 ) => {
   return await Issue.findByIdAndUpdate(id, data, {
     new: true,
