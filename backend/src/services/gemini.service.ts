@@ -1,7 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
-
-
-const ai = new GoogleGenAI({});
+import { ai } from '../config/gemini';
 
 export const generateInsight = async (prompt: string) => {
   try {

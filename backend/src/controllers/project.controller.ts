@@ -1,43 +1,82 @@
 import { Response } from 'express';
-import Project from '../models/project.models';
 import { AuthRequest } from '../types/custom';
+import * as projectService from '../services/project.service';
 
 export const createProject = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    const { name, description } = req.body;
+    const userId = req.user?.id as string;
+    
+    const { name, description, teamId } = req.body;
 
-    const newProject = new Project({
-      name,
-      description,
-      owner: userId,
-      members: [userId]
+    const errors: string[] = [];
+
+   
+    if (!name || typeof name !== 'string') {
+      errors.push('Project name is required and must be a string.');
+    } else {
+      const trimmedName = name.trim();
+      if (trimmedName.length < 3) {
+        errors.push('Project name must be at least 3 characters long.');
+      } else if (trimmedName.length > 100) {
+        errors.push('Project name cannot exceed 100 characters.');
+      }
+    }
+
+   
+    if (description !== undefined && description !== null && typeof description !== 'string') {
+      errors.push('Description must be a string if provided.');
+    }
+
+    
+    if (!teamId || typeof teamId !== 'string') {
+      errors.push('teamId is required to create a project.');
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({ 
+        message: 'Validation failed', 
+        errors 
+      });
+      return;
+    }
+
+    
+    const finalDescription = description ? description.trim() : undefined;
+    const project = await projectService.createProject(
+      name.trim(),
+      finalDescription,
+      teamId,
+      userId
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Project created successfully.',
+      data: project,
     });
-
-    const savedProject = await newProject.save();
-    res.status(201).json(savedProject);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'An unexpected error occurred while creating the project.' });
   }
 };
 
-export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getProjects = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const project = await Project.findById(req.params.id);
-    if (!project) {
-      res.status(404).json({ message: 'Project not found' });
+   
+    const teamId = req.query.teamId as string;
+    
+    if (!teamId) {
+      res.status(400).json({ message: 'Team ID is required. Pass it as a query parameter: ?teamId=...' });
       return;
     }
+
     
-    if (project.owner.toString() !== req.user?.id) {
-      res.status(403).json({ message: 'Only owners can add members' });
-      return;
-    }
+    const projects = await projectService.getProjectsByTeam(teamId);
     
-    project.members.push(req.body.userId);
-    await project.save();
-    res.status(200).json({ message: 'Member added', project });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(200).json({
+      success: true,
+      data: projects,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'An unexpected error occurred while fetching projects.' });
   }
 };

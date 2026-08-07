@@ -1,20 +1,18 @@
 import mongoose from "mongoose";
 import { ROLE } from "../types/enum.types";
 
-const user_schema = new mongoose.Schema(
+const userSchema = new mongoose.Schema(
   {
-    first_name: {
+    firstName: {
       type: String,
       required: [true, "First name is required"],
       trim: true,
     },
-
-    last_name: {
+    lastName: {
       type: String,
       required: [true, "Last name is required"],
       trim: true,
     },
-
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -22,53 +20,40 @@ const user_schema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-
     password: {
       type: String,
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
     },
-
     role: {
       type: String,
       enum: Object.values(ROLE),
       default: ROLE.TEAM_MEMBER,
     },
-
     phone: {
       type: String,
       default: "",
     },
-
-    profile_image: {
+    profileImage: {
       type: {
-        path: {
-          type: String,
-        },
-
-        public_id: {
-          type: String,
-        },
+        path: { type: String },
+        publicId: { type: String }, 
       },
       required: false,
     },
-
-    is_verified: {
+    isVerified: {
       type: Boolean,
       default: false,
     },
-
-    otp_hash: {
+    otpHash: {
       type: String,
       select: false,
     },
-
-    otp_expiry: {
+    otpExpiry: {
       type: Date,
       select: false,
     },
-
     active: {
       type: Boolean,
       default: true,
@@ -79,6 +64,6 @@ const user_schema = new mongoose.Schema(
   }
 );
 
-const User = mongoose.model("User", user_schema);
+const User = mongoose.model("User", userSchema);
 
 export default User;

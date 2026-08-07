@@ -1,10 +1,13 @@
 import { Router } from 'express';
-import { createProject, addMember } from '../controllers/project.controller';
-import { verifyToken } from "../utils/generateToken.utils";
+import { createProject, getProjects } from '../controllers/project.controller'; 
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/', verifyToken, createProject);
-router.post('/:id/members', verifyToken, addMember);
+
+router.post('/', authenticateUser(), createProject);
+
+
+router.get('/', authenticateUser(), getProjects);
 
 export default router;
