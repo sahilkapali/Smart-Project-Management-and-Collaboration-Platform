@@ -50,12 +50,21 @@ export const validate = (rules: ValidationRule[]) => {
         }
       }
 
-      // 3. Enum validation
-      if (rule.enum && !rule.enum.includes(String(value))) {
-        errors.push({
-          field: rule.field,
-          message: `${rule.field} must be one of: ${rule.enum.join(', ')}.`,
-        });
+      // 3. Enum validation (Case-Insensitive & Auto-Normalizing)
+      if (rule.enum) {
+        const strVal = String(value).trim().toLowerCase();
+        const matchedEnum = rule.enum.find(
+          (item) => item.toLowerCase() === strVal
+        );
+
+        if (!matchedEnum) {
+          errors.push({
+            field: rule.field,
+            message: `${rule.field} must be one of: ${rule.enum.join(', ')}.`,
+          });
+        } else {
+          target[rule.field] = matchedEnum;
+        }
       }
 
       // 4. Date validation

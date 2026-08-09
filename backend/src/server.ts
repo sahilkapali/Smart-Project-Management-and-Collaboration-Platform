@@ -31,7 +31,7 @@ import reportRoutes from "./routes/report.routes";
 import activityRoutes from "./routes/activity.routes";
 
 // Middleware
-import { errorHandler } from "./middleware/errorHandler.middleware";
+import errorHandler from "./middleware/errorHandler.middleware";
 
 const app = express();
 
