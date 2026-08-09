@@ -1,10 +1,13 @@
 import User from "../models/user.models";
 import AppError from "../utils/AppError.utils";
+
 import {
   hashPassword,
   comparePassword,
 } from "../utils/hashPassword.utils";
+
 import { signAccessToken } from "../utils/generateToken.utils";
+
 import { ROLE } from "../types/enum.types";
 import { ERROR_CODES } from "../types/error.types";
 
@@ -35,13 +38,29 @@ export const registerUser = async (
     email,
     password,
     phone,
+    role,
   } = data;
 
-  const normalizedEmail = email
-    .trim()
-    .toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
 
+  // -----------------------------------------
+  // Validate role
+  // -----------------------------------------
+
+  const selectedRole = role || ROLE.TEAM_MEMBER;
+
+  if (!Object.values(ROLE).includes(selectedRole)) {
+    throw new AppError(
+      "Invalid role selected.",
+      ERROR_CODES.BAD_REQUEST,
+      400
+    );
+  }
+
+  // -----------------------------------------
   // Check whether user already exists
+  // -----------------------------------------
+
   const existingUser = await User.findOne({
     email: normalizedEmail,
   });
@@ -54,27 +73,39 @@ export const registerUser = async (
     );
   }
 
+  // -----------------------------------------
   // Hash password
+  // -----------------------------------------
+
   const hashedPassword = await hashPassword(password);
 
+  // -----------------------------------------
   // Create user
+  // -----------------------------------------
+
   const user = await User.create({
     firstName,
     lastName,
     email: normalizedEmail,
     password: hashedPassword,
     phone,
-    role: ROLE.TEAM_MEMBER,
+    role: selectedRole,
   });
 
+  // -----------------------------------------
   // Generate JWT
+  // -----------------------------------------
+
   const token = signAccessToken({
     id: user._id.toString(),
     email: user.email,
     role: user.role as ROLE,
   });
 
+  // -----------------------------------------
   // Remove password from response
+  // -----------------------------------------
+
   const userData = user.toObject();
 
   delete (userData as any).password;
@@ -177,7 +208,11 @@ export const getProfile = async (
  */
 export const updateProfile = async (
   userId: string,
-  data: Partial<RegisterUserInput>
+  data: Partial<{
+    firstName: string;
+    lastName: string;
+    phone: string;
+  }>
 ) => {
   const user = await User.findById(userId);
 
@@ -190,15 +225,15 @@ export const updateProfile = async (
   }
 
   if (data.firstName) {
-    user.firstName = data.firstName;
+    user.firstName = data.firstName.trim();
   }
 
   if (data.lastName) {
-    user.lastName = data.lastName;
+    user.lastName = data.lastName.trim();
   }
 
-  if (data.phone) {
-    user.phone = data.phone;
+  if (data.phone !== undefined) {
+    user.phone = data.phone.trim();
   }
 
   await user.save();
@@ -252,14 +287,15 @@ export const changePassword = async (
 
   return {
     success: true,
-    message:
-      "Password changed successfully.",
+    message: "Password changed successfully.",
   };
 };
 
 /**
  * Forgot Password
- * Generates a 6-digit OTP and sends it to the user's registered email.
+ *
+ * Generates a 6-digit OTP and sends it
+ * to the user's registered email.
  */
 export const forgotPassword = async (
   data: ForgotPasswordInput
@@ -313,6 +349,9 @@ export const forgotPassword = async (
   };
 };
 
+/**
+ * Reset Password
+ */
 export const resetPassword = async (
   data: ResetPasswordInput
 ) => {
