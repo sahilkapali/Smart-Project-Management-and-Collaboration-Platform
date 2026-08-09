@@ -26,6 +26,10 @@ import aiRoutes from "./routes/ai.routes";
 import notificationRoutes from "./routes/notification.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 
+import repositoryVersionRoutes from "./routes/repositoryVersion.routes";
+import reportRoutes from "./routes/report.routes";
+import activityRoutes from "./routes/activity.routes";
+
 // Middleware
 import { errorHandler } from "./middleware/errorHandler.middleware";
 
@@ -85,19 +89,26 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/tasks", taskRoutes);
 
 /**
- * Repository Module (Naomi)
+ * Repository Module 
  */
 app.use("/api/repositories", repositoryRoutes);
+app.use("/api/repositories", repositoryVersionRoutes);
 
 /**
- * Issue Module (Naomi)
+ * Issue Module 
  */
 app.use("/api/issues", issueRoutes);
 
 /**
- * Comment Module (Naomi)
+ * Comment Module 
  */
 app.use("/api", commentRoutes);
+
+// Report Module
+app.use("/api/reports", reportRoutes);
+
+// Activity Module
+app.use("/api/activities", activityRoutes);
 
 /**
  * Meeting
