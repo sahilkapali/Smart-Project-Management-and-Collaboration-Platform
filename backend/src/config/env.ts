@@ -5,7 +5,7 @@ dotenv.config();
 export const ENV_CONFIG = {
   port: Number(process.env.PORT) || 8080,
 
-  mongodb_uri: process.env.MONGODB_URI || "",
+  mongodb_uri: process.env.DB_URI || "",
 
   jwt_secret: process.env.JWT_SECRET || "",
 
@@ -14,4 +14,8 @@ export const ENV_CONFIG = {
   node_env: process.env.NODE_ENV || "development",
 
   gemini_api_key: process.env.GEMINI_API_KEY || "",
+
+  mail_user: process.env.MAIL_USER || "",
+
+  mail_password: process.env.MAIL_PASSWORD || "",
 };

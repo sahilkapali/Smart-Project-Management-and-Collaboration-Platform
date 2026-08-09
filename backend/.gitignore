@@ -1,5 +1,8 @@
 .env
-node_modules
-dist
-build
-uploads
+.env.*
+!.env.example
+
+node_modules/
+build/
+dist/
+uploads/
