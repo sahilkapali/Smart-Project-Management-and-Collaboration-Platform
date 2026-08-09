@@ -10,6 +10,8 @@ import {
   deleteTaskService,
 } from "../services/task.service";
 
+import * as aiService from "../services/gemini.service";
+
 // ================= CREATE TASK =================
 export const createTask = async (
   req: AuthRequest,
@@ -240,14 +242,47 @@ export const addTaskComment = async (
       return;
     }
 
-    // Uncomment if your Task schema has comments
-    // task.comments.push(req.body.comment);
-
     await task.save();
 
     res.status(201).json({
       success: true,
       message: "Comment added successfully.",
+      data: task,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ================= AUTO PRIORITIZE TASK (AI) =================
+export const autoPrioritizeTask = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+
+    // 1. Fetch the existing task
+    const task = await Task.findById(id);
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    
+    const aiPriority = await aiService.suggestTaskPriority(task.title, task.description || "");
+
+    
+    task.priority = aiPriority as "low" | "medium" | "high" | "critical";
+    await task.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Task priority auto-updated to ${aiPriority}`,
       data: task,
     });
   } catch (err) {

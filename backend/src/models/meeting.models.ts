@@ -42,6 +42,11 @@ const meetingSchema = new Schema<IMeeting>({
     ref: 'User' 
   }],
   notes: [meetingNoteSchema],
+
+  actionItems: [{
+    type: String
+  }],
+
 }, { 
   timestamps: true 
 });

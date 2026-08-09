@@ -1,30 +1,24 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { ITask } from '../types/task.types';
 
-export interface ITask extends Document {
-  project: mongoose.Types.ObjectId;
-  title: string;
-  description?: string;
-  status: "Todo" | "In Progress" | "Completed";
-  assignedTo?: mongoose.Types.ObjectId;
-  dueDate?: Date;
-  createdBy: mongoose.Types.ObjectId;
-}
-
-const TaskSchema: Schema = new Schema(
+const TaskSchema = new Schema<ITask>(
   {
     project: {
       type: Schema.Types.ObjectId,
       ref: "Project",
-      required: true,
+      required: [true, "Project reference is required"],
+      index: true, 
     },
 
     title: {
       type: String,
-      required: true,
+      required: [true, "Task title is required"],
+      trim: true, 
     },
 
     description: {
       type: String,
+      trim: true,
     },
 
     status: {
@@ -32,10 +26,17 @@ const TaskSchema: Schema = new Schema(
       enum: ["Todo", "In Progress", "Completed"],
       default: "Todo",
     },
+    
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'critical'],
+      default: 'medium'
+    },
 
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      index: true, 
     },
 
     dueDate: {

@@ -13,6 +13,7 @@ export interface IMeeting extends Document {
   endTime?: Date;                          
   participants: Types.ObjectId[];
   projectId: Types.ObjectId;     
-  notes?: IMeetingNote[];       
+  notes?: IMeetingNote[];  
+  actionItems?: string[]; 
   createdAt: Date;
 }
