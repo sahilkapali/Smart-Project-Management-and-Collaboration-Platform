@@ -1,48 +1,30 @@
-import { Request, Response, NextFunction } from 'express';
-import * as dashboardService from '../services/dashboard.service';
-import { getKanbanBoardService } from "../services/dashboard.service";
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from '../types/custom';
+import { getDashboardMetricsService } from '../services/dashboard.service';
 
-export const getSprintDashboardMetrics = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { sprintId } = req.params;
-
-    if (!sprintId) {
-      return res.status(400).json({ success: false, message: 'Sprint ID is required' });
-    }
-    const metrics = await dashboardService.calculateSprintMetrics(sprintId as string);
-
-    return res.status(200).json({
-      success: true,
-      data: metrics
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-export const getKanbanBoard = async (
-  req: Request,
+/**
+ * Get overall dashboard metrics
+ * Route: GET /api/dashboard/metrics
+ */
+export const getDashboardMetrics = async (
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId } = req.params;
+    const userId = req.user?._id || req.user?.id;
 
-    if (!projectId) {
-      res.status(400).json({
-        success: false,
-        message: "Project ID is required.",
-      });
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized user.' });
       return;
     }
 
-    const boardData = await getKanbanBoardService(projectId as string);
+    const metrics = await getDashboardMetricsService(userId.toString());
 
     res.status(200).json({
       success: true,
-      message: "Kanban board data fetched successfully.",
-      data: boardData,
+      message: 'Dashboard metrics fetched successfully.',
+      data: metrics
     });
   } catch (error) {
     next(error);
