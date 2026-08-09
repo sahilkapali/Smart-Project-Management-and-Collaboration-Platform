@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Issue from '../models/issue.models';
+import Task from "../models/task.models";
 
 export const calculateSprintMetrics = async (sprintId: string) => {
   const sprintObjectId = new mongoose.Types.ObjectId(sprintId);
@@ -62,4 +63,30 @@ export const calculateSprintMetrics = async (sprintId: string) => {
     totalDefects: def.totalDefects,
     defectDensity
   };
+};
+
+
+export const getKanbanBoardService = async (projectId: string) => {
+  const tasks = await Task.find({ project: projectId })
+    .populate("assignedTo", "name email avatar") 
+    .sort({ updatedAt: -1 }); 
+
+  
+  const kanbanBoard = {
+    Todo: [] as any[],
+    "In Progress": [] as any[],
+    Completed: [] as any[],
+  };
+
+  
+  tasks.forEach((task) => {
+    const status = task.status as keyof typeof kanbanBoard;
+    if (kanbanBoard[status]) {
+      kanbanBoard[status].push(task);
+    } else {
+      kanbanBoard.Todo.push(task); 
+    }
+  });
+
+  return kanbanBoard;
 };

@@ -12,4 +12,8 @@ router.get('/:id', meetingController.getMeetingById);
 router.put('/:id', meetingController.updateMeeting);
 router.delete('/:id', meetingController.deleteMeeting);
 
+router.patch("/:id/ai-summary", authenticateUser(), meetingController.autoSummarizeMeeting);
+router.patch('/:id/action-items', meetingController.extractMeetingActionItems);
 export default router;
+
+

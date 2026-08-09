@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as meetingService from '../services/meeting.service';
-
+import * as aiService from '../services/gemini.service';
 
 const isValidObjectId = (id: any): boolean => {
   if (typeof id !== 'string') return false;
@@ -16,8 +16,6 @@ const isValidUrl = (urlString: any): boolean => {
   }
 };
 
-
-
 /**
  * Create a new meeting
  * Route: POST /api/meetings
@@ -27,23 +25,19 @@ export const createMeeting = async (req: Request, res: Response, next: NextFunct
     const { title, description, meetingLink, projectId, participants, startTime, endTime } = req.body;
     const errors: string[] = [];
 
-   
     if (!title || typeof title !== 'string' || title.length < 3 || title.length > 100) {
       errors.push('Meeting title must be a string between 3 and 100 characters');
     }
 
-  
     if (!projectId || !isValidObjectId(projectId)) {
       errors.push('Invalid or missing projectId');
     }
-
     
     if (meetingLink && typeof meetingLink === 'string' && meetingLink.trim() !== '') {
       if (!isValidUrl(meetingLink)) {
         errors.push('Invalid meeting link URL');
       }
     }
-
 
     let parsedParticipants = participants || [];
     if (!Array.isArray(parsedParticipants)) {
@@ -52,7 +46,6 @@ export const createMeeting = async (req: Request, res: Response, next: NextFunct
       const allValid = parsedParticipants.every(id => isValidObjectId(id));
       if (!allValid) errors.push('One or more participant IDs are invalid MongoDB IDs');
     }
-
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -64,12 +57,10 @@ export const createMeeting = async (req: Request, res: Response, next: NextFunct
       errors.push('End time must be a valid date');
     }
     
-
     if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start >= end) {
       errors.push('Meeting end time must be later than the start time');
     }
 
-   
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
@@ -78,8 +69,8 @@ export const createMeeting = async (req: Request, res: Response, next: NextFunct
       });
     }
 
-    
-    const userId = req.user?.id  
+    // @ts-ignore - Assuming req.user is populated by auth middleware
+    const userId = req.user?.id; 
     const meetingData = {
       title,
       description,
@@ -113,7 +104,6 @@ export const updateMeeting = async (req: Request, res: Response, next: NextFunct
     const { title, description, meetingLink, projectId, participants, startTime, endTime } = req.body;
     const errors: string[] = [];
 
-    
     if (title !== undefined) {
       if (typeof title !== 'string' || title.length < 3 || title.length > 100) {
         errors.push('Meeting title must be a string between 3 and 100 characters');
@@ -163,7 +153,6 @@ export const updateMeeting = async (req: Request, res: Response, next: NextFunct
         errors,
       });
     }
-
     
     const updatedMeeting = await meetingService.updateMeeting(id as string, req.body);
 
@@ -228,6 +217,120 @@ export const deleteMeeting = async (req: Request, res: Response, next: NextFunct
     }
 
     return res.status(200).json({ success: true, message: 'Meeting deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Auto-summarize a specific meeting note using AI
+ * Route: PATCH /api/meetings/:id/ai-summary
+ * Body (Optional): { "noteId": "specific_note_id_here" }
+ */
+export const autoSummarizeMeeting = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { noteId } = req.body; 
+
+    
+    const meeting = await meetingService.getMeetingById(id as string);
+    
+    if (!meeting) {
+      return res.status(404).json({ success: false, message: 'Meeting not found.' });
+    }
+
+    
+    const meetingData = meeting as any;
+
+    if (!meetingData.notes || meetingData.notes.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No meeting notes available to summarize.' 
+      });
+    }
+
+    
+    let targetNoteIndex = -1;
+    if (noteId) {
+      targetNoteIndex = meetingData.notes.findIndex((n: any) => n._id.toString() === noteId);
+    } else {
+      targetNoteIndex = meetingData.notes.length - 1; 
+    }
+
+    if (targetNoteIndex === -1 || !meetingData.notes[targetNoteIndex].content) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Could not find valid note content to summarize.' 
+      });
+    }
+
+  
+    const rawContent = meetingData.notes[targetNoteIndex].content;
+    const aiSummary = await aiService.generateMeetingSummary(rawContent);
+
+    
+    meetingData.notes[targetNoteIndex].aiGeneratedSummary = aiSummary;
+
+    
+    const updatedMeeting = await meetingService.updateMeeting(id as string, { 
+      notes: meetingData.notes 
+    });
+
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Meeting note summarized successfully.',
+      data: updatedMeeting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
+ * Extract action items from meeting notes using AI
+ * Route: PATCH /api/meetings/:id/action-items
+ */
+export const extractMeetingActionItems = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const meeting = await meetingService.getMeetingById(id as string);
+    
+    if (!meeting) {
+      return res.status(404).json({ success: false, message: 'Meeting not found.' });
+    }
+
+    const meetingData = meeting as any;
+
+   
+    if (!meetingData.notes || meetingData.notes.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No meeting notes available to analyze.' 
+      });
+    }
+
+    const combinedNotes = meetingData.notes
+      .map((n: any) => n.content)
+      .filter((content: string) => content)
+      .join('\n\n---\n\n');
+
+   
+    const actionItems = await aiService.extractActionItems(combinedNotes);
+
+    
+    const updatedMeeting = await meetingService.updateMeeting(id as string, { 
+      actionItems: actionItems 
+    });
+
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Action items extracted successfully.',
+      data: updatedMeeting,
+    });
   } catch (error) {
     next(error);
   }
