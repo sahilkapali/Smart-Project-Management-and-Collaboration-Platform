@@ -10,12 +10,21 @@ import {
   resetPassword,
 } from "../services/auth.service";
 
+// ==================== REGISTER ====================
+
 export const register = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required.",
+      });
+    }
+
     const result = await registerUser(req.body);
 
     return res.status(201).json(result);
@@ -24,13 +33,49 @@ export const register = async (
   }
 };
 
+// ==================== LOGIN ====================
+
 export const login = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const result = await loginUser(req.body);
+    console.log("REQ BODY:", req.body);
+    console.log("CONTENT TYPE:", req.headers["content-type"]);
+
+    // Check whether request body exists
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is missing.",
+      });
+    }
+
+    // Get login credentials
+    const { email, password } = req.body;
+
+    // Validate email
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
+    // Validate password
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
+
+    // Explicitly pass the login data to the service
+    const result = await loginUser({
+      email,
+      password,
+    });
 
     return res.status(200).json(result);
   } catch (error) {
@@ -38,6 +83,7 @@ export const login = async (
   }
 };
 
+// ==================== GET PROFILE ====================
 
 export const getUserProfile = async (
   req: Request,
@@ -55,6 +101,7 @@ export const getUserProfile = async (
   }
 };
 
+// ==================== UPDATE PROFILE ====================
 
 export const updateUserProfile = async (
   req: Request,
@@ -64,10 +111,14 @@ export const updateUserProfile = async (
   try {
     const userId = (req as any).user.id;
 
-    const result = await updateProfile(
-      userId,
-      req.body
-    );
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required.",
+      });
+    }
+
+    const result = await updateProfile(userId, req.body);
 
     return res.status(200).json(result);
   } catch (error) {
@@ -75,6 +126,7 @@ export const updateUserProfile = async (
   }
 };
 
+// ==================== CHANGE PASSWORD ====================
 
 export const changeUserPassword = async (
   req: Request,
@@ -84,10 +136,28 @@ export const changeUserPassword = async (
   try {
     const userId = (req as any).user.id;
 
-    const {
-      currentPassword,
-      newPassword,
-    } = req.body;
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required.",
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is required.",
+      });
+    }
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password is required.",
+      });
+    }
 
     const result = await changePassword(
       userId,
@@ -101,6 +171,7 @@ export const changeUserPassword = async (
   }
 };
 
+// ==================== FORGOT PASSWORD ====================
 
 export const forgotPasswordController = async (
   req: Request,
@@ -108,9 +179,15 @@ export const forgotPasswordController = async (
   next: NextFunction
 ) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required.",
+      });
+    }
+
     const { email } = req.body;
 
-    // Basic validation
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -128,6 +205,7 @@ export const forgotPasswordController = async (
   }
 };
 
+// ==================== RESET PASSWORD ====================
 
 export const resetPasswordController = async (
   req: Request,
@@ -135,13 +213,15 @@ export const resetPasswordController = async (
   next: NextFunction
 ) => {
   try {
-    const {
-      email,
-      otp,
-      newPassword,
-    } = req.body;
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required.",
+      });
+    }
 
-    // Basic validation
+    const { email, otp, newPassword } = req.body;
+
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -163,12 +243,10 @@ export const resetPasswordController = async (
       });
     }
 
-    // Password length check
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message:
-          "New password must be at least 6 characters.",
+        message: "New password must be at least 6 characters.",
       });
     }
 
@@ -184,6 +262,7 @@ export const resetPasswordController = async (
   }
 };
 
+// ==================== LOGOUT ====================
 
 export const logout = async (
   req: Request,
