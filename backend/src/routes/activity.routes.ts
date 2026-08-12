@@ -1,30 +1,46 @@
-import { Router } from "express";
+import { Router } from 'express';
 
 import {
-  createActivity,
   getActivities,
   getProjectActivities,
   getActivityById,
-  deleteActivity,
-} from "../controllers/activity.controller";
+  deleteActivity
+} from '../controllers/activity.controller';
 
-import { verifyToken } from "../utils/generateToken.utils";
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Create Activity
-router.post("/", verifyToken, createActivity);
 
-// Get All Activities
-router.get("/", verifyToken, getActivities);
+// Get all activities
+router.get(
+  '/',
+  authenticateUser(),
+  getActivities
+);
 
-// Get Activities for a Project
-router.get("/project/:projectId", verifyToken, getProjectActivities);
 
-// Get Activity by ID
-router.get("/:id", verifyToken, getActivityById);
+// Get activities for a project
+router.get(
+  '/project/:projectId',
+  authenticateUser(),
+  getProjectActivities
+);
 
-// Delete Activity
-router.delete("/:id", verifyToken, deleteActivity);
+
+// Get one activity
+router.get(
+  '/:id',
+  authenticateUser(),
+  getActivityById
+);
+
+
+// Delete activity
+router.delete(
+  '/:id',
+  authenticateUser(),
+  deleteActivity
+);
 
 export default router;

@@ -1,198 +1,126 @@
-import { Response } from "express";
-import { AuthRequest } from "../types/custom";
+import {
+  Request,
+  Response,
+  NextFunction
+} from 'express';
 
-// services import - use require to avoid TS path resolution errors in some setups
-// @ts-ignore
-const {
-  createActivityService,
-  getActivitiesService,
-  getProjectActivitiesService,
-  getActivityByIdService,
-  deleteActivityService,
-} = require("../services/activity.service");
+import * as activityService
+  from '../services/activity.service';
 
-// Create Activity
-export const createActivity = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const {
-      project,
-      action,
-      entityType,
-      entityId,
-      description,
-    } = req.body;
 
-    // Validation
-    if (!action || !entityType || !description) {
-      res.status(400).json({
-        success: false,
-        message:
-          "Action, entity type and description are required.",
-      });
-      return;
-    }
+// =====================================================
+// GET ALL ACTIVITIES
+// =====================================================
 
-    // User validation
-    if (!req.user?.id) {
-      res.status(401).json({
-        success: false,
-        message: "User authentication required.",
-      });
-      return;
-    }
-
-    // Create activity
-    const activity = await createActivityService({
-      user: req.user.id,
-      project,
-      action,
-      entityType,
-      entityId,
-      description,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Activity created successfully.",
-      data: activity,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// Get All Activities
 export const getActivities = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const activities = await getActivitiesService();
+    const activities =
+      await activityService.getActivitiesService();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      count: activities.length,
-      data: activities,
+      data: activities
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// Get Project Activities
-export const getProjectActivities = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { projectId } = req.params;
 
-    // Validation
-    if (!projectId) {
-      res.status(400).json({
-        success: false,
-        message: "Project ID is required.",
-      });
-      return;
-    }
+// =====================================================
+// GET PROJECT ACTIVITIES
+// =====================================================
+
+export const getProjectActivities = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const projectId = req.params.projectId as string;
 
     const activities =
-      await getProjectActivitiesService(projectId);
+      await activityService.getProjectActivitiesService(
+        projectId
+      );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      count: activities.length,
-      data: activities,
+      data: activities
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// Get Activity By ID
+
+// =====================================================
+// GET ACTIVITY BY ID
+// =====================================================
+
 export const getActivityById = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { id } = req.params;
+    const activityId = req.params.id as string;
 
-    if (!id) {
-      res.status(400).json({
-        success: false,
-        message: "Activity ID is required.",
-      });
-      return;
-    }
-
-    const activity = await getActivityByIdService(id);
+    const activity =
+      await activityService.getActivityByIdService(
+        activityId
+      );
 
     if (!activity) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
-        message: "Activity not found.",
+        message: 'Activity not found'
       });
-      return;
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: activity,
+      data: activity
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-// Delete Activity
+
+// =====================================================
+// DELETE ACTIVITY
+// =====================================================
+
 export const deleteActivity = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { id } = req.params;
+    const activityId = req.params.id as string;
 
-    if (!id) {
-      res.status(400).json({
+    const deleted =
+      await activityService.deleteActivityService(
+        activityId
+      );
+
+    if (!deleted) {
+      return res.status(404).json({
         success: false,
-        message: "Activity ID is required.",
+        message: 'Activity not found'
       });
-      return;
     }
 
-    const activity = await deleteActivityService(id);
-
-    if (!activity) {
-      res.status(404).json({
-        success: false,
-        message: "Activity not found.",
-      });
-      return;
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Activity deleted successfully.",
+      message: 'Activity deleted successfully'
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    next(error);
   }
 };
