@@ -1,169 +1,436 @@
-import { Response } from "express";
-import { AuthRequest } from "../types/custom";
-
 import {
-  createRepositoryService,
-  getRepositoriesService,
-  getRepositoryByIdService,
-  updateRepositoryService,
-  deleteRepositoryService,
-} from "../services/repository.service";
+  Request,
+  Response,
+  NextFunction
+} from 'express';
 
+import * as repositoryService
+  from '../services/repository.service';
+
+
+// =====================================================
+// CREATE REPOSITORY
+// =====================================================
 
 export const createRepository = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { project, name, description, githubUrl } = req.body;
 
-    if (!project || !name) {
-      res.status(400).json({
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Project and Repository name are required.",
+        message: 'Unauthorized'
       });
-      return;
     }
 
-    const repository = await createRepositoryService({
+    const {
       project,
       name,
       description,
-      githubUrl,
-      createdBy: req.user?.id,
-    });
+      githubUrl
+    } = req.body;
 
-    res.status(201).json({
-      success: true,
-      message: "Repository created successfully.",
-      data: repository,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-export const getRepositories = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const repositories = await getRepositoriesService();
-
-    res.status(200).json({
-      success: true,
-      count: repositories.length,
-      data: repositories,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-export const getRepositoryById = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    
-    const repository = await getRepositoryByIdService(req.params.id as string);
-
-    if (!repository) {
-      res.status(404).json({
+    if (!project) {
+      return res.status(400).json({
         success: false,
-        message: "Repository not found.",
+        message: 'Project ID is required'
       });
-      return;
     }
-
-    res.status(200).json({
-      success: true,
-      data: repository,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-export const updateRepository = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { name, description, githubUrl } = req.body;
 
     if (!name) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
-        message: "Repository name is required.",
+        message: 'Repository name is required'
       });
-      return;
     }
 
-    
-    const repository = await updateRepositoryService(req.params.id as string, {
-      name,
-      description,
-      githubUrl,
-    });
+    const repository =
+      await repositoryService.createRepositoryService(
+        {
+          project,
+          name,
+          description,
+          githubUrl
+        },
+        userId
+      );
 
-    if (!repository) {
-      res.status(404).json({
-        success: false,
-        message: "Repository not found.",
-      });
-      return;
-    }
-
-    res.status(200).json({
+    return res.status(201).json({
       success: true,
-      message: "Repository updated successfully.",
-      data: repository,
+      message:
+        'Repository created successfully',
+      data: repository
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'PROJECT_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_MANAGE_DENIED'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'You do not have permission to create repositories in this project'
+      });
+    }
+
+    if (
+      error.message ===
+      'USER_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    next(error);
   }
 };
 
 
-export const deleteRepository = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const repository = await deleteRepositoryService(req.params.id as string);
+// =====================================================
+// GET ALL ACCESSIBLE REPOSITORIES
+// =====================================================
 
-    if (!repository) {
-      res.status(404).json({
+export const getRepositories = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Repository not found.",
+        message: 'Unauthorized'
       });
-      return;
     }
 
-    res.status(200).json({
+    const repositories =
+      await repositoryService
+        .getRepositoriesService(userId);
+
+    return res.status(200).json({
       success: true,
-      message: "Repository deleted successfully.",
+      data: repositories
     });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'USER_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    next(error);
+  }
+};
+
+
+// =====================================================
+// GET REPOSITORIES BY PROJECT
+// =====================================================
+
+export const getProjectRepositories = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const projectId =
+      req.params.projectId as string;
+
+    const repositories =
+      await repositoryService
+        .getProjectRepositoriesService(
+          projectId,
+          userId
+        );
+
+    return res.status(200).json({
+      success: true,
+      data: repositories
     });
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'PROJECT_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_ACCESS_DENIED'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'You do not have access to this project'
+      });
+    }
+
+    next(error);
+  }
+};
+
+
+// =====================================================
+// GET REPOSITORY BY ID
+// =====================================================
+
+export const getRepositoryById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const repositoryId =
+      req.params.id as string;
+
+    const repository =
+      await repositoryService
+        .getRepositoryByIdService(
+          repositoryId,
+          userId
+        );
+
+    return res.status(200).json({
+      success: true,
+      data: repository
+    });
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'REPOSITORY_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Repository not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_ACCESS_DENIED'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'You do not have access to this repository'
+      });
+    }
+
+    next(error);
+  }
+};
+
+
+// =====================================================
+// UPDATE REPOSITORY
+// =====================================================
+
+export const updateRepository = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const repositoryId =
+      req.params.id as string;
+
+    const {
+      name,
+      description,
+      githubUrl
+    } = req.body;
+
+    const repository =
+      await repositoryService
+        .updateRepositoryService(
+          repositoryId,
+          {
+            name,
+            description,
+            githubUrl
+          },
+          userId
+        );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        'Repository updated successfully',
+      data: repository
+    });
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'REPOSITORY_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Repository not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_MANAGE_DENIED'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'You do not have permission to update this repository'
+      });
+    }
+
+    next(error);
+  }
+};
+
+
+// =====================================================
+// DELETE REPOSITORY
+// =====================================================
+
+export const deleteRepository = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const repositoryId =
+      req.params.id as string;
+
+    await repositoryService
+      .deleteRepositoryService(
+        repositoryId,
+        userId
+      );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        'Repository deleted successfully'
+    });
+
+  } catch (error: any) {
+
+    if (
+      error.message ===
+      'REPOSITORY_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Repository not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_NOT_FOUND'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (
+      error.message ===
+      'PROJECT_MANAGE_DENIED'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'You do not have permission to delete this repository'
+      });
+    }
+
+    next(error);
   }
 };

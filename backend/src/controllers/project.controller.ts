@@ -64,10 +64,10 @@ export const handleCreateProject = async (
     const projectStatus: PROJECT_STATUS = status || "PLANNING";
 
     const allowedStatuses: PROJECT_STATUS[] = [
-      "PLANNING",
-      "ACTIVE",
-      "COMPLETED",
-      "ARCHIVED",
+      PROJECT_STATUS.PLANNING,
+      PROJECT_STATUS.ACTIVE,
+      PROJECT_STATUS.COMPLETED,
+      PROJECT_STATUS.ARCHIVED,
     ];
 
     if (!allowedStatuses.includes(projectStatus)) {
@@ -344,10 +344,10 @@ export const handleUpdateProject = async (
      * Validate status.
      */
     const allowedStatuses: PROJECT_STATUS[] = [
-      "PLANNING",
-      "ACTIVE",
-      "COMPLETED",
-      "ARCHIVED",
+      PROJECT_STATUS.PLANNING,
+      PROJECT_STATUS.ACTIVE,
+      PROJECT_STATUS.COMPLETED,
+      PROJECT_STATUS.ARCHIVED,
     ];
 
     if (status !== undefined && !allowedStatuses.includes(status)) {

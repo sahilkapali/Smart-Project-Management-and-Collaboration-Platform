@@ -1,15 +1,32 @@
-import mongoose, { Document } from "mongoose";
+import { Document, Types } from 'mongoose';
 
-export type PROJECT_STATUS = "PLANNING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+
+// =====================================================
+// PROJECT STATUS
+// =====================================================
+
+export enum PROJECT_STATUS {
+  PLANNING = 'PLANNING',
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  ARCHIVED = 'ARCHIVED'
+}
+
+
+// =====================================================
+// PROJECT INTERFACE
+// =====================================================
 
 export interface IProject extends Document {
   name: string;
 
   description?: string;
 
-  team: mongoose.Types.ObjectId;
+  team: Types.ObjectId;
 
-  createdBy: mongoose.Types.ObjectId;
+  owner: Types.ObjectId;
+
+  members: Types.ObjectId[];
 
   status: PROJECT_STATUS;
 
@@ -17,7 +34,7 @@ export interface IProject extends Document {
 
   dueDate?: Date;
 
-  createdAt: Date;
+  createdAt?: Date;
 
-  updatedAt: Date;
+  updatedAt?: Date;
 }
