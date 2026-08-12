@@ -1,56 +1,81 @@
-import { Schema, model } from 'mongoose';
-import { IMeeting } from '../types/meeting.types';
+import { Schema, model } from "mongoose";
+import { IMeeting } from "../types/meeting.types";
 
-const meetingNoteSchema = new Schema({
-  content: { 
-    type: String, 
-    required: true 
+const meetingNoteSchema = new Schema(
+  {
+    content: {
+      type: String,
+      required: true,
+    },
+
+    aiGeneratedSummary: {
+      type: String,
+    },
   },
-  aiGeneratedSummary: { 
-    type: String 
+  {
+    _id: true,
+    timestamps: true,
   }
-}, { 
-  _id: true,
-  timestamps: true 
-});
+);
 
-const meetingSchema = new Schema<IMeeting>({
-  title: { 
-    type: String, 
-    required: true 
-  },
-  description: { 
-    type: String 
-  },
-  meetingLink: { 
-    type: String 
-  },
-  startTime: { 
-    type: Date, 
-    required: true 
-  },
-  endTime: { 
-    type: Date
-  },
-  projectId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Project', 
-    required: true 
-  },
-  participants: [{ 
-    type: Schema.Types.ObjectId, 
-    ref: 'User' 
-  }],
-  notes: [meetingNoteSchema],
+const meetingSchema = new Schema<IMeeting>(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  actionItems: [{
-    type: String
-  }],
+    description: {
+      type: String,
+    },
 
-}, { 
-  timestamps: true 
-});
+    meetingLink: {
+      type: String,
+    },
 
-const Meeting = model<IMeeting>('Meeting', meetingSchema);
+    startTime: {
+      type: Date,
+      required: true,
+    },
+
+    endTime: {
+      type: Date,
+    },
+
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+    },
+
+    // User who created the meeting
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    participants: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    notes: [meetingNoteSchema],
+
+    actionItems: [
+      {
+        type: String,
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const Meeting = model<IMeeting>("Meeting", meetingSchema);
 
 export default Meeting;

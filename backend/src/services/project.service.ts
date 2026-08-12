@@ -28,7 +28,7 @@ export const createProject = async (
   teamId: string,
   createdBy: string,
   userRole: ROLE,
-  status: PROJECT_STATUS = "PLANNING",
+  status: PROJECT_STATUS = PROJECT_STATUS.PLANNING,
   startDate?: Date,
   dueDate?: Date,
 ): Promise<IProject> => {
@@ -340,10 +340,10 @@ export const updateProject = async (
    */
   if (data.status !== undefined) {
     const allowedStatuses: PROJECT_STATUS[] = [
-      "PLANNING",
-      "ACTIVE",
-      "COMPLETED",
-      "ARCHIVED",
+      PROJECT_STATUS.PLANNING,
+      PROJECT_STATUS.ACTIVE,
+      PROJECT_STATUS.COMPLETED,
+      PROJECT_STATUS.ARCHIVED,
     ];
 
     if (!allowedStatuses.includes(data.status)) {

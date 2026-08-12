@@ -15,7 +15,6 @@ import userRouter from "./routes/user.routes";
 import projectRoutes from "./routes/project.routes";
 import teamRoutes from "./routes/team.routes";
 import taskRoutes from "./routes/task.routes";
-
 import repositoryRoutes from "./routes/repository.routes";
 import repositoryVersionRoutes from "./routes/repositoryVersion.routes";
 
@@ -97,6 +96,9 @@ app.use("/api/tasks", taskRoutes);
 //Repository Routes
 app.use("/api/repositories", repositoryRoutes);
 app.use("/api/repositories", repositoryVersionRoutes);
+
+//Activity Routes
+app.use("/api/activities", activityRoutes);
 
 //Issue Routes
 app.use("/api/issues", issueRoutes);

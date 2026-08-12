@@ -1,108 +1,253 @@
-import { ai } from '../config/gemini';
+import { gemini } from '../config/gemini';
 
-export const generateInsight = async (prompt: string) => {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    
-    return response.text;
-  } catch (error) {
-    console.error('Gemini API Error:', error);
-    throw new Error('Failed to communicate with Gemini API');
+// =====================================================
+// GEMINI MODEL
+// =====================================================
+
+const MODEL_NAME = 'gemini-2.5-flash';
+
+
+// =====================================================
+// TYPES
+// =====================================================
+
+export type TaskPriority =
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'critical';
+
+
+// =====================================================
+// GENERIC GEMINI GENERATION
+// =====================================================
+
+export const generateAIResponse = async (
+  prompt: string
+): Promise<string> => {
+
+  if (!prompt.trim()) {
+    throw new Error('AI prompt cannot be empty');
   }
-};
 
-export const suggestTaskPriority = async (title: string, description: string): Promise<string> => {
-  try {
-    const prompt = `
-      You are an expert Agile Scrum Master. Evaluate the following task and determine its priority.
-      Task Title: "${title}"
-      Task Description: "${description || 'No description provided.'}"
-      
-      Respond with EXACTLY ONE of these four words: low, medium, high, critical.
-      Do not include punctuation, explanations, or any other text.
-    `;
+  const response = await gemini.models.generateContent({
+    model: MODEL_NAME,
+    contents: prompt
+  });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    
-    let priority = response.text ? response.text.trim().toLowerCase() : 'medium';
+  const text = response.text;
 
-   
-    const validPriorities = ['low', 'medium', 'high', 'critical'];
-    if (!validPriorities.includes(priority)) {
-      priority = 'medium'; 
-    }
-
-    return priority;
-  } catch (error) {
-    console.error("Gemini Prioritization Error:", error);
-    throw new Error("Failed to analyze task priority.");
+  if (!text) {
+    throw new Error('Gemini returned an empty response');
   }
-};
 
-
-export const generateMeetingSummary = async (notes: string): Promise<string> => {
-  try {
-    const prompt = `
-      You are an expert executive assistant. Please read the following raw meeting notes and provide a concise, well-structured summary. 
-      Focus on the main topics discussed, key decisions made, and overall outcomes.
-      Do not include action items (those will be extracted separately).
-      
-      Meeting Notes:
-      """
-      ${notes}
-      """
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    
-    return response.text || "No summary could be generated.";
-  } catch (error) {
-    console.error("Gemini Meeting Summary Error:", error);
-    throw new Error("Failed to generate meeting summary.");
-  }
+  return text.trim();
 };
 
 
-export const extractActionItems = async (notes: string): Promise<string[]> => {
-  try {
-    const prompt = `
-      You are an expert project manager. Analyze the following meeting notes and extract a list of specific action items, tasks, or follow-ups.
-      Return ONLY a valid JSON array of strings. Do not include markdown formatting, explanations, or labels.
-      If no action items are found, return an empty array: []
-      
-      Notes:
-      """
-      ${notes}
-      """
-    `;
+// =====================================================
+// GENERAL PROJECT INSIGHT
+// =====================================================
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    
-    let text = response.text ? response.text.trim() : "[]";
-    
-    
-    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+export const generateProjectInsight = async (
+  projectContext: string
+): Promise<string> => {
 
-    
-    const actionItems: string[] = JSON.parse(text);
-    return actionItems;
-    
-  } catch (error) {
-    console.error("Gemini Action Item Extraction Error:", error);
-    
-    return [];
-  }
+  const prompt = `
+You are an AI project management assistant.
+
+Analyze the following project information and provide useful project insights.
+
+Project information:
+${projectContext}
+
+Provide:
+
+1. Current project situation
+2. Major risks or problems
+3. Important observations
+4. Recommended actions
+
+Keep the response practical and concise.
+`;
+
+  return generateAIResponse(prompt);
 };
 
+
+// =====================================================
+// TASK PRIORITIZATION
+// =====================================================
+
+export const prioritizeTask = async (
+  taskContext: string
+): Promise<string> => {
+
+  const prompt = `
+You are an AI project management assistant.
+
+Analyze the following task information and recommend its priority.
+
+Task information:
+${taskContext}
+
+Return the result in this format:
+
+Priority: HIGH | MEDIUM | LOW | CRITICAL
+
+Reason:
+
+Recommended action:
+`;
+
+  return generateAIResponse(prompt);
+};
+
+
+// =====================================================
+// GENERATE TASK PRIORITY
+// Used by task.controller.ts
+// =====================================================
+
+export const generateTaskPriority = async (
+  taskContext: string
+): Promise<TaskPriority> => {
+
+  const prompt = `
+You are an AI project management assistant.
+
+Analyze the following task and determine its priority.
+
+Task information:
+${taskContext}
+
+Choose exactly ONE priority from:
+
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+Priority guidelines:
+
+LOW:
+- Minor task
+- Low urgency
+- Little impact if delayed
+
+MEDIUM:
+- Normal project task
+- Moderate importance
+- Some impact if delayed
+
+HIGH:
+- Important task
+- Significant impact on the project
+- Should be completed soon
+
+CRITICAL:
+- Urgent or blocking task
+- Major impact on project completion
+- Must be handled immediately
+
+Return ONLY one word:
+
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+Do not provide an explanation.
+Do not return JSON.
+Do not use markdown.
+`;
+
+  const result = await generateAIResponse(prompt);
+
+  const priority = result
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+  if (priority === 'critical') {
+    return 'critical';
+  }
+
+  if (priority === 'high') {
+    return 'high';
+  }
+
+  if (priority === 'medium') {
+    return 'medium';
+  }
+
+  return 'low';
+};
+
+
+// =====================================================
+// MEETING SUMMARY
+// =====================================================
+
+export const generateMeetingSummary = async (
+  meetingText: string
+): Promise<string> => {
+
+  const prompt = `
+You are an AI meeting assistant.
+
+Summarize the following meeting notes/transcript.
+
+Meeting content:
+${meetingText}
+
+Provide:
+
+Summary:
+
+Key Decisions:
+
+- decision 1
+- decision 2
+
+Important Discussion Points:
+
+- point 1
+- point 2
+`;
+
+  return generateAIResponse(prompt);
+};
+
+
+// =====================================================
+// ACTION ITEMS
+// =====================================================
+
+export const generateActionItems = async (
+  meetingText: string
+): Promise<string> => {
+
+  const prompt = `
+You are an AI project management assistant.
+
+Extract actionable tasks from the following meeting notes/transcript.
+
+Meeting content:
+${meetingText}
+
+Return:
+
+Action Items:
+
+1. Task
+2. Task
+3. Task
+
+For each task include an assignee if one is explicitly mentioned.
+
+Do not invent assignees.
+`;
+
+  return generateAIResponse(prompt);
+};

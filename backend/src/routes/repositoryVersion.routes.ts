@@ -9,22 +9,45 @@ import {
 
 import { verifyToken } from "../utils/generateToken.utils";
 
+import upload from "../middleware/upload.middleware";
+
 const router = Router();
 
-// Create version
-router.post("/:id/versions", verifyToken, createVersion);
+// ======================================================
+// CREATE REPOSITORY VERSION
+// ======================================================
 
-// Get all versions of repository
-router.get("/:id/versions", verifyToken, getVersions);
+router.post(
+  "/:id/versions",
+  verifyToken,
+  upload.single("file"),
+  createVersion
+);
 
-// Get specific version
+// ======================================================
+// GET ALL VERSIONS
+// ======================================================
+
+router.get(
+  "/:id/versions",
+  verifyToken,
+  getVersions
+);
+
+// ======================================================
+// GET VERSION BY ID
+// ======================================================
+
 router.get(
   "/:id/versions/:versionId",
   verifyToken,
   getVersionById
 );
 
-// Delete version
+// ======================================================
+// DELETE VERSION
+// ======================================================
+
 router.delete(
   "/:id/versions/:versionId",
   verifyToken,

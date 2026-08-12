@@ -1,42 +1,54 @@
-import mongoose, { Schema, Document } from "mongoose";
+import { Schema, model } from 'mongoose';
 
-export interface IActivity extends Document {
-  user: mongoose.Types.ObjectId;
-  project?: mongoose.Types.ObjectId;
-  action: string;
-  description: string;
-  createdAt: Date;
-}
+import {
+  IActivity,
+  ActivityAction,
+  ActivityEntityType
+} from '../types/activity.types';
 
-const ActivitySchema: Schema = new Schema(
+const activitySchema = new Schema<IActivity>(
   {
     user: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
+      index: true
     },
 
     project: {
       type: Schema.Types.ObjectId,
-      ref: "Project",
-      required: false,
+      ref: 'Project',
+      index: true
     },
 
     action: {
       type: String,
+      enum: Object.values(ActivityAction),
       required: true,
-      trim: true,
+      trim: true
     },
 
     description: {
       type: String,
       required: true,
-      trim: true,
+      trim: true
     },
+
+    entityType: {
+      type: String,
+      enum: Object.values(ActivityEntityType)
+    },
+
+    entityId: {
+      type: Schema.Types.ObjectId
+    }
   },
   {
-    timestamps: true,
+    timestamps: true
   }
 );
 
-export default mongoose.model<IActivity>("Activity", ActivitySchema);
+export default model<IActivity>(
+  'Activity',
+  activitySchema
+);
