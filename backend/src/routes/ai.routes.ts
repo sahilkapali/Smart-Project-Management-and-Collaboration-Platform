@@ -1,50 +1,67 @@
-import express from "express";
+import { Router } from 'express';
 
 import {
-  register,
-  login,
-  getUserProfile,
-  updateUserProfile,
-  changeUserPassword,
-  logout,
-  forgotPasswordController,
-  resetPasswordController,
-} from "../controllers/auth.controller";
+  getProjectInsight,
+  prioritizeTask,
+  generateSummary,
+  generateActionItems,
+  getProjectAIOutputs,
+  getTaskAIOutputs,
+  getMeetingAIOutputs
+} from '../controllers/ai.controller';
 
-import { authenticateUser } from "../middleware/auth.middleware";
+import { authenticateUser } from '../middleware/auth.middleware';
 
-const router = express.Router();
 
-/**
- * Public Routes
- */
+const router = Router();
 
-// Register
-router.post("/register", register);
 
-// Login
-router.post("/login", login);
+// =====================================================
+// GENERAL PROJECT INSIGHT
+// POST /api/ai/insight
+// =====================================================
 
-// Forgot Password
-router.post("/forgot-password", forgotPasswordController);
+router.post(
+  '/insight',
+  authenticateUser(),
+  getProjectInsight
+);
 
-// Reset Password
-router.post("/reset-password", resetPasswordController);
 
-/**
- * Protected Routes
- */
+// =====================================================
+// GET PROJECT AI HISTORY
+// GET /api/ai/project/:projectId
+// =====================================================
 
-// Get Profile
-router.get("/profile", authenticateUser(), getUserProfile);
+router.get(
+  '/project/:projectId',
+  authenticateUser(),
+  getProjectAIOutputs
+);
 
-// Update Profile
-router.put("/profile", authenticateUser(), updateUserProfile);
 
-// Change Password
-router.put("/change-password", authenticateUser(), changeUserPassword);
+// =====================================================
+// GET TASK AI HISTORY
+// GET /api/ai/task/:taskId
+// =====================================================
 
-// Logout
-router.post("/logout", authenticateUser(), logout);
+router.get(
+  '/task/:taskId',
+  authenticateUser(),
+  getTaskAIOutputs
+);
+
+
+// =====================================================
+// GET MEETING AI HISTORY
+// GET /api/ai/meeting/:meetingId
+// =====================================================
+
+router.get(
+  '/meeting/:meetingId',
+  authenticateUser(),
+  getMeetingAIOutputs
+);
+
 
 export default router;

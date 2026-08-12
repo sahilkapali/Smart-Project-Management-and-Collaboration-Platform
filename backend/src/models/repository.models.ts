@@ -1,43 +1,44 @@
-import mongoose, { Schema, Document } from "mongoose";
+import { Schema, model } from 'mongoose';
 
-export interface IRepository extends Document {
-  project: mongoose.Types.ObjectId;
-  name: string;
-  description?: string;
-  githubUrl?: string;
-  createdBy: mongoose.Types.ObjectId;
-}
+import { IRepository } from '../types/repository.types';
 
-const RepositorySchema: Schema = new Schema(
+const repositorySchema = new Schema<IRepository>(
   {
     project: {
       type: Schema.Types.ObjectId,
-      ref: "Project",
+      ref: 'Project',
       required: true,
+      index: true
     },
+
     name: {
       type: String,
       required: true,
-      trim: true,
+      trim: true
     },
+
     description: {
       type: String,
-      default: "",
+      trim: true
     },
+
     githubUrl: {
       type: String,
-      default: "",
+      trim: true
     },
+
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+      ref: 'User',
+      required: true
+    }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
-export default mongoose.model<IRepository>(
-  "Repository",
-  RepositorySchema
+export default model<IRepository>(
+  'Repository',
+  repositorySchema
 );

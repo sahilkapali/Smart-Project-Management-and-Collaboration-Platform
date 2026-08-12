@@ -1,34 +1,93 @@
-import Activity from "../models/activity.models";
+import { Types } from 'mongoose';
 
-// Create Activity
-export const createActivityService = async (data: any) => {
-  return await Activity.create(data);
+import Activity from '../models/activity.models';
+
+import {
+  ActivityAction,
+  ActivityEntityType
+} from '../types/activity.types';
+
+
+// =====================================================
+// CREATE ACTIVITY
+// =====================================================
+
+export const createActivityService = async (data: {
+  user: string;
+  project?: string;
+  action: ActivityAction;
+  description: string;
+  entityType?: ActivityEntityType;
+  entityId?: string;
+}) => {
+  return await Activity.create({
+    user: new Types.ObjectId(data.user),
+
+    project: data.project
+      ? new Types.ObjectId(data.project)
+      : undefined,
+
+    action: data.action,
+
+    description: data.description,
+
+    entityType: data.entityType,
+
+    entityId: data.entityId
+      ? new Types.ObjectId(data.entityId)
+      : undefined
+  });
 };
 
-// Get All Activities
+
+// =====================================================
+// GET ALL ACTIVITIES
+// =====================================================
+
 export const getActivitiesService = async () => {
   return await Activity.find()
-    .populate("user")
-    .populate("project")
+    .populate('user', 'name email avatar')
+    .populate('project', 'name')
+    .sort({ createdAt: -1 })
+    .limit(100);
+};
+
+
+// =====================================================
+// GET ACTIVITIES BY PROJECT
+// =====================================================
+
+export const getProjectActivitiesService = async (
+  projectId: string
+) => {
+  return await Activity.find({
+    project: projectId
+  })
+    .populate('user', 'name email avatar')
+    .populate('project', 'name')
     .sort({ createdAt: -1 });
 };
 
-// Get Activities for a Project
-export const getProjectActivitiesService = async (projectId: string) => {
-  return await Activity.find({ project: projectId })
-    .populate("user")
-    .populate("project")
-    .sort({ createdAt: -1 });
+
+// =====================================================
+// GET ACTIVITY BY ID
+// =====================================================
+
+export const getActivityByIdService = async (
+  activityId: string
+) => {
+  return await Activity.findById(activityId)
+    .populate('user', 'name email avatar')
+    .populate('project', 'name');
 };
 
-// Get Activity by ID
-export const getActivityByIdService = async (id: string) => {
-  return await Activity.findById(id)
-    .populate("user")
-    .populate("project");
-};
 
-// Delete Activity
-export const deleteActivityService = async (id: string) => {
-  return await Activity.findByIdAndDelete(id);
+// =====================================================
+// DELETE ACTIVITY
+// =====================================================
+
+export const deleteActivityService = async (
+  activityId: string
+) => {
+  return await Activity.findByIdAndDelete(activityId);
 };

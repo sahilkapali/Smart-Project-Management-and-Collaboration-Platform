@@ -7,26 +7,42 @@ export interface IRepositoryVersion extends Document {
   file?: string;
   uploadedBy: mongoose.Types.ObjectId;
 }
-  
-const RepositoryVersionSchema: Schema = new Schema(
+
+const RepositoryVersionSchema = new Schema<IRepositoryVersion>(
   {
     repository: {
       type: Schema.Types.ObjectId,
       ref: "Repository",
       required: true,
     },
+
     version: {
       type: String,
       required: true,
+      trim: true,
     },
-    message: String,
-    file: String,
+
+    message: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    file: {
+      type: String,
+      default: "",
+    },
+
     uploadedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
   },
-  { timestamps: true }
+
+  {
+    timestamps: true,
+  }
 );
 
 export default mongoose.model<IRepositoryVersion>(

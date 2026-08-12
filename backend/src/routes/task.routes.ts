@@ -6,7 +6,10 @@ import {
   updateTask,
   deleteTask,
   updateKanbanStatus,
+  getKanban,
   addTaskComment,
+  getTaskComments,
+  deleteTaskComment,
   autoPrioritizeTask,
 } from "../controllers/task.controller";
 
@@ -29,81 +32,20 @@ router.post(
   createTask
 );
 
-// 2. Get All Tasks (Validates optional projectId query param if passed)
-router.get(
-  "/",
-  authenticateUser(),
-  validate([
-    { field: "projectId", location: "query", isObjectId: true },
-  ]),
-  getTasks
-);
+// Kanban
+router.get("/project/:projectId/kanban", authenticateUser(), getKanban);
+router.patch("/:id/status", authenticateUser(), updateKanbanStatus);
 
-// 3. Get Task by ID (Validates parameter ID format)
-router.get(
-  "/:id",
-  authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-  ]),
-  getTaskById
-);
-
-// 4. Update Task Details
-router.put(
-  "/:id",
-  authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-    { field: "title", location: "body", minLength: 3 },
-    { field: "projectId", location: "body", isObjectId: true },
-    { field: "priority", location: "body", enum: ["Low", "Medium", "High"] },
-    { field: "status", location: "body", enum: ["Todo", "Pending", "In Progress", "Completed"] },
-    { field: "dueDate", location: "body", isDate: true },
-  ]),
-  updateTask
-);
-
-// 5. Delete Task
+// Comments
+router.post("/:id/comments", authenticateUser(), addTaskComment);
+router.get("/:id/comments", authenticateUser(), getTaskComments);
 router.delete(
-  "/:id",
+  "/:taskId/comments/:commentId",
   authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-  ]),
-  deleteTask
+  deleteTaskComment
 );
 
-// 6. Update Kanban Status
-router.patch(
-  "/:id/status",
-  authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-    { field: "status", location: "body", required: true, enum: ["Todo", "Pending", "In Progress", "Completed"] },
-  ]),
-  updateKanbanStatus
-);
-
-// 7. Add Task Comment
-router.post(
-  "/:id/comments",
-  authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-    { field: "text", location: "body", required: true, minLength: 1 },
-  ]),
-  addTaskComment
-);
-
-// 8. AI Task Prioritization
-router.patch(
-  "/:id/ai-prioritize",
-  authenticateUser(),
-  validate([
-    { field: "id", location: "params", required: true, isObjectId: true },
-  ]),
-  autoPrioritizeTask
-);
+// AI
+router.patch("/:id/ai-prioritize", authenticateUser(), autoPrioritizeTask);
 
 export default router;

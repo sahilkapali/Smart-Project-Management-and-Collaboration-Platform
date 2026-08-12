@@ -26,11 +26,11 @@ const TaskSchema = new Schema<ITask>(
       enum: ["Todo", "In Progress", "Completed"],
       default: "Todo",
     },
-    
+
     priority: {
       type: String,
-      enum: ['low', 'medium', 'high', 'critical'],
-      default: 'medium'
+      enum: ["Low", "Medium", "High", "Critical"],
+      default: "Medium",
     },
 
     assignedTo: {

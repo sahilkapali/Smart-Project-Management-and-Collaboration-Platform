@@ -1,8 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
-import { ENV_CONFIG } from './env';
 
+const apiKey = process.env.GEMINI_API_KEY;
 
-export const ai = new GoogleGenAI({
-  apiKey: ENV_CONFIG.gemini_api_key || '',
+if (!apiKey) {
+  throw new Error('GEMINI_API_KEY is not configured');
+}
+
+export const gemini = new GoogleGenAI({
+  apiKey
 });
-
