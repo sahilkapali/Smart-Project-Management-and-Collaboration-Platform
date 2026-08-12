@@ -64,7 +64,7 @@ export const createProjectInsight = async (
 ) => {
 
   const project = await Project.findById(projectId)
-    .populate('owner', 'name email')
+    .populate('createdBy', 'name email')
     .populate('members', 'name email');
 
   if (!project) {
@@ -77,7 +77,7 @@ export const createProjectInsight = async (
     status: project.status,
     startDate: project.startDate,
     dueDate: project.dueDate,
-    owner: project.owner,
+    createdBy: project.createdBy,
     members: project.members
   });
 

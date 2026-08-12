@@ -74,7 +74,7 @@ export const createProject = async (
    * PROJECT_MANAGER:
    * Can create project only in their own team.
    */
-  if (userRole !== ROLE.ADMIN && team.owner.toString() !== createdBy) {
+  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== createdBy) {
     throw new Error(
       "You do not have permission to create a project in this team.",
     );
@@ -307,7 +307,7 @@ export const updateProject = async (
    *
    * Project Manager → own team only
    */
-  if (userRole !== ROLE.ADMIN && team.owner.toString() !== userId) {
+  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
     throw new Error("You do not have permission to update this project.");
   }
 
@@ -436,7 +436,7 @@ export const deleteProject = async (
   /**
    * Authorization
    */
-  if (userRole !== ROLE.ADMIN && team.owner.toString() !== userId) {
+  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
     throw new Error("You do not have permission to delete this project.");
   }
 

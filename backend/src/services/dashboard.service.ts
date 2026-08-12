@@ -9,7 +9,7 @@ export const getDashboardMetricsService = async (userId: string) => {
 
   const accessibleProjects = await Project.find({
     $or: [
-      { owner: userId },
+      { createdBy: userId },
       { members: userId }
     ]
   }).select('_id');
