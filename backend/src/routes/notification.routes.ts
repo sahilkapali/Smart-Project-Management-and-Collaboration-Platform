@@ -1,17 +1,46 @@
 import { Router } from 'express';
-import { 
-  getMyNotifications, 
-  readNotification, 
-  readAllNotifications 
+
+import {
+  getMyNotifications,
+  getUnreadNotificationCount,
+  readNotification,
+  readAllNotifications
 } from '../controllers/notification.controller';
+
 import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticateUser()); 
 
-router.get('/', getMyNotifications);
-router.patch('/read-all', readAllNotifications);
-router.patch('/:id/read', readNotification);
+// Get all notifications
+router.get(
+  '/',
+  authenticateUser(),
+  getMyNotifications
+);
+
+
+// Get unread notification count
+router.get(
+  '/unread-count',
+  authenticateUser(),
+  getUnreadNotificationCount
+);
+
+
+// Mark one notification as read
+router.patch(
+  '/:id/read',
+  authenticateUser(),
+  readNotification
+);
+
+
+// Mark all notifications as read
+router.patch(
+  '/read-all',
+  authenticateUser(),
+  readAllNotifications
+);
 
 export default router;

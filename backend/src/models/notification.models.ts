@@ -1,20 +1,56 @@
 import { Schema, model } from 'mongoose';
-import { INotification, NotificationType } from '../types/notification.types';
+
+import {
+  INotification,
+  NotificationType,
+  NotificationEntityType
+} from '../types/notification.types';
 
 const notificationSchema = new Schema<INotification>(
   {
-    recipient: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    sender: { type: Schema.Types.ObjectId, ref: 'User' },
-    type: { 
-      type: String, 
-      enum: Object.values(NotificationType), 
-      required: true 
+    recipient: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
     },
-    message: { type: String, required: true },
-    isRead: { type: Boolean, default: false },
-    relatedEntityId: { type: Schema.Types.ObjectId }
+
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+
+    type: {
+      type: String,
+      enum: Object.values(NotificationType),
+      required: true
+    },
+
+    message: {
+      type: String,
+      required: true
+    },
+
+    isRead: {
+      type: Boolean,
+      default: false
+    },
+
+    relatedEntityId: {
+      type: Schema.Types.ObjectId
+    },
+
+    relatedEntityType: {
+      type: String,
+      enum: Object.values(NotificationEntityType)
+    }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
-export default model<INotification>('Notification', notificationSchema);
+export default model<INotification>(
+  'Notification',
+  notificationSchema
+);
