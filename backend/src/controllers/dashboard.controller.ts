@@ -12,7 +12,7 @@ export const getDashboardMetrics = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = (req.user as any)?._id || req.user?.id;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized user.' });

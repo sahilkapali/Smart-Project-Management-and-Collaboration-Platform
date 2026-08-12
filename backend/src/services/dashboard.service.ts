@@ -7,18 +7,16 @@ import Meeting from '../models/meeting.models';
 export const getDashboardMetricsService = async (userId: string) => {
   const now = new Date();
 
-  
   const accessibleProjects = await Project.find({
     $or: [
       { owner: userId },
-      { members: userId },
-      { participants: userId }
+      { members: userId }
     ]
   }).select('_id');
 
   const projectIds = accessibleProjects.map((p) => p._id);
 
-  
+ 
   const tasks = await Task.find({ project: { $in: projectIds } });
 
   let completedTasks = 0;
@@ -27,18 +25,19 @@ export const getDashboardMetricsService = async (userId: string) => {
   let overdueTasks = 0;
 
   tasks.forEach((task) => {
-    const status = task.status;
+    
+    const status = task.status as string; 
+    
     if (status === 'Completed') completedTasks++;
     else if (status === 'In Progress') inProgressTasks++;
     else if (status === 'Todo' || status === 'Pending') pendingTodoTasks++;
 
-    
     if (task.dueDate && new Date(task.dueDate) < now && status !== 'Completed') {
       overdueTasks++;
     }
   });
 
-  
+ 
   const repositories = await Repository.find({ project: { $in: projectIds } }).select('_id');
   const repositoryIds = repositories.map((r) => r._id);
 
@@ -48,14 +47,15 @@ export const getDashboardMetricsService = async (userId: string) => {
   let resolvedIssues = 0;
 
   issues.forEach((issue) => {
-    if (issue.status === 'Open') openIssues++;
-    else if (issue.status === 'Resolved' || issue.status === 'Closed') resolvedIssues++;
+    const status = issue.status as string;
+    if (status === 'Open') openIssues++;
+    else if (status === 'Resolved' || status === 'Closed') resolvedIssues++;
   });
 
   
   const upcomingMeetings = await Meeting.countDocuments({
     $or: [
-      { projectId: { $in: projectIds } },
+      { project: { $in: projectIds } },
       { participants: userId }
     ],
     startTime: { $gt: now }

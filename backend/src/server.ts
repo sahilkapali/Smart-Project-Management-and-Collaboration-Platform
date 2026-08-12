@@ -128,7 +128,7 @@ app.use("/api/notifications", notificationRoutes);
 /**
  * Dashboard
  */
-app.use("/api/dashboards", dashboardRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 /**
  * Error Handler (Always Last)
