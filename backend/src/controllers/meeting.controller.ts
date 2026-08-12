@@ -611,7 +611,7 @@ export const extractMeetingActionItems = async (
       .join("\n\n---\n\n");
 
     const actionItems =
-      await aiService.extractActionItems(
+      await aiService.generateActionItems(
         combinedNotes
       );
 

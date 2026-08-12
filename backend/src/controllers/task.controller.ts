@@ -295,10 +295,21 @@ export const autoPrioritizeTask = async (
       return;
     }
 
-    const aiPriority = await aiService.suggestTaskPriority(
-      task.title,
-      task.description || ""
-    );
+    const taskContext = `
+Task Title: ${task.title}
+Description: ${task.description || "No description provided"}
+Due Date: ${
+  task.dueDate
+    ? new Date(task.dueDate).toISOString()
+    : "No due date"
+}
+Status: ${task.status || "Not specified"}
+Current Priority: ${task.priority || "Not assigned"}
+`;
+
+const aiPriority = await aiService.generateTaskPriority(
+  taskContext
+);
 
     task.priority = aiPriority as "low" | "medium" | "high" | "critical";
     await task.save();
