@@ -1,19 +1,28 @@
-import { Document, Types } from 'mongoose';
+import { Document, Types } from "mongoose";
 
 export interface IMeetingNote {
-  content: string;             
-  aiGeneratedSummary?: string; 
+  content: string;
+  aiGeneratedSummary?: string;
 }
 
 export interface IMeeting extends Document {
-  title: string;                 
-  description?: string;          
-  meetingLink?: string;          
-  startTime: Date;              
-  endTime?: Date;                          
+  title: string;
+  description?: string;
+  meetingLink?: string;
+  startTime: Date;
+  endTime?: Date;
+
   participants: Types.ObjectId[];
-  projectId: Types.ObjectId;     
-  notes?: IMeetingNote[];  
-  actionItems?: string[]; 
+
+  projectId: Types.ObjectId;
+
+  // User who created the meeting
+  createdBy: Types.ObjectId;
+
+  notes?: IMeetingNote[];
+
+  actionItems?: string[];
+
   createdAt: Date;
+  updatedAt: Date;
 }

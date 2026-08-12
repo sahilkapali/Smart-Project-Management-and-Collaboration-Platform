@@ -1,19 +1,59 @@
-import { Router } from 'express';
-import * as meetingController from '../controllers/meeting.controller';
-import { authenticateUser } from '../middleware/auth.middleware';
+import { Router } from "express";
+
+import {
+  createMeeting,
+  updateMeeting,
+  getProjectMeetings,
+  getMeetingById,
+  deleteMeeting,
+  autoSummarizeMeeting,
+  extractMeetingActionItems,
+} from "../controllers/meeting.controller";
+
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
-router.use(authenticateUser());
+router.post(
+  "/",
+  authenticateUser(),
+  createMeeting
+);
 
-router.post('/', meetingController.createMeeting);
-router.get('/project/:projectId', meetingController.getProjectMeetings);
-router.get('/:id', meetingController.getMeetingById);
-router.put('/:id', meetingController.updateMeeting);
-router.delete('/:id', meetingController.deleteMeeting);
+router.put(
+  "/:id",
+  authenticateUser(),
+  updateMeeting
+);
 
-router.patch("/:id/ai-summary", authenticateUser(), meetingController.autoSummarizeMeeting);
-router.patch('/:id/action-items', meetingController.extractMeetingActionItems);
+router.get(
+  "/project/:projectId",
+  authenticateUser(),
+  getProjectMeetings
+);
+
+router.get(
+  "/:id",
+  authenticateUser(),
+  getMeetingById
+);
+
+router.delete(
+  "/:id",
+  authenticateUser(),
+  deleteMeeting
+);
+
+router.patch(
+  "/:id/ai-summary",
+  authenticateUser(),
+  autoSummarizeMeeting
+);
+
+router.patch(
+  "/:id/action-items",
+  authenticateUser(),
+  extractMeetingActionItems
+);
+
 export default router;
-
-

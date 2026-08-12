@@ -1,11 +1,14 @@
-import { Document, Types } from 'mongoose';
+import { Document, Types } from "mongoose";
 
 export enum NotificationType {
-  TASK_ASSIGNED = 'TASK_ASSIGNED',
-  TASK_UPDATED = 'TASK_UPDATED',
-  COMMENT_ADDED = 'COMMENT_ADDED',
-  DEADLINE_APPROACHING = 'DEADLINE_APPROACHING',
-  SYSTEM_ALERT = 'SYSTEM_ALERT'
+  TASK_ASSIGNED = "TASK_ASSIGNED",
+  TASK_UPDATED = "TASK_UPDATED",
+  COMMENT_ADDED = "COMMENT_ADDED",
+  DEADLINE_APPROACHING = "DEADLINE_APPROACHING",
+  SYSTEM_ALERT = "SYSTEM_ALERT",
+
+  // Meeting notifications
+  MEETING_INVITATION = "MEETING_INVITATION",
 }
 
 export interface INotification extends Document {
@@ -14,6 +17,6 @@ export interface INotification extends Document {
   type: NotificationType;
   message: string;
   isRead: boolean;
-  relatedEntityId?: Types.ObjectId; 
+  relatedEntityId?: Types.ObjectId;
   createdAt: Date;
 }
