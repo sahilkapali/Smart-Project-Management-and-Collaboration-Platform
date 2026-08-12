@@ -14,14 +14,23 @@ import {
 } from "../controllers/task.controller";
 
 import { authenticateUser } from "../middleware/auth.middleware";
+import { validate } from "../middleware/validation.middleware";
 
 const router = Router();
 
-router.post("/", authenticateUser(), createTask);
-router.get("/", authenticateUser(), getTasks);
-router.get("/:id", authenticateUser(), getTaskById);
-router.put("/:id", authenticateUser(), updateTask);
-router.delete("/:id", authenticateUser(), deleteTask);
+// 1. Create Task (Validates required body fields, enums, dates, and ObjectId)
+router.post(
+  "/",
+  authenticateUser(),
+  validate([
+    { field: "title", location: "body", required: true, minLength: 3 },
+    { field: "projectId", location: "body", required: true, isObjectId: true },
+    { field: "priority", location: "body", enum: ["Low", "Medium", "High"] },
+    { field: "status", location: "body", enum: ["Todo", "Pending", "In Progress", "Completed"] },
+    { field: "dueDate", location: "body", isDate: true },
+  ]),
+  createTask
+);
 
 // Kanban
 router.get("/project/:projectId/kanban", authenticateUser(), getKanban);

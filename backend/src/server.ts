@@ -30,7 +30,7 @@ import reportRoutes from "./routes/report.routes";
 import activityRoutes from "./routes/activity.routes";
 
 // Middleware
-import { errorHandler } from "./middleware/errorHandler.middleware";
+import errorHandler from "./middleware/errorHandler.middleware";
 
 const app = express();
 
@@ -121,8 +121,8 @@ app.use("/api/ai", aiRoutes);
 //Notification Routes
 app.use("/api/notifications", notificationRoutes);
 
-// Dashboard Routes
-app.use("/api/dashboards", dashboardRoutes);
+//Dashboard Routes
+app.use("/api/dashboard", dashboardRoutes);
 
 // Global Error Handler ,MUST BE LAST
 app.use(errorHandler);

@@ -24,7 +24,7 @@ export interface IProject extends Document {
 
   team: Types.ObjectId;
 
-  owner: Types.ObjectId;
+  createdBy: Types.ObjectId;
 
   members: Types.ObjectId[];
 

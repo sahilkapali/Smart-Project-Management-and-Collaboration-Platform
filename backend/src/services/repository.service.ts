@@ -39,7 +39,7 @@ const checkProjectAccess = async (
     user.role === ROLE.ADMIN;
 
   const isOwner =
-    project.owner.toString() === userId;
+    project.createdBy.toString() === userId;
 
   const isMember =
     project.members.some(

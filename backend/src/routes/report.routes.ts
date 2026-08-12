@@ -1,34 +1,9 @@
-import { Router } from "express";
-
-import {
-  getProjectReport,
-  getTaskReport,
-  getIssueReport,
-} from "../controllers/report.controller";
-
-import { verifyToken } from "../utils/generateToken.utils";
+import { Router } from 'express';
+import { getProjectReport } from '../controllers/report.controller';
+import { authenticateUser } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Complete Project Report
-router.get(
-  "/project/:projectId",
-  verifyToken,
-  getProjectReport
-);
-
-// Task Report
-router.get(
-  "/project/:projectId/tasks",
-  verifyToken,
-  getTaskReport
-);
-
-// Issue Report
-router.get(
-  "/project/:projectId/issues",
-  verifyToken,
-  getIssueReport
-);
+router.get('/project/:projectId', authenticateUser(), getProjectReport);
 
 export default router;

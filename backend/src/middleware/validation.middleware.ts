@@ -1,113 +1,109 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
+import { ERROR_CODES } from '../types/error.types';
 
-type ValidationRule = {
+export interface ValidationRule {
   field: string;
+  location: 'body' | 'params' | 'query';
   required?: boolean;
-  type?: "string" | "number" | "boolean" | "object";
+  isObjectId?: boolean;
+  isDate?: boolean;
+  enum?: string[];
   minLength?: number;
-  maxLength?: number;
-};
+}
 
 export const validate = (rules: ValidationRule[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const errors: {
-      field: string;
-      message: string;
-    }[] = [];
+    const errors: { field: string; message: string }[] = [];
 
-    const body = req.body || {};
+    rules.forEach((rule) => {
+      const target = req[rule.location];
+      const value = target?.[rule.field];
 
-    for (const rule of rules) {
-      const value = body[rule.field];
-
-      // Required validation
+      // 1. Required field validation
       if (
         rule.required &&
-        (value === undefined ||
-          value === null ||
-          value === "")
+        (value === undefined || value === null || value === '')
       ) {
         errors.push({
           field: rule.field,
-          message: `${rule.field} is required`,
+          message: `${rule.field} is required.`,
         });
-
-        continue;
+        return;
       }
 
-      // Skip optional fields that aren't provided
-      if (value === undefined || value === null || value === "") {
-        continue;
+      // Skip optional empty values
+      if (value === undefined || value === null || value === '') {
+        return;
       }
 
-      // Type validation
-      if (rule.type) {
-        let validType = true;
-
-        switch (rule.type) {
-          case "string":
-            validType = typeof value === "string";
-            break;
-
-          case "number":
-            validType =
-              typeof value === "number" &&
-              !Number.isNaN(value);
-            break;
-
-          case "boolean":
-            validType = typeof value === "boolean";
-            break;
-
-          case "object":
-            validType =
-              typeof value === "object" &&
-              value !== null &&
-              !Array.isArray(value);
-            break;
-        }
-
-        if (!validType) {
+      // 2. ObjectId validation
+      if (rule.isObjectId) {
+        if (
+          typeof value !== 'string' ||
+          !mongoose.Types.ObjectId.isValid(value)
+        ) {
           errors.push({
             field: rule.field,
-            message: `${rule.field} must be a ${rule.type}`,
+            message: `${rule.field} must be a valid ObjectId.`,
           });
-
-          continue;
         }
       }
 
-      // String length validation
+      // 3. Enum validation (Case-Insensitive & Auto-Normalizing)
+      if (rule.enum) {
+        const strVal = String(value).trim().toLowerCase();
+        const matchedEnum = rule.enum.find(
+          (item) => item.toLowerCase() === strVal
+        );
+
+        if (!matchedEnum) {
+          errors.push({
+            field: rule.field,
+            message: `${rule.field} must be one of: ${rule.enum.join(', ')}.`,
+          });
+        } else {
+          target[rule.field] = matchedEnum;
+        }
+      }
+
+      // 4. Date validation
+      if (rule.isDate) {
+        const isValidDate =
+          typeof value === 'string' &&
+          !isNaN(Date.parse(value));
+
+        if (!isValidDate) {
+          errors.push({
+            field: rule.field,
+            message: `${rule.field} must be a valid date format.`,
+          });
+        }
+      }
+
+      // 5. Minimum string length
       if (
-        typeof value === "string" &&
         rule.minLength !== undefined &&
+        typeof value === 'string' &&
         value.length < rule.minLength
       ) {
         errors.push({
           field: rule.field,
-          message: `${rule.field} must be at least ${rule.minLength} characters`,
+          message: `${rule.field} must be at least ${rule.minLength} characters long.`,
         });
       }
+    });
 
-      if (
-        typeof value === "string" &&
-        rule.maxLength !== undefined &&
-        value.length > rule.maxLength
-      ) {
-        errors.push({
-          field: rule.field,
-          message: `${rule.field} must not exceed ${rule.maxLength} characters`,
-        });
-      }
-    }
-
+    // Standardized response format for Task 7.3
     if (errors.length > 0) {
       res.status(400).json({
         success: false,
-        message: "Validation failed",
+        status: 'fail',
+        code: ERROR_CODES.VALIDATION_ERROR,
+        message: 'Validation failed',
+        data: null,
         errors,
       });
-
       return;
     }
 

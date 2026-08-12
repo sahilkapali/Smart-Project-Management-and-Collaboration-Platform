@@ -1,92 +1,78 @@
-import mongoose from 'mongoose';
+import Project from '../models/project.models';
+import Task from '../models/task.models';
+import Repository from '../models/repository.models';
 import Issue from '../models/issue.models';
-import Task from "../models/task.models";
+import Meeting from '../models/meeting.models';
 
-export const calculateSprintMetrics = async (sprintId: string) => {
-  const sprintObjectId = new mongoose.Types.ObjectId(sprintId);
+export const getDashboardMetricsService = async (userId: string) => {
+  const now = new Date();
 
-  const metrics = await Issue.aggregate([
-    { $match: { sprintId: sprintObjectId } },
-    {
-      $facet: {
-        
-        performance: [
-          {
-            $group: {
-              _id: null,
-              totalTasks: { $sum: 1 },
-              completedTasks: {
-                $sum: { $cond: [{ $eq: ['$status', 'Done'] }, 1, 0] }
-              },
-              committedStoryPoints: { $sum: { $ifNull: ['$storyPoints', 0] } },
-              completedStoryPoints: {
-                $sum: {
-                  $cond: [{ $eq: ['$status', 'Done'] }, { $ifNull: ['$storyPoints', 0] }, 0]
-                }
-              }
-            }
-          }
-        ],
-        
-        defects: [
-          {
-            $group: {
-              _id: null,
-              totalDefects: {
-                $sum: { $cond: [{ $eq: ['$type', 'Bug'] }, 1, 0] }
-              }
-            }
-          }
-        ]
-      }
-    }
-  ]);
+  const accessibleProjects = await Project.find({
+    $or: [
+      { owner: userId },
+      { members: userId }
+    ]
+  }).select('_id');
 
-  const perf = metrics[0].performance[0] || { totalTasks: 0, completedTasks: 0, committedStoryPoints: 0, completedStoryPoints: 0 };
-  const def = metrics[0].defects[0] || { totalDefects: 0 };
+  const projectIds = accessibleProjects.map((p) => p._id);
 
-  const completionRate = perf.committedStoryPoints > 0 
-    ? Math.round((perf.completedStoryPoints / perf.committedStoryPoints) * 100) 
-    : 0;
+ 
+  const tasks = await Task.find({ project: { $in: projectIds } });
 
-  const defectDensity = perf.committedStoryPoints > 0 
-    ? parseFloat((def.totalDefects / perf.committedStoryPoints).toFixed(2)) 
-    : 0;
+  let completedTasks = 0;
+  let inProgressTasks = 0;
+  let pendingTodoTasks = 0;
+  let overdueTasks = 0;
 
-  return {
-    sprintId,
-    totalTasks: perf.totalTasks,
-    completedTasks: perf.completedTasks,
-    committedStoryPoints: perf.committedStoryPoints,
-    completedStoryPoints: perf.completedStoryPoints,
-    completionRate,
-    totalDefects: def.totalDefects,
-    defectDensity
-  };
-};
-
-
-export const getKanbanBoardService = async (projectId: string) => {
-  const tasks = await Task.find({ project: projectId })
-    .populate("assignedTo", "name email avatar") 
-    .sort({ updatedAt: -1 }); 
-
-  
-  const kanbanBoard = {
-    Todo: [] as any[],
-    "In Progress": [] as any[],
-    Completed: [] as any[],
-  };
-
-  
   tasks.forEach((task) => {
-    const status = task.status as keyof typeof kanbanBoard;
-    if (kanbanBoard[status]) {
-      kanbanBoard[status].push(task);
-    } else {
-      kanbanBoard.Todo.push(task); 
+    
+    const status = task.status as string; 
+    
+    if (status === 'Completed') completedTasks++;
+    else if (status === 'In Progress') inProgressTasks++;
+    else if (status === 'Todo' || status === 'Pending') pendingTodoTasks++;
+
+    if (task.dueDate && new Date(task.dueDate) < now && status !== 'Completed') {
+      overdueTasks++;
     }
   });
 
-  return kanbanBoard;
+ 
+  const repositories = await Repository.find({ project: { $in: projectIds } }).select('_id');
+  const repositoryIds = repositories.map((r) => r._id);
+
+  const issues = await Issue.find({ repository: { $in: repositoryIds } });
+  
+  let openIssues = 0;
+  let resolvedIssues = 0;
+
+  issues.forEach((issue) => {
+    const status = issue.status as string;
+    if (status === 'Open') openIssues++;
+    else if (status === 'Resolved' || status === 'Closed') resolvedIssues++;
+  });
+
+  
+  const upcomingMeetings = await Meeting.countDocuments({
+    $or: [
+      { project: { $in: projectIds } },
+      { participants: userId }
+    ],
+    startTime: { $gt: now }
+  });
+
+  
+  return {
+    totalProjects: accessibleProjects.length,
+    totalTasks: tasks.length,
+    completedTasks,
+    inProgressTasks,
+    pendingTodoTasks,
+    overdueTasks,
+    totalIssues: issues.length,
+    openIssues,
+    resolvedIssues,
+    repositoriesCount: repositories.length,
+    upcomingMeetings
+  };
 };

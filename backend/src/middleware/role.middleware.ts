@@ -49,7 +49,7 @@ export const checkProjectMembership = async (
     }
 
     const isOwner =
-      project.owner.toString() === userId;
+      project.createdBy.toString() === userId;
 
     const isMember =
       project.members.some(
@@ -120,7 +120,7 @@ export const checkProjectManagementAccess = async (
       req.user?.role === ROLE.ADMIN;
 
     const isOwner =
-      project.owner.toString() === userId;
+      project.createdBy.toString() === userId;
 
     const isProjectManager =
       req.user?.role === ROLE.PROJECT_MANAGER;

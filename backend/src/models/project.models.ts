@@ -25,7 +25,7 @@ const projectSchema = new Schema<IProject>(
       required: true
     },
 
-    owner: {
+    createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true

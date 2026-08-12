@@ -1,128 +1,39 @@
-import { Response } from "express";
-import { AuthRequest } from "../types/custom";
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from '../types/custom';
+import { getProjectReportService } from '../services/report.service';
 
-import {
-  getProjectReportService,
-  getTaskReportService,
-  getIssueReportService,
-} from "../services/report.service";
-
-// Get Complete Project Report
+/**
+ * Generate report for a project
+ * Route: GET /api/reports/project/:projectId
+ */
 export const getProjectReport = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
-    const projectId = String(req.params.projectId);
+    const { projectId } = req.params;
 
-    // Validation
-    if (!projectId || projectId === "undefined") {
+    if (!projectId) {
       res.status(400).json({
         success: false,
-        message: "Project ID is required.",
+        message: 'Project ID parameter is required.',
       });
       return;
     }
 
-    const report = await getProjectReportService(
-      projectId
-    );
+    const reportData = await getProjectReportService(projectId as string);
 
     res.status(200).json({
       success: true,
-      message: "Project report generated successfully.",
-      data: report,
+      message: 'Project report generated successfully.',
+      data: reportData,
     });
-  } catch (err: any) {
-    const statusCode =
-      err.message === "Project not found." ||
-      err.message === "Invalid project ID."
-        ? 404
-        : 500;
-
-    res.status(statusCode).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-// Get Task Report
-export const getTaskReport = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const projectId = String(req.params.projectId);
-
-    if (!projectId || projectId === "undefined") {
-      res.status(400).json({
-        success: false,
-        message: "Project ID is required.",
-      });
+  } catch (error: any) {
+    if (error.message === 'Project not found') {
+      res.status(404).json({ success: false, message: error.message });
       return;
     }
-
-    const report = await getTaskReportService(
-      projectId
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Task report generated successfully.",
-      data: report,
-    });
-  } catch (err: any) {
-    const statusCode =
-      err.message === "Project not found." ||
-      err.message === "Invalid project ID."
-        ? 404
-        : 500;
-
-    res.status(statusCode).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-// Get Issue Report
-export const getIssueReport = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const projectId = String(req.params.projectId);
-
-    if (!projectId || projectId === "undefined") {
-      res.status(400).json({
-        success: false,
-        message: "Project ID is required.",
-      });
-      return;
-    }
-
-    const report = await getIssueReportService(
-      projectId
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Issue report generated successfully.",
-      data: report,
-    });
-  } catch (err: any) {
-    const statusCode =
-      err.message === "Project not found." ||
-      err.message === "Invalid project ID."
-        ? 404
-        : 500;
-
-    res.status(statusCode).json({
-      success: false,
-      message: err.message,
-    });
+    next(error);
   }
 };
