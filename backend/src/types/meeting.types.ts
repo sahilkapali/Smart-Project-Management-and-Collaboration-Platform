@@ -16,7 +16,6 @@ export interface IMeeting extends Document {
 
   projectId: Types.ObjectId;
 
-  // User who created the meeting
   createdBy: Types.ObjectId;
 
   notes?: IMeetingNote[];

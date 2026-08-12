@@ -185,7 +185,7 @@ export const getRepositoriesService = async (
   const projects = await Project.find({
     $or: [
       {
-        owner: userId
+        createdBy: userId
       },
       {
         members: userId

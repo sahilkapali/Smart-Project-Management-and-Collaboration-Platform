@@ -5,7 +5,7 @@ import Issue from '../models/issue.models';
 
 export const getProjectReportService = async (projectId: string) => {
   const project = await Project.findById(projectId)
-    .populate('owner', 'name email')
+    .populate('createdBy', 'name email')
     .populate('members', 'name email');
 
   if (!project) {
@@ -38,7 +38,7 @@ export const getProjectReportService = async (projectId: string) => {
       id: project._id,
       title: (project as any).name || (project as any).title,
       description: project.description,
-      owner: project.owner,
+      createdBy: project.createdBy,
       membersCount: project.members?.length || 0,
     },
     repositoriesCount: repositories.length,
