@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
   createTask,
   getTasks,
@@ -18,34 +19,93 @@ import { validate } from "../middleware/validation.middleware";
 
 const router = Router();
 
-// 1. Create Task (Validates required body fields, enums, dates, and ObjectId)
+/**
+ * =========================================================
+ * TASK CRUD
+ * =========================================================
+ */
+
+// Create Task
 router.post(
   "/",
   authenticateUser(),
   validate([
-    { field: "title", location: "body", required: true, minLength: 3 },
-    { field: "projectId", location: "body", required: true, isObjectId: true },
-    { field: "priority", location: "body", enum: ["Low", "Medium", "High"] },
-    { field: "status", location: "body", enum: ["Todo", "Pending", "In Progress", "Completed"] },
-    { field: "dueDate", location: "body", isDate: true },
+    {
+      field: "title",
+      location: "body",
+      required: true,
+      minLength: 3,
+    },
+    {
+      field: "project",
+      location: "body",
+      required: true,
+      isObjectId: true,
+    },
+    {
+      field: "priority",
+      location: "body",
+      enum: ["Low", "Medium", "High", "Critical"],
+    },
+    {
+      field: "dueDate",
+      location: "body",
+      isDate: true,
+    },
   ]),
-  createTask
+  createTask,
 );
 
-// Kanban
+// Get all tasks
+router.get("/", authenticateUser(), getTasks);
+
+// Get single task
+router.get("/:id", authenticateUser(), getTaskById);
+
+// Update task
+router.put("/:id", authenticateUser(), updateTask);
+
+// Delete task
+router.delete("/:id", authenticateUser(), deleteTask);
+
+/**
+ * =========================================================
+ * KANBAN
+ * =========================================================
+ */
+
+// Get Kanban board for project
 router.get("/project/:projectId/kanban", authenticateUser(), getKanban);
+
+// Update task Kanban status
 router.patch("/:id/status", authenticateUser(), updateKanbanStatus);
 
-// Comments
+/**
+ * =========================================================
+ * TASK COMMENTS
+ * =========================================================
+ */
+
+// Add comment
 router.post("/:id/comments", authenticateUser(), addTaskComment);
+
+// Get task comments
 router.get("/:id/comments", authenticateUser(), getTaskComments);
+
+// Delete comment
 router.delete(
   "/:taskId/comments/:commentId",
   authenticateUser(),
-  deleteTaskComment
+  deleteTaskComment,
 );
 
-// AI
+/**
+ * =========================================================
+ * AI TASK PRIORITIZATION
+ * =========================================================
+ */
+
+// Automatically prioritize task using AI
 router.patch("/:id/ai-prioritize", authenticateUser(), autoPrioritizeTask);
 
 export default router;

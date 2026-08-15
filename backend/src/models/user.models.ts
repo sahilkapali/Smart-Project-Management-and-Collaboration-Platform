@@ -40,16 +40,13 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       default: "",
+      trim: true,
     },
 
     profileImage: {
       type: {
-        path: {
-          type: String,
-        },
-        publicId: {
-          type: String,
-        },
+        path: { type: String },
+        publicId: { type: String },
       },
       required: false,
     },
@@ -76,7 +73,7 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 const User = mongoose.model("User", userSchema);

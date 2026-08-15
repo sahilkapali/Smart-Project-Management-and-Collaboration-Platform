@@ -1,17 +1,15 @@
 import { Response, NextFunction } from "express";
+import mongoose from "mongoose";
 
 import { AuthRequest } from "../types/custom";
-
 import * as projectService from "../services/project.service";
-
 import { PROJECT_STATUS } from "../types/project.types";
 
-/**
- * =========================================================
- * CREATE PROJECT
- * =========================================================
- */
-export const handleCreateProject = async (
+// =====================================================
+// CREATE PROJECT
+// =====================================================
+
+export const createProject = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -30,11 +28,19 @@ export const handleCreateProject = async (
       return;
     }
 
-    const { name, description, teamId, status, startDate, dueDate } = req.body;
+    const {
+      name,
+      description,
+      teamId,
+      status,
+      startDate,
+      dueDate,
+    } = req.body;
 
-    /**
-     * Validate project name.
-     */
+    // -------------------------------------------------
+    // Name validation
+    // -------------------------------------------------
+
     if (!name || typeof name !== "string") {
       res.status(400).json({
         success: false,
@@ -45,9 +51,32 @@ export const handleCreateProject = async (
       return;
     }
 
-    /**
-     * Validate team ID.
-     */
+    const trimmedName = name.trim();
+
+    if (trimmedName.length < 3) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Project name must be at least 3 characters long.",
+        data: null,
+      });
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Project name cannot exceed 100 characters.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Team validation
+    // -------------------------------------------------
+
     if (!teamId || typeof teamId !== "string") {
       res.status(400).json({
         success: false,
@@ -58,10 +87,19 @@ export const handleCreateProject = async (
       return;
     }
 
-    /**
-     * Validate status.
-     */
-    const projectStatus: PROJECT_STATUS = status || "PLANNING";
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Invalid team ID.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Status validation
+    // -------------------------------------------------
 
     const allowedStatuses: PROJECT_STATUS[] = [
       PROJECT_STATUS.PLANNING,
@@ -70,19 +108,60 @@ export const handleCreateProject = async (
       PROJECT_STATUS.ARCHIVED,
     ];
 
-    if (!allowedStatuses.includes(projectStatus)) {
+    let projectStatus: PROJECT_STATUS =
+      PROJECT_STATUS.PLANNING;
+
+    if (status !== undefined) {
+      if (
+        typeof status !== "string" ||
+        !allowedStatuses.includes(status as PROJECT_STATUS)
+      ) {
+        res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          message: "Invalid project status.",
+          data: null,
+        });
+        return;
+      }
+
+      projectStatus = status as PROJECT_STATUS;
+    }
+
+    // -------------------------------------------------
+    // Description validation
+    // -------------------------------------------------
+
+    if (
+      description !== undefined &&
+      typeof description !== "string"
+    ) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message: "Invalid project status.",
+        message: "Description must be a string.",
         data: null,
       });
       return;
     }
 
-    /**
-     * Convert dates.
-     */
+    if (
+      typeof description === "string" &&
+      description.length > 500
+    ) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Description cannot exceed 500 characters.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Date validation
+    // -------------------------------------------------
+
     let parsedStartDate: Date | undefined;
     let parsedDueDate: Date | undefined;
 
@@ -114,7 +193,11 @@ export const handleCreateProject = async (
       }
     }
 
-    if (parsedStartDate && parsedDueDate && parsedDueDate < parsedStartDate) {
+    if (
+      parsedStartDate &&
+      parsedDueDate &&
+      parsedDueDate < parsedStartDate
+    ) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -124,9 +207,15 @@ export const handleCreateProject = async (
       return;
     }
 
+    // -------------------------------------------------
+    // Call SERVICE
+    // -------------------------------------------------
+
     const project = await projectService.createProject(
-      name.trim(),
-      typeof description === "string" ? description.trim() : undefined,
+      trimmedName,
+      typeof description === "string"
+        ? description.trim()
+        : undefined,
       teamId,
       userId,
       userRole,
@@ -145,12 +234,11 @@ export const handleCreateProject = async (
   }
 };
 
-/**
- * =========================================================
- * GET CURRENT USER PROJECTS
- * =========================================================
- */
-export const handleGetProjects = async (
+// =====================================================
+// GET PROJECTS
+// =====================================================
+
+export const getProjects = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -169,7 +257,12 @@ export const handleGetProjects = async (
       return;
     }
 
-    const projects = await projectService.getUserProjects(userId, userRole);
+    // IMPORTANT:
+    // Controller calls SERVICE here.
+    const projects = await projectService.getUserProjects(
+      userId,
+      userRole,
+    );
 
     res.status(200).json({
       success: true,
@@ -181,12 +274,11 @@ export const handleGetProjects = async (
   }
 };
 
-/**
- * =========================================================
- * GET SINGLE PROJECT
- * =========================================================
- */
-export const handleGetProjectById = async (
+// =====================================================
+// GET SINGLE PROJECT
+// =====================================================
+
+export const getProjectById = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -217,11 +309,22 @@ export const handleGetProjectById = async (
       return;
     }
 
-    const project = await projectService.getProjectById(
-      projectId,
-      userId,
-      userRole,
-    );
+    const project =
+      await projectService.getProjectById(
+        projectId,
+        userId,
+        userRole,
+      );
+
+    if (!project) {
+      res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Project not found.",
+        data: null,
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
@@ -233,12 +336,11 @@ export const handleGetProjectById = async (
   }
 };
 
-/**
- * =========================================================
- * UPDATE PROJECT
- * =========================================================
- */
-export const handleUpdateProject = async (
+// =====================================================
+// UPDATE PROJECT
+// =====================================================
+
+export const updateProject = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -269,11 +371,18 @@ export const handleUpdateProject = async (
       return;
     }
 
-    const { name, description, status, startDate, dueDate } = req.body;
+    const {
+      name,
+      description,
+      status,
+      startDate,
+      dueDate,
+    } = req.body;
 
-    /**
-     * Make sure at least one field is supplied.
-     */
+    // -------------------------------------------------
+    // At least one field
+    // -------------------------------------------------
+
     if (
       name === undefined &&
       description === undefined &&
@@ -284,33 +393,38 @@ export const handleUpdateProject = async (
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message: "At least one field is required to update the project.",
+        message:
+          "At least one field is required to update the project.",
         data: null,
       });
       return;
     }
 
-    /**
-     * Validate name.
-     */
-    if (name !== undefined && typeof name !== "string") {
-      res.status(400).json({
-        success: false,
-        code: "VALIDATION_ERROR",
-        message: "Project name must be a string.",
-        data: null,
-      });
-      return;
-    }
+    // -------------------------------------------------
+    // Name
+    // -------------------------------------------------
 
-    if (typeof name === "string") {
-      const trimmedName = name.trim();
+    let trimmedName: string | undefined;
+
+    if (name !== undefined) {
+      if (typeof name !== "string") {
+        res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          message: "Project name must be a string.",
+          data: null,
+        });
+        return;
+      }
+
+      trimmedName = name.trim();
 
       if (trimmedName.length < 3) {
         res.status(400).json({
           success: false,
           code: "VALIDATION_ERROR",
-          message: "Project name must be at least 3 characters long.",
+          message:
+            "Project name must be at least 3 characters long.",
           data: null,
         });
         return;
@@ -320,17 +434,22 @@ export const handleUpdateProject = async (
         res.status(400).json({
           success: false,
           code: "VALIDATION_ERROR",
-          message: "Project name cannot exceed 100 characters.",
+          message:
+            "Project name cannot exceed 100 characters.",
           data: null,
         });
         return;
       }
     }
 
-    /**
-     * Validate description.
-     */
-    if (description !== undefined && typeof description !== "string") {
+    // -------------------------------------------------
+    // Description
+    // -------------------------------------------------
+
+    if (
+      description !== undefined &&
+      typeof description !== "string"
+    ) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -340,9 +459,24 @@ export const handleUpdateProject = async (
       return;
     }
 
-    /**
-     * Validate status.
-     */
+    if (
+      typeof description === "string" &&
+      description.length > 500
+    ) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message:
+          "Description cannot exceed 500 characters.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Status
+    // -------------------------------------------------
+
     const allowedStatuses: PROJECT_STATUS[] = [
       PROJECT_STATUS.PLANNING,
       PROJECT_STATUS.ACTIVE,
@@ -350,19 +484,29 @@ export const handleUpdateProject = async (
       PROJECT_STATUS.ARCHIVED,
     ];
 
-    if (status !== undefined && !allowedStatuses.includes(status)) {
-      res.status(400).json({
-        success: false,
-        code: "VALIDATION_ERROR",
-        message: "Invalid project status.",
-        data: null,
-      });
-      return;
+    let validatedStatus: PROJECT_STATUS | undefined;
+
+    if (status !== undefined) {
+      if (
+        typeof status !== "string" ||
+        !allowedStatuses.includes(status as PROJECT_STATUS)
+      ) {
+        res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          message: "Invalid project status.",
+          data: null,
+        });
+        return;
+      }
+
+      validatedStatus = status as PROJECT_STATUS;
     }
 
-    /**
-     * Parse dates.
-     */
+    // -------------------------------------------------
+    // Dates
+    // -------------------------------------------------
+
     let parsedStartDate: Date | undefined;
     let parsedDueDate: Date | undefined;
 
@@ -394,18 +538,51 @@ export const handleUpdateProject = async (
       }
     }
 
-    const project = await projectService.updateProject(
-      projectId,
-      userId,
-      userRole,
-      {
-        name,
-        description,
-        status,
-        startDate: parsedStartDate,
-        dueDate: parsedDueDate,
-      },
-    );
+    if (
+      parsedStartDate &&
+      parsedDueDate &&
+      parsedDueDate < parsedStartDate
+    ) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message:
+          "Due date cannot be earlier than start date.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Call SERVICE
+    // -------------------------------------------------
+
+    const project =
+      await projectService.updateProject(
+        projectId,
+        userId,
+        userRole,
+        {
+          name: trimmedName,
+          description:
+            typeof description === "string"
+              ? description.trim()
+              : description,
+          status: validatedStatus,
+          startDate: parsedStartDate,
+          dueDate: parsedDueDate,
+        },
+      );
+
+    if (!project) {
+      res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Project not found.",
+        data: null,
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
@@ -417,12 +594,11 @@ export const handleUpdateProject = async (
   }
 };
 
-/**
- * =========================================================
- * DELETE PROJECT
- * =========================================================
- */
-export const handleDeleteProject = async (
+// =====================================================
+// DELETE PROJECT
+// =====================================================
+
+export const deleteProject = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -453,7 +629,13 @@ export const handleDeleteProject = async (
       return;
     }
 
-    await projectService.deleteProject(projectId, userId, userRole);
+    // IMPORTANT:
+    // Call service here, NOT directly as route handler.
+    await projectService.deleteProject(
+      projectId,
+      userId,
+      userRole,
+    );
 
     res.status(200).json({
       success: true,

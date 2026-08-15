@@ -1,20 +1,27 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-import AIOutput, {
-  AIOutputType
-} from '../models/ai.models';
+import AIOutput, { AIOutputType } from "../models/ai.models";
 
-import Task from '../models/task.models';
-import Meeting from '../models/meeting.models';
-import Project from '../models/project.models';
+import Task from "../models/task.models";
+import Meeting from "../models/meeting.models";
+import Project from "../models/project.models";
 
 import {
   generateProjectInsight,
   prioritizeTask,
   generateMeetingSummary,
-  generateActionItems
-} from './gemini.service';
+  generateActionItems,
+} from "./gemini.service";
 
+// =====================================================
+// OBJECT ID VALIDATION
+// =====================================================
+
+const validateObjectId = (id: string, fieldName: string): void => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error(`INVALID_${fieldName.toUpperCase()}_ID`);
+  }
+};
 
 // =====================================================
 // SAVE AI OUTPUT
@@ -29,19 +36,30 @@ const saveAIOutput = async (data: {
   taskId?: string;
   meetingId?: string;
 }) => {
+  validateObjectId(data.userId, "user");
+
+  if (data.projectId) {
+    validateObjectId(data.projectId, "project");
+  }
+
+  if (data.taskId) {
+    validateObjectId(data.taskId, "task");
+  }
+
+  if (data.meetingId) {
+    validateObjectId(data.meetingId, "meeting");
+  }
 
   return AIOutput.create({
     type: data.type,
 
-    user: data.userId,
+    user: new mongoose.Types.ObjectId(data.userId),
 
     project: data.projectId
       ? new mongoose.Types.ObjectId(data.projectId)
       : undefined,
 
-    task: data.taskId
-      ? new mongoose.Types.ObjectId(data.taskId)
-      : undefined,
+    task: data.taskId ? new mongoose.Types.ObjectId(data.taskId) : undefined,
 
     meeting: data.meetingId
       ? new mongoose.Types.ObjectId(data.meetingId)
@@ -49,10 +67,9 @@ const saveAIOutput = async (data: {
 
     prompt: data.prompt,
 
-    output: data.output
+    output: data.output,
   });
 };
-
 
 // =====================================================
 // GENERAL PROJECT INSIGHT
@@ -60,15 +77,17 @@ const saveAIOutput = async (data: {
 
 export const createProjectInsight = async (
   projectId: string,
-  userId: string
+  userId: string,
 ) => {
+  validateObjectId(projectId, "project");
+  validateObjectId(userId, "user");
 
   const project = await Project.findById(projectId)
-    .populate('createdBy', 'name email')
-    .populate('members', 'name email');
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role");
 
   if (!project) {
-    throw new Error('PROJECT_NOT_FOUND');
+    throw new Error("PROJECT_NOT_FOUND");
   }
 
   const projectContext = JSON.stringify({
@@ -78,39 +97,36 @@ export const createProjectInsight = async (
     startDate: project.startDate,
     dueDate: project.dueDate,
     createdBy: project.createdBy,
-    members: project.members
+    members: project.members,
   });
 
-  const output =
-    await generateProjectInsight(projectContext);
+  const output = await generateProjectInsight(projectContext);
 
   const saved = await saveAIOutput({
     type: AIOutputType.INSIGHT,
     userId,
     projectId,
     prompt: projectContext,
-    output
+    output,
   });
 
   return saved;
 };
 
-
 // =====================================================
 // TASK PRIORITIZATION
 // =====================================================
 
-export const prioritizeTaskByAI = async (
-  taskId: string,
-  userId: string
-) => {
+export const prioritizeTaskByAI = async (taskId: string, userId: string) => {
+  validateObjectId(taskId, "task");
+  validateObjectId(userId, "user");
 
   const task = await Task.findById(taskId)
-    .populate('project')
-    .populate('assignedTo', 'name email');
+    .populate("project")
+    .populate("assignedTo", "firstName lastName email role");
 
   if (!task) {
-    throw new Error('TASK_NOT_FOUND');
+    throw new Error("TASK_NOT_FOUND");
   }
 
   const taskContext = JSON.stringify({
@@ -120,18 +136,24 @@ export const prioritizeTaskByAI = async (
     priority: task.priority,
     dueDate: task.dueDate,
     assignedTo: task.assignedTo,
-    project: task.project
+    project: task.project,
   });
 
-  const output =
-    await prioritizeTask(taskContext);
+  const output = await prioritizeTask(taskContext);
 
-  const projectId =
+  let projectId: string;
+
+  if (
     task.project &&
-    typeof task.project === 'object' &&
-    '_id' in task.project
-      ? String((task.project as any)._id)
-      : String(task.project);
+    typeof task.project === "object" &&
+    "_id" in task.project
+  ) {
+    projectId = String((task.project as any)._id);
+  } else {
+    projectId = String(task.project);
+  }
+
+  validateObjectId(projectId, "project");
 
   const saved = await saveAIOutput({
     type: AIOutputType.TASK_PRIORITY,
@@ -139,53 +161,44 @@ export const prioritizeTaskByAI = async (
     taskId,
     projectId,
     prompt: taskContext,
-    output
+    output,
   });
 
   return saved;
 };
 
-
 // =====================================================
 // MEETING SUMMARY
 // =====================================================
 
-export const summarizeMeeting = async (
-  meetingId: string,
-  userId: string
-) => {
+export const summarizeMeeting = async (meetingId: string, userId: string) => {
+  validateObjectId(meetingId, "meeting");
+  validateObjectId(userId, "user");
 
   const meeting = await Meeting.findById(meetingId);
 
   if (!meeting) {
-    throw new Error('MEETING_NOT_FOUND');
+    throw new Error("MEETING_NOT_FOUND");
   }
 
-  const meetingText =
-    meeting.notes ||
-    (meeting as any).transcript ||
-    '';
+  const meetingText = meeting.notes || (meeting as any).transcript || "";
 
   if (!meetingText.trim()) {
-    throw new Error(
-      'MEETING_NOTES_REQUIRED'
-    );
+    throw new Error("MEETING_NOTES_REQUIRED");
   }
 
-  const output =
-    await generateMeetingSummary(meetingText);
+  const output = await generateMeetingSummary(meetingText);
 
   const saved = await saveAIOutput({
     type: AIOutputType.MEETING_SUMMARY,
     userId,
     meetingId,
     prompt: meetingText,
-    output
+    output,
   });
 
   return saved;
 };
-
 
 // =====================================================
 // MEETING ACTION ITEMS
@@ -193,81 +206,87 @@ export const summarizeMeeting = async (
 
 export const extractMeetingActionItems = async (
   meetingId: string,
-  userId: string
+  userId: string,
 ) => {
+  validateObjectId(meetingId, "meeting");
+  validateObjectId(userId, "user");
 
   const meeting = await Meeting.findById(meetingId);
 
   if (!meeting) {
-    throw new Error('MEETING_NOT_FOUND');
+    throw new Error("MEETING_NOT_FOUND");
   }
 
-  const meetingText =
-    meeting.notes ||
-    (meeting as any).transcript ||
-    '';
+  const meetingText = meeting.notes || (meeting as any).transcript || "";
 
   if (!meetingText.trim()) {
-    throw new Error(
-      'MEETING_NOTES_REQUIRED'
-    );
+    throw new Error("MEETING_NOTES_REQUIRED");
   }
 
-  const output =
-    await generateActionItems(meetingText);
+  const output = await generateActionItems(meetingText);
 
   const saved = await saveAIOutput({
     type: AIOutputType.ACTION_ITEMS,
     userId,
     meetingId,
     prompt: meetingText,
-    output
+    output,
   });
 
   return saved;
 };
 
-
 // =====================================================
-// GET STORED AI OUTPUTS
+// GET STORED PROJECT AI OUTPUTS
 // =====================================================
 
 export const getProjectAIOutputs = async (
   projectId: string,
-  userId: string
+  userId: string,
 ) => {
+  validateObjectId(projectId, "project");
+  validateObjectId(userId, "user");
 
   return AIOutput.find({
-    project: projectId,
-    user: userId
+    project: new mongoose.Types.ObjectId(projectId),
+    user: new mongoose.Types.ObjectId(userId),
   })
-    .populate('task', 'title status priority')
-    .populate('meeting', 'title date')
+    .populate("task", "title status priority")
+    .populate("meeting", "title date")
     .sort({ createdAt: -1 });
 };
 
+// =====================================================
+// GET STORED TASK AI OUTPUTS
+// =====================================================
 
-export const getTaskAIOutputs = async (
-  taskId: string,
-  userId: string
-) => {
+export const getTaskAIOutputs = async (taskId: string, userId: string) => {
+  validateObjectId(taskId, "task");
+  validateObjectId(userId, "user");
 
   return AIOutput.find({
-    task: taskId,
-    user: userId
-  })
-    .sort({ createdAt: -1 });
+    task: new mongoose.Types.ObjectId(taskId),
+    user: new mongoose.Types.ObjectId(userId),
+  }).sort({
+    createdAt: -1,
+  });
 };
 
+// =====================================================
+// GET STORED MEETING AI OUTPUTS
+// =====================================================
 
 export const getMeetingAIOutputs = async (
   meetingId: string,
-  userId: string
+  userId: string,
 ) => {
+  validateObjectId(meetingId, "meeting");
+  validateObjectId(userId, "user");
 
   return AIOutput.find({
-    meeting: meetingId,
-    user: userId
-  })
-    .sort({ createdAt: -1 });
+    meeting: new mongoose.Types.ObjectId(meetingId),
+    user: new mongoose.Types.ObjectId(userId),
+  }).sort({
+    createdAt: -1,
+  });
 };
