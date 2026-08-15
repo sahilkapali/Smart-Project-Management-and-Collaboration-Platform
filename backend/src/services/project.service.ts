@@ -2,210 +2,221 @@ import mongoose from "mongoose";
 
 import Project from "../models/project.models";
 import Team from "../models/team.models";
-import User from "../models/user.models";
 
-import { IProject, PROJECT_STATUS } from "../types/project.types";
+import { PROJECT_STATUS } from "../types/project.types";
 
-import { ROLE } from "../types/enum.types";
+/**
+ * =========================================================
+ * TYPES
+ * =========================================================
+ */
+
+/**
+ * User roles used by project authorization.
+ *
+ * Existing project authorization:
+ * - ADMIN: can manage any project
+ * - PROJECT_MANAGER: can manage projects in their own team
+ * - TEAM_MEMBER: cannot create/update/delete projects
+ */
+export type UserRole =
+  | "ADMIN"
+  | "PROJECT_MANAGER"
+  | "TEAM_MEMBER"
+  | string;
+
+/**
+ * Data accepted when updating a project.
+ */
+export interface UpdateProjectData {
+  name?: string;
+  description?: string;
+  status?: PROJECT_STATUS;
+  startDate?: Date;
+  dueDate?: Date;
+}
+
+/**
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+/**
+ * Validate MongoDB ObjectId.
+ */
+const validateObjectId = (
+  id: string,
+  fieldName: string,
+): void => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error(`Invalid ${fieldName}.`);
+  }
+};
+
+/**
+ * Convert string to ObjectId.
+ */
+const toObjectId = (id: string): mongoose.Types.ObjectId => {
+  return new mongoose.Types.ObjectId(id);
+};
+
+/**
+ * Check whether user is ADMIN.
+ */
+const isAdmin = (userRole: UserRole): boolean => {
+  return userRole === "ADMIN";
+};
+
+/**
+ * Check whether user is PROJECT_MANAGER.
+ */
+const isProjectManager = (userRole: UserRole): boolean => {
+  return userRole === "PROJECT_MANAGER";
+};
 
 /**
  * =========================================================
  * CREATE PROJECT
  * =========================================================
- *
- * ADMIN:
- * - Can create a project in any team.
- *
- * PROJECT_MANAGER:
- * - Can create a project only in a team they own.
- *
- * TEAM_MEMBER:
- * - Blocked by route authorization.
  */
 export const createProject = async (
   name: string,
   description: string | undefined,
   teamId: string,
-  createdBy: string,
-  userRole: ROLE,
+  userId: string,
+  userRole: UserRole,
   status: PROJECT_STATUS = PROJECT_STATUS.PLANNING,
   startDate?: Date,
   dueDate?: Date,
-): Promise<IProject> => {
+) => {
   /**
-   * Validate Team ID
+   * Validate IDs.
    */
-  if (!mongoose.Types.ObjectId.isValid(teamId)) {
-    throw new Error("Invalid team ID.");
+  validateObjectId(teamId, "team ID");
+  validateObjectId(userId, "user ID");
+
+  /**
+   * Only ADMIN and PROJECT_MANAGER can create projects.
+   */
+  if (!isAdmin(userRole) && !isProjectManager(userRole)) {
+    throw new Error(
+      "You are not authorized to create a project.",
+    );
   }
 
   /**
-   * Validate User ID
+   * Find the team.
    */
-  if (!mongoose.Types.ObjectId.isValid(createdBy)) {
-    throw new Error("Invalid user ID.");
-  }
-
-  /**
-   * Validate dates
-   */
-  if (startDate && dueDate && dueDate < startDate) {
-    throw new Error("Due date cannot be earlier than start date.");
-  }
-
-  const teamObjectId = new mongoose.Types.ObjectId(teamId);
-  const userObjectId = new mongoose.Types.ObjectId(createdBy);
-
-  /**
-   * Find team
-   */
-  const team = await Team.findById(teamObjectId);
+  const team = await Team.findById(teamId);
 
   if (!team) {
     throw new Error("Team not found.");
   }
 
   /**
-   * Authorization
+   * PROJECT_MANAGER must belong to the team.
    *
-   * ADMIN:
-   * Can create project in any team.
-   *
-   * PROJECT_MANAGER:
-   * Can create project only in their own team.
+   * ADMIN can create projects for any team.
    */
-  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== createdBy) {
+  if (!isAdmin(userRole)) {
+    const isMember = team.members.some(
+      (member: any) =>
+        member.toString() === userId,
+    );
+
+    if (!isMember) {
+      throw new Error(
+        "You must be a member of the team to create a project.",
+      );
+    }
+  }
+
+  /**
+   * Validate dates.
+   */
+  if (
+    startDate &&
+    dueDate &&
+    dueDate < startDate
+  ) {
     throw new Error(
-      "You do not have permission to create a project in this team.",
+      "Due date cannot be earlier than start date.",
     );
   }
 
   /**
-   * Verify creator exists
+   * Create project.
    */
-  const user = await User.findById(userObjectId);
-
-  if (!user) {
-    throw new Error("Project creator not found.");
-  }
-
-  /**
-   * Create project
-   */
-  const project = new Project({
-    name: name.trim(),
-
-    description:
-      typeof description === "string" ? description.trim() : undefined,
-
-    team: teamObjectId,
-
-    createdBy: userObjectId,
-
+  const project = await Project.create({
+    name,
+    description,
+    team: toObjectId(teamId),
+    createdBy: toObjectId(userId),
+    members: [toObjectId(userId)],
     status,
-
     startDate,
-
     dueDate,
   });
 
-  await project.save();
-
   /**
-   * Return populated project
+   * Return populated project.
    */
-  const populatedProject = await Project.findById(project._id)
-    .populate("team", "name description owner members")
-    .populate("createdBy", "firstName lastName email role");
-
-  if (!populatedProject) {
-    throw new Error("Project could not be retrieved after creation.");
-  }
-
-  return populatedProject as IProject;
+  return await Project.findById(project._id)
+    .populate("team")
+    .populate("createdBy", "name email role")
+    .populate("members", "name email role");
 };
 
 /**
  * =========================================================
- * GET PROJECTS
+ * GET USER PROJECTS
  * =========================================================
- *
- * Returns projects belonging to teams where the
- * current user is a member.
- *
- * ADMIN:
- * - Can see all projects.
- *
- * PROJECT_MANAGER:
- * - Can see projects in their teams.
- *
- * TEAM_MEMBER:
- * - Can see projects in teams they belong to.
  */
 export const getUserProjects = async (
   userId: string,
-  userRole: ROLE,
-): Promise<IProject[]> => {
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
+  userRole: UserRole,
+) => {
+  validateObjectId(userId, "user ID");
 
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-
-  let projects;
+  const userObjectId = toObjectId(userId);
 
   /**
-   * ADMIN can see every project.
+   * ADMIN can see all projects.
    */
-  if (userRole === ROLE.ADMIN) {
-    projects = await Project.find()
-      .populate("team", "name description owner members")
-      .populate("createdBy", "firstName lastName email role")
-      .sort({ createdAt: -1 });
-  } else {
-    /**
-     * Other users can only see projects
-     * belonging to teams they are members of.
-     */
-    const teams = await Team.find({
-      members: userObjectId,
-    }).select("_id");
-
-    const teamIds = teams.map((team) => team._id);
-
-    projects = await Project.find({
-      team: { $in: teamIds },
-    })
-      .populate("team", "name description owner members")
-      .populate("createdBy", "firstName lastName email role")
+  if (isAdmin(userRole)) {
+    return await Project.find()
+      .populate("team")
+      .populate("createdBy", "name email role")
+      .populate("members", "name email role")
       .sort({ createdAt: -1 });
   }
 
-  return projects as IProject[];
+  /**
+   * Other users can see projects where they
+   * are a member.
+   */
+  return await Project.find({
+    members: userObjectId,
+  })
+    .populate("team")
+    .populate("createdBy", "name email role")
+    .populate("members", "name email role")
+    .sort({ createdAt: -1 });
 };
 
 /**
  * =========================================================
- * GET SINGLE PROJECT
+ * GET PROJECT BY ID
  * =========================================================
- *
- * User must belong to the project's team.
- *
- * ADMIN:
- * - Can view any project.
  */
 export const getProjectById = async (
   projectId: string,
   userId: string,
-  userRole: ROLE,
-): Promise<IProject> => {
-  if (!mongoose.Types.ObjectId.isValid(projectId)) {
-    throw new Error("Invalid project ID.");
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
+  userRole: UserRole,
+) => {
+  validateObjectId(projectId, "project ID");
+  validateObjectId(userId, "user ID");
 
   const project = await Project.findById(projectId);
 
@@ -214,76 +225,43 @@ export const getProjectById = async (
   }
 
   /**
-   * Admin can view any project.
+   * ADMIN can access any project.
    */
-  if (userRole === ROLE.ADMIN) {
-    const populatedProject = await Project.findById(project._id)
-      .populate("team", "name description owner members")
-      .populate("createdBy", "firstName lastName email role");
+  if (!isAdmin(userRole)) {
+    const isMember = project.members.some(
+      (member: any) =>
+        member.toString() === userId,
+    );
 
-    if (!populatedProject) {
-      throw new Error("Project not found.");
+    if (!isMember) {
+      throw new Error(
+        "You are not a member of this project.",
+      );
     }
-
-    return populatedProject as IProject;
   }
 
   /**
-   * Check team membership.
+   * Return populated project.
    */
-  const team = await Team.findOne({
-    _id: project.team,
-    members: new mongoose.Types.ObjectId(userId),
-  });
-
-  if (!team) {
-    throw new Error("You are not a member of this project's team.");
-  }
-
-  const populatedProject = await Project.findById(project._id)
-    .populate("team", "name description owner members")
-    .populate("createdBy", "firstName lastName email role");
-
-  if (!populatedProject) {
-    throw new Error("Project not found.");
-  }
-
-  return populatedProject as IProject;
+  return await Project.findById(projectId)
+    .populate("team")
+    .populate("createdBy", "name email role")
+    .populate("members", "name email role");
 };
 
 /**
  * =========================================================
  * UPDATE PROJECT
  * =========================================================
- *
- * ADMIN:
- * - Can update any project.
- *
- * PROJECT_MANAGER:
- * - Can update projects in their own team.
- *
- * TEAM_MEMBER:
- * - Blocked by route authorization.
  */
 export const updateProject = async (
   projectId: string,
   userId: string,
-  userRole: ROLE,
-  data: {
-    name?: string;
-    description?: string;
-    status?: PROJECT_STATUS;
-    startDate?: Date;
-    dueDate?: Date;
-  },
-): Promise<IProject> => {
-  if (!mongoose.Types.ObjectId.isValid(projectId)) {
-    throw new Error("Invalid project ID.");
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
+  userRole: UserRole,
+  data: UpdateProjectData,
+) => {
+  validateObjectId(projectId, "project ID");
+  validateObjectId(userId, "user ID");
 
   const project = await Project.findById(projectId);
 
@@ -292,70 +270,71 @@ export const updateProject = async (
   }
 
   /**
-   * Find project team
+   * ADMIN can update any project.
    */
-  const team = await Team.findById(project.team);
+  if (isAdmin(userRole)) {
+    // Allowed.
+  } else if (isProjectManager(userRole)) {
+    /**
+     * PROJECT_MANAGER must belong to project's team.
+     */
+    const team = await Team.findOne({
+      _id: project.team,
+      members: toObjectId(userId),
+    });
 
-  if (!team) {
-    throw new Error("Project's team could not be found.");
+    if (!team) {
+      throw new Error(
+        "You are not authorized to update this project.",
+      );
+    }
+  } else {
+    /**
+     * TEAM_MEMBER cannot update project.
+     */
+    throw new Error(
+      "You are not authorized to update this project.",
+    );
   }
 
   /**
-   * Authorization
-   *
-   * Admin → any project
-   *
-   * Project Manager → own team only
+   * Validate update dates against existing dates.
    */
-  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
-    throw new Error("You do not have permission to update this project.");
+  const finalStartDate =
+    data.startDate !== undefined
+      ? data.startDate
+      : project.startDate;
+
+  const finalDueDate =
+    data.dueDate !== undefined
+      ? data.dueDate
+      : project.dueDate;
+
+  if (
+    finalStartDate &&
+    finalDueDate &&
+    finalDueDate < finalStartDate
+  ) {
+    throw new Error(
+      "Due date cannot be earlier than start date.",
+    );
   }
 
   /**
-   * Update name
+   * Only update supplied fields.
    */
   if (data.name !== undefined) {
-    const name = data.name.trim();
-
-    if (name.length < 3) {
-      throw new Error("Project name must be at least 3 characters long.");
-    }
-
-    if (name.length > 100) {
-      throw new Error("Project name cannot exceed 100 characters.");
-    }
-
-    project.name = name;
+    project.name = data.name;
   }
 
-  /**
-   * Update description
-   */
   if (data.description !== undefined) {
-    project.description = data.description.trim();
+    project.description = data.description;
   }
 
-  /**
-   * Update status
-   */
   if (data.status !== undefined) {
-    const allowedStatuses: PROJECT_STATUS[] = [
-      PROJECT_STATUS.PLANNING,
-      PROJECT_STATUS.ACTIVE,
-      PROJECT_STATUS.COMPLETED,
-      PROJECT_STATUS.ARCHIVED,
-    ];
-
-    if (!allowedStatuses.includes(data.status)) {
-      throw new Error("Invalid project status.");
-    }
-
     project.status = data.status;
   }
 
-  /**
-   * Update dates
-   */
   if (data.startDate !== undefined) {
     project.startDate = data.startDate;
   }
@@ -364,59 +343,29 @@ export const updateProject = async (
     project.dueDate = data.dueDate;
   }
 
-  /**
-   * Check date relationship after updates.
-   */
-  if (
-    project.startDate &&
-    project.dueDate &&
-    project.dueDate < project.startDate
-  ) {
-    throw new Error("Due date cannot be earlier than start date.");
-  }
-
   await project.save();
 
   /**
-   * Return populated project.
+   * Return populated updated project.
    */
-  const updatedProject = await Project.findById(project._id)
-    .populate("team", "name description owner members")
-    .populate("createdBy", "firstName lastName email role");
-
-  if (!updatedProject) {
-    throw new Error("Project could not be retrieved after updating.");
-  }
-
-  return updatedProject as IProject;
+  return await Project.findById(project._id)
+    .populate("team")
+    .populate("createdBy", "name email role")
+    .populate("members", "name email role");
 };
 
 /**
  * =========================================================
  * DELETE PROJECT
  * =========================================================
- *
- * ADMIN:
- * - Can delete any project.
- *
- * PROJECT_MANAGER:
- * - Can delete project in their own team.
- *
- * TEAM_MEMBER:
- * - Blocked by route authorization.
  */
 export const deleteProject = async (
   projectId: string,
   userId: string,
-  userRole: ROLE,
-): Promise<void> => {
-  if (!mongoose.Types.ObjectId.isValid(projectId)) {
-    throw new Error("Invalid project ID.");
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
+  userRole: UserRole,
+): Promise<boolean> => {
+  validateObjectId(projectId, "project ID");
+  validateObjectId(userId, "user ID");
 
   const project = await Project.findById(projectId);
 
@@ -425,20 +374,37 @@ export const deleteProject = async (
   }
 
   /**
-   * Find project team.
+   * ADMIN can delete any project.
    */
-  const team = await Team.findById(project.team);
-
-  if (!team) {
-    throw new Error("Project's team could not be found.");
+  if (isAdmin(userRole)) {
+    await Project.findByIdAndDelete(projectId);
+    return true;
   }
 
   /**
-   * Authorization
+   * PROJECT_MANAGER must belong to project's team.
    */
-  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
-    throw new Error("You do not have permission to delete this project.");
+  if (isProjectManager(userRole)) {
+    const team = await Team.findOne({
+      _id: project.team,
+      members: toObjectId(userId),
+    });
+
+    if (!team) {
+      throw new Error(
+        "You are not authorized to delete this project.",
+      );
+    }
+
+    await Project.findByIdAndDelete(projectId);
+
+    return true;
   }
 
-  await Project.findByIdAndDelete(projectId);
+  /**
+   * TEAM_MEMBER and other roles cannot delete.
+   */
+  throw new Error(
+    "You are not authorized to delete this project.",
+  );
 };

@@ -4,7 +4,7 @@ import { gemini } from '../config/gemini';
 // GEMINI MODEL
 // =====================================================
 
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-3.1-flash-lite';
 
 
 // =====================================================

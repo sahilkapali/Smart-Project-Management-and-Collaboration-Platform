@@ -156,7 +156,7 @@ export const addTeamMember = async (
    * Admin can manage any team.
    * Project Manager can manage only their own team.
    */
-  if (requesterRole !== ROLE.ADMIN && team.createdBy.toString() !== requesterId) {
+  if (requesterRole !== ROLE.ADMIN && team.owner.toString() !== requesterId) {
     throw new Error("You do not have permission to add members to this team.");
   }
 
@@ -240,7 +240,7 @@ export const removeTeamMember = async (
    * Admin can manage any team.
    * Project Manager can manage only their own team.
    */
-  if (requesterRole !== ROLE.ADMIN && team.createdBy.toString() !== requesterId) {
+  if (requesterRole !== ROLE.ADMIN && team.owner.toString() !== requesterId) {
     throw new Error(
       "You do not have permission to remove members from this team.",
     );
@@ -249,7 +249,7 @@ export const removeTeamMember = async (
   /**
    * Prevent removing team owner.
    */
-  if (team.createdBy.toString() === userId) {
+  if (team.owner.toString() === userId) {
     throw new Error("Team owner cannot be removed from the team.");
   }
 
@@ -324,7 +324,7 @@ export const updateTeam = async (
    * Admin can update any team.
    * Project Manager can update only their own team.
    */
-  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
+  if (userRole !== ROLE.ADMIN && team.owner.toString() !== userId) {
     throw new Error("You do not have permission to update this team.");
   }
 
@@ -401,7 +401,7 @@ export const deleteTeam = async (
    * Admin can delete any team.
    * Project Manager can delete only their own team.
    */
-  if (userRole !== ROLE.ADMIN && team.createdBy.toString() !== userId) {
+  if (userRole !== ROLE.ADMIN && team.owner.toString() !== userId) {
     throw new Error("You do not have permission to delete this team.");
   }
 

@@ -97,9 +97,6 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/repositories", repositoryRoutes);
 app.use("/api/repositories", repositoryVersionRoutes);
 
-//Activity Routes
-app.use("/api/activities", activityRoutes);
-
 //Issue Routes
 app.use("/api/issues", issueRoutes);
 

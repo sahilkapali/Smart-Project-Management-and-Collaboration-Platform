@@ -14,10 +14,13 @@ import {
 
 import * as aiService from "../services/gemini.service";
 
-// ================= CREATE TASK =================
-export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createTask = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
-    const { project, title, description, assignedTo, dueDate, priority } = req.body;
+    const { project, title, description, assignedTo, dueDate, priority } =
+      req.body;
 
     if (!project || !title) {
       res.status(400).json({
@@ -47,10 +50,21 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-// ================= GET ALL TASKS =================
-export const getTasks = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getTasks = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const projectId = req.query.project as string | undefined;
+
+    if (!projectId) {
+      res.status(400).json({
+        success: false,
+        message: "Project ID is required.",
+      });
+      return;
+    }
+
     const tasks = await getTasksService(projectId);
 
     res.status(200).json({
@@ -63,24 +77,70 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
-// ================= GET TASK BY ID =================
-export const getTaskById = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getTaskById = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
-    const task = await getTaskByIdService(req.params.id);
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
-    if (!task) {
-      res.status(404).json({ success: false, message: "Task not found." });
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized. User information not found.",
+      });
       return;
     }
 
-    res.status(200).json({ success: true, data: task });
+    const task = await getTaskByIdService(
+      req.params.id,
+      userId,
+      userRole as string,
+    );
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task,
+    });
   } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
+    const message = err.message || "Failed to retrieve task.";
+
+    if (message.includes("not a member") || message.includes("permission")) {
+      res.status(403).json({
+        success: false,
+        message,
+      });
+      return;
+    }
+
+    if (message.includes("Invalid")) {
+      res.status(400).json({
+        success: false,
+        message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message,
+    });
   }
 };
 
-// ================= UPDATE TASK =================
-export const updateTask = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateTask = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -114,7 +174,10 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 // ================= DELETE TASK =================
-export const deleteTask = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteTask = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -147,7 +210,7 @@ export const deleteTask = async (req: AuthRequest, res: Response): Promise<void>
 export const updateKanbanStatus = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { status } = req.body;
@@ -163,7 +226,7 @@ export const updateKanbanStatus = async (
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { new: true },
     );
 
     if (!task) {
@@ -181,8 +244,10 @@ export const updateKanbanStatus = async (
   }
 };
 
-// ================= GET KANBAN BOARD =================
-export const getKanban = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getKanban = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const board = await getKanbanService(req.params.projectId);
 
@@ -195,11 +260,10 @@ export const getKanban = async (req: AuthRequest, res: Response): Promise<void> 
   }
 };
 
-// ================= ADD TASK COMMENT =================
 export const addTaskComment = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id);
@@ -235,8 +299,10 @@ export const addTaskComment = async (
   }
 };
 
-// ================= GET TASK COMMENTS =================
-export const getTaskComments = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getTaskComments = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const comments = await TaskComment.find({ task: req.params.id })
       .populate("user", "name email role")
@@ -252,8 +318,10 @@ export const getTaskComments = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-// ================= DELETE TASK COMMENT =================
-export const deleteTaskComment = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteTaskComment = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const comment = await TaskComment.findById(req.params.commentId);
 
@@ -281,11 +349,10 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// ================= AUTO PRIORITIZE TASK (AI) =================
 export const autoPrioritizeTask = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id);
@@ -298,20 +365,30 @@ export const autoPrioritizeTask = async (
     const taskContext = `
 Task Title: ${task.title}
 Description: ${task.description || "No description provided"}
-Due Date: ${
-  task.dueDate
-    ? new Date(task.dueDate).toISOString()
-    : "No due date"
-}
+Due Date: ${task.dueDate ? new Date(task.dueDate).toISOString() : "No due date"}
 Status: ${task.status || "Not specified"}
 Current Priority: ${task.priority || "Not assigned"}
 `;
 
-const aiPriority = await aiService.generateTaskPriority(
-  taskContext
-);
+    const aiPriority = await aiService.generateTaskPriority(taskContext);
 
-    task.priority = aiPriority as "low" | "medium" | "high" | "critical";
+    const normalizedPriority =
+      aiPriority.charAt(0).toUpperCase() + aiPriority.slice(1).toLowerCase();
+
+    if (!["Low", "Medium", "High", "Critical"].includes(normalizedPriority)) {
+      res.status(500).json({
+        success: false,
+        message: "AI returned an invalid task priority.",
+      });
+      return;
+    }
+
+    task.priority = normalizedPriority as
+      | "Low"
+      | "Medium"
+      | "High"
+      | "Critical";
+
     await task.save();
 
     res.status(200).json({

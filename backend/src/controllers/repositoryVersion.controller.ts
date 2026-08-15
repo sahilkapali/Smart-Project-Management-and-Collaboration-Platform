@@ -1,6 +1,7 @@
 import { Response } from "express";
-import { AuthRequest } from "../types/custom";
+import mongoose from "mongoose";
 
+import { AuthRequest } from "../types/custom";
 import Repository from "../models/repository.models";
 
 import {
@@ -18,193 +19,219 @@ import { uploadFileToCloudinary } from "../services/cloudinary.service";
 
 export const createVersion = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
+    const userId = req.user?.id;
+
+    const repositoryId = req.params.id;
+
     const { version, message } = req.body;
 
-    const repositoryId = String(req.params.id);
+    // ==================================================
+    // AUTHENTICATION
+    // ==================================================
 
-    // ------------------------------------------
-    // Authentication check
-    // ------------------------------------------
-
-    if (!req.user?.id) {
+    if (!userId) {
       res.status(401).json({
         success: false,
+        code: "UNAUTHORIZED",
         message: "Authentication required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Repository ID validation
-    // ------------------------------------------
+    // ==================================================
+    // REPOSITORY ID VALIDATION
+    // ==================================================
 
-    if (!repositoryId || repositoryId === "undefined") {
+    if (!repositoryId || !mongoose.Types.ObjectId.isValid(repositoryId)) {
       res.status(400).json({
         success: false,
-        message: "Repository ID is required.",
+        code: "INVALID_REPOSITORY_ID",
+        message: "A valid repository ID is required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Version validation
-    // ------------------------------------------
+    // ==================================================
+    // VERSION VALIDATION
+    // ==================================================
 
-    if (
-      !version ||
-      typeof version !== "string" ||
-      version.trim().length === 0
-    ) {
+    if (typeof version !== "string" || version.trim().length === 0) {
       res.status(400).json({
         success: false,
+        code: "VALIDATION_ERROR",
         message: "Version is required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // File validation
-    // ------------------------------------------
+    if (version.trim().length > 50) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Version cannot exceed 50 characters.",
+        data: null,
+      });
+      return;
+    }
+
+    // ==================================================
+    // FILE VALIDATION
+    // ==================================================
 
     if (!req.file) {
       res.status(400).json({
         success: false,
+        code: "FILE_REQUIRED",
         message: "Repository version file is required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Check repository
-    // ------------------------------------------
+    // ==================================================
+    // CHECK REPOSITORY
+    // ==================================================
 
     const repository = await Repository.findById(repositoryId);
 
     if (!repository) {
       res.status(404).json({
         success: false,
+        code: "REPOSITORY_NOT_FOUND",
         message: "Repository not found.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Upload file to Cloudinary
-    // ------------------------------------------
+    // ==================================================
+    // UPLOAD FILE
+    // ==================================================
 
     const fileUrl = await uploadFileToCloudinary(
       req.file.buffer,
-      req.file.originalname
+      req.file.originalname,
     );
 
-    // ------------------------------------------
-    // Save version in MongoDB
-    // ------------------------------------------
+    // ==================================================
+    // CREATE VERSION
+    // ==================================================
 
     const repositoryVersion = await createVersionService({
       repository: repositoryId,
-
       version: version.trim(),
-
-      message:
-        typeof message === "string"
-          ? message.trim()
-          : "",
-
+      message: typeof message === "string" ? message.trim() : "",
       file: fileUrl,
-
-      uploadedBy: req.user.id,
+      uploadedBy: userId,
     });
 
-    // ------------------------------------------
-    // Response
-    // ------------------------------------------
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     res.status(201).json({
       success: true,
       message: "Repository version created successfully.",
-
       data: repositoryVersion,
     });
-  } catch (err: any) {
-    console.error("Create repository version error:", err);
+  } catch (error: any) {
+    console.error("Create repository version error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        err.message ||
-        "Failed to create repository version.",
+      code: "INTERNAL_SERVER_ERROR",
+      message: error?.message || "Failed to create repository version.",
+      data: null,
     });
   }
 };
 
 // ======================================================
-// GET ALL VERSIONS
+// GET ALL REPOSITORY VERSIONS
 // ======================================================
 
 export const getVersions = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const repositoryId = String(req.params.id);
+    const userId = req.user?.id;
 
-    // ------------------------------------------
-    // Validate repository ID
-    // ------------------------------------------
+    const repositoryId = req.params.id;
 
-    if (!repositoryId || repositoryId === "undefined") {
-      res.status(400).json({
+    // ==================================================
+    // AUTHENTICATION
+    // ==================================================
+
+    if (!userId) {
+      res.status(401).json({
         success: false,
-        message: "Repository ID is required.",
+        code: "UNAUTHORIZED",
+        message: "Authentication required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Check repository
-    // ------------------------------------------
+    // ==================================================
+    // REPOSITORY ID VALIDATION
+    // ==================================================
+
+    if (!repositoryId || !mongoose.Types.ObjectId.isValid(repositoryId)) {
+      res.status(400).json({
+        success: false,
+        code: "INVALID_REPOSITORY_ID",
+        message: "A valid repository ID is required.",
+        data: null,
+      });
+      return;
+    }
+
+    // ==================================================
+    // CHECK REPOSITORY
+    // ==================================================
 
     const repository = await Repository.findById(repositoryId);
 
     if (!repository) {
       res.status(404).json({
         success: false,
+        code: "REPOSITORY_NOT_FOUND",
         message: "Repository not found.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Get versions
-    // ------------------------------------------
+    // ==================================================
+    // GET VERSIONS
+    // ==================================================
 
-    const versions =
-      await getVersionsService(repositoryId);
+    const versions = await getVersionsService(repositoryId);
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     res.status(200).json({
       success: true,
       count: versions.length,
       data: versions,
     });
-  } catch (err: any) {
-    console.error("Get repository versions error:", err);
+  } catch (error: any) {
+    console.error("Get repository versions error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        err.message ||
-        "Failed to fetch repository versions.",
+      code: "INTERNAL_SERVER_ERROR",
+      message: error?.message || "Failed to fetch repository versions.",
+      data: null,
     });
   }
 };
@@ -215,52 +242,73 @@ export const getVersions = async (
 
 export const getVersionById = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const versionId = String(req.params.versionId);
+    const userId = req.user?.id;
 
-    // ------------------------------------------
-    // Validate version ID
-    // ------------------------------------------
+    const versionId = req.params.versionId;
 
-    if (!versionId || versionId === "undefined") {
-      res.status(400).json({
+    // ==================================================
+    // AUTHENTICATION
+    // ==================================================
+
+    if (!userId) {
+      res.status(401).json({
         success: false,
-        message: "Version ID is required.",
+        code: "UNAUTHORIZED",
+        message: "Authentication required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Get version
-    // ------------------------------------------
+    // ==================================================
+    // VERSION ID VALIDATION
+    // ==================================================
 
-    const version =
-      await getVersionByIdService(versionId);
+    if (!versionId || !mongoose.Types.ObjectId.isValid(versionId)) {
+      res.status(400).json({
+        success: false,
+        code: "INVALID_VERSION_ID",
+        message: "A valid version ID is required.",
+        data: null,
+      });
+      return;
+    }
+
+    // ==================================================
+    // GET VERSION
+    // ==================================================
+
+    const version = await getVersionByIdService(versionId);
 
     if (!version) {
       res.status(404).json({
         success: false,
+        code: "VERSION_NOT_FOUND",
         message: "Repository version not found.",
+        data: null,
       });
-
       return;
     }
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     res.status(200).json({
       success: true,
       data: version,
     });
-  } catch (err: any) {
-    console.error("Get repository version error:", err);
+  } catch (error: any) {
+    console.error("Get repository version error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        err.message ||
-        "Failed to fetch repository version.",
+      code: "INTERNAL_SERVER_ERROR",
+      message: error?.message || "Failed to fetch repository version.",
+      data: null,
     });
   }
 };
@@ -271,53 +319,74 @@ export const getVersionById = async (
 
 export const deleteVersion = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const versionId = String(req.params.versionId);
+    const userId = req.user?.id;
 
-    // ------------------------------------------
-    // Validate version ID
-    // ------------------------------------------
+    const versionId = req.params.versionId;
 
-    if (!versionId || versionId === "undefined") {
+    // ==================================================
+    // AUTHENTICATION
+    // ==================================================
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        code: "UNAUTHORIZED",
+        message: "Authentication required.",
+        data: null,
+      });
+      return;
+    }
+
+    // ==================================================
+    // VERSION ID VALIDATION
+    // ==================================================
+
+    if (!versionId || !mongoose.Types.ObjectId.isValid(versionId)) {
       res.status(400).json({
         success: false,
-        message: "Version ID is required.",
+        code: "INVALID_VERSION_ID",
+        message: "A valid version ID is required.",
+        data: null,
       });
-
       return;
     }
 
-    // ------------------------------------------
-    // Delete version
-    // ------------------------------------------
+    // ==================================================
+    // DELETE VERSION
+    // ==================================================
 
-    const version =
-      await deleteVersionService(versionId);
+    const deletedVersion = await deleteVersionService(versionId);
 
-    if (!version) {
+    if (!deletedVersion) {
       res.status(404).json({
         success: false,
+        code: "VERSION_NOT_FOUND",
         message: "Repository version not found.",
+        data: null,
       });
-
       return;
     }
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     res.status(200).json({
       success: true,
-      message:
-        "Repository version deleted successfully.",
+      message: "Repository version deleted successfully.",
+      data: deletedVersion,
     });
-  } catch (err: any) {
-    console.error("Delete repository version error:", err);
+  } catch (error: any) {
+    console.error("Delete repository version error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        err.message ||
-        "Failed to delete repository version.",
+      code: "INTERNAL_SERVER_ERROR",
+      message: error?.message || "Failed to delete repository version.",
+      data: null,
     });
   }
 };

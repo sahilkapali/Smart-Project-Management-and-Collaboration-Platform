@@ -26,14 +26,14 @@ router.put(
   validate([
     {
       field: "oldPassword",
+      location: "body",
       required: true,
-      type: "string",
       minLength: 6,
     },
     {
       field: "newPassword",
+      location: "body",
       required: true,
-      type: "string",
       minLength: 6,
     },
   ]),
