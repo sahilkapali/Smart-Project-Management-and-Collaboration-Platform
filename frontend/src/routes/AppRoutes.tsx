@@ -80,7 +80,6 @@ const AppRoutes = () => {
           element={<EditProfile />}
         />
 
-<<<<<<< HEAD
         <Route
           path={ROUTES.CHANGE_PASSWORD}
           element={<ChangePassword />}
@@ -109,13 +108,11 @@ const AppRoutes = () => {
           path="/ai"
           element={<AIPage />}
         />
-=======
         <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
 
         <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
         
         <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
->>>>>>> origin/main
       </Route>
 
       

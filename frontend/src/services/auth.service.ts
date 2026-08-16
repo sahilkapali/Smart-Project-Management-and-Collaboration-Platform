@@ -8,13 +8,8 @@ import type {
 
 // ==================== LOGIN ====================
 
-export const loginUser = async (
-  data: LoginData
-): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>(
-    "/auth/login",
-    data
-  );
+export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>("/auth/login", data);
 
   return response.data;
 };
@@ -22,12 +17,9 @@ export const loginUser = async (
 // ==================== REGISTER ====================
 
 export const registerUser = async (
-  data: RegisterData
+  data: RegisterData,
 ): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>(
-    "/auth/register",
-    data
-  );
+  const response = await api.post<AuthResponse>("/auth/register", data);
 
   return response.data;
 };
@@ -41,13 +33,13 @@ export interface ForgotPasswordResponse {
 }
 
 export const forgotPassword = async (
-  email: string
+  email: string,
 ): Promise<ForgotPasswordResponse> => {
   const response = await api.post<ForgotPasswordResponse>(
     "/auth/forgot-password",
     {
       email,
-    }
+    },
   );
 
   return response.data;
@@ -68,12 +60,25 @@ export interface ResetPasswordData {
 }
 
 export const resetPassword = async (
-  data: ResetPasswordData
+  data: ResetPasswordData,
 ): Promise<ResetPasswordResponse> => {
   const response = await api.post<ResetPasswordResponse>(
     "/auth/reset-password",
-    data
+    data,
   );
+
+  return response.data;
+};
+
+// ==================== LOGOUT ====================
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+}
+
+export const logoutUser = async (): Promise<LogoutResponse> => {
+  const response = await api.post<LogoutResponse>("/auth/logout");
 
   return response.data;
 };

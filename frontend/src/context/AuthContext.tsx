@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
-
 import type { ReactNode } from "react";
 
-import { loginUser, registerUser } from "../services/auth.service";
+import { loginUser, registerUser, logoutUser } from "../services/auth.service";
 
 import type { LoginData, RegisterData, User } from "../types/user.types";
 
@@ -16,7 +15,7 @@ interface AuthContextType {
 
   login: (data: LoginData) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,7 +31,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Restore login session when application starts
+  // ==================== RESTORE SESSION ====================
+
   useEffect(() => {
     const storedToken = getToken();
     const storedUser = localStorage.getItem("user");
@@ -54,7 +54,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setLoading(false);
   }, []);
 
-  // Login
+  // ==================== LOGIN ====================
+
   const login = async (data: LoginData): Promise<User> => {
     const response = await loginUser(data);
 
@@ -68,7 +69,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return response.data;
   };
 
-  // Register
+  // ==================== REGISTER ====================
+
   const register = async (data: RegisterData): Promise<User> => {
     const response = await registerUser(data);
 
@@ -82,14 +84,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return response.data;
   };
 
-  // Logout
-  const logout = (): void => {
-    removeToken();
+  // ==================== LOGOUT ====================
 
-    localStorage.removeItem("user");
+  const logout = async (): Promise<void> => {
+    try {
+      /*
+       * Call backend logout endpoint first.
+       *
+       * The JWT is automatically attached by
+       * the Axios interceptor in api.ts.
+       */
+      await logoutUser();
+    } catch (error) {
+      /*
+       * Even if the backend request fails,
+       * we still remove the local authentication
+       * information.
+       */
+      console.error("Backend logout failed:", error);
+    } finally {
+      /*
+       * Always clear local authentication state.
+       */
+      removeToken();
 
-    setUser(null);
-    setTokenState(null);
+      localStorage.removeItem("user");
+
+      setUser(null);
+      setTokenState(null);
+    }
   };
 
   const value: AuthContextType = {
@@ -104,6 +127,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// ==================== USE AUTH ====================
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
