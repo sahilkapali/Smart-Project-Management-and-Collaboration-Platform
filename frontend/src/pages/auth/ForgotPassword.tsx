@@ -24,12 +24,18 @@ const ForgotPassword = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+
+    if (!trimmedEmail) {
       toast.error("Please enter your email address.");
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!trimmedEmail.includes("@")) {
       toast.error("Please enter a valid email address.");
       return;
     }
@@ -37,14 +43,17 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
 
-      const response = await forgotPassword(email.trim());
+      const response = await forgotPassword(trimmedEmail);
 
-      toast.success(response.message || "OTP sent successfully.");
+      toast.success(
+        response.message ||
+          "If your account exists, an OTP has been sent to your email.",
+      );
 
-      // Pass email to the reset-password page
+      // Go to reset password page
       navigate("/reset-password", {
         state: {
-          email: email.trim(),
+          email: trimmedEmail,
         },
       });
     } catch (error: any) {
@@ -69,53 +78,81 @@ const ForgotPassword = () => {
         alignItems: "center",
         justifyContent: "center",
         px: 2,
+        py: 4,
         backgroundColor: "background.default",
       }}
     >
       <Card
+        elevation={0}
         sx={{
           width: "100%",
-          maxWidth: 420,
+          maxWidth: 430,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 3,
+          boxShadow: "0 12px 35px rgba(15, 23, 42, 0.08)",
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+            {/* Header */}
             <Box>
-              <Typography variant="h4" fontWeight={700}>
-                Forgot Password
+              <Typography
+                variant="h4"
+                fontWeight={700}
+                sx={{ color: "text.primary" }}
+              >
+                Forgot Password?
               </Typography>
 
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ mt: 0.5 }}
+                sx={{
+                  mt: 1,
+                  lineHeight: 1.7,
+                }}
               >
-                Enter your email address and we'll send you an OTP to reset your
-                password.
+                Enter your registered email address and we'll send you a 6-digit
+                OTP to reset your password.
               </Typography>
             </Box>
 
+            {/* Email */}
             <CustomInput
               label="Email Address"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              disabled={loading}
             />
 
+            {/* Send OTP */}
             <Button
               type="submit"
               variant="contained"
               size="large"
               fullWidth
               disabled={loading}
+              sx={{
+                minHeight: 48,
+                borderRadius: 2,
+                fontWeight: 600,
+              }}
             >
               {loading ? "Sending OTP..." : "Send OTP"}
             </Button>
 
+            {/* Back to Login */}
             <Button
               type="button"
               variant="text"
               onClick={() => navigate("/login")}
+              disabled={loading}
+              sx={{
+                fontWeight: 600,
+              }}
             >
               Back to Login
             </Button>
