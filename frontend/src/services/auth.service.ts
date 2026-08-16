@@ -1,46 +1,79 @@
 import api from "./api";
 
-export interface LoginData {
-  email: string;
-  password: string;
+import type {
+  AuthResponse,
+  LoginData,
+  RegisterData,
+} from "../types/user.types";
+
+// ==================== LOGIN ====================
+
+export const loginUser = async (
+  data: LoginData
+): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>(
+    "/auth/login",
+    data
+  );
+
+  return response.data;
+};
+
+// ==================== REGISTER ====================
+
+export const registerUser = async (
+  data: RegisterData
+): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>(
+    "/auth/register",
+    data
+  );
+
+  return response.data;
+};
+
+// ==================== FORGOT PASSWORD ====================
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
 }
 
-export interface RegisterData {
-  first_Name: string;
-  last_Name: string;
-  email: string;
-  password: string;
+export const forgotPassword = async (
+  email: string
+): Promise<ForgotPasswordResponse> => {
+  const response = await api.post<ForgotPasswordResponse>(
+    "/auth/forgot-password",
+    {
+      email,
+    }
+  );
+
+  return response.data;
+};
+
+// ==================== RESET PASSWORD ====================
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
 }
 
-export const login = async (data: LoginData) => {
-  const response = await api.post("/auth/login", data);
-  return response.data;
-};
-
-export const register = async (data: RegisterData) => {
-  const response = await api.post("/auth/register", data);
-  return response.data;
-};
-
-export const logout = async () => {
-  const response = await api.post("/auth/logout");
-  return response.data;
-};
-
-export const getProfile = async () => {
-  const response = await api.get("/users/profile");
-  return response.data;
-};
-
-export const updateProfile = async (data: any) => {
-  const response = await api.put("/users/profile", data);
-  return response.data;
-};
-
-export const changePassword = async (data: {
-  currentPassword: string;
+export interface ResetPasswordData {
+  email: string;
+  otp: string;
   newPassword: string;
-}) => {
-  const response = await api.put("/users/change-password", data);
+}
+
+export const resetPassword = async (
+  data: ResetPasswordData
+): Promise<ResetPasswordResponse> => {
+  const response = await api.post<ResetPasswordResponse>(
+    "/auth/reset-password",
+    data
+  );
+
   return response.data;
 };
