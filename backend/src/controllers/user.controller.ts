@@ -7,7 +7,10 @@ import {
   changePassword,
 } from "../services/auth.service";
 
+// ============================================
 // Get all users
+// ============================================
+
 export const getUsers = async (
   req: Request,
   res: Response,
@@ -27,7 +30,10 @@ export const getUsers = async (
   }
 };
 
+// ============================================
 // Get logged-in user's profile
+// ============================================
+
 export const getUserProfile = async (
   req: Request,
   res: Response,
@@ -36,6 +42,8 @@ export const getUserProfile = async (
   try {
     const userId = req.user?.id;
 
+    // Make sure userId exists before passing it
+    // to a function requiring a string.
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -51,7 +59,10 @@ export const getUserProfile = async (
   }
 };
 
+// ============================================
 // Update logged-in user's profile
+// ============================================
+
 export const updateUserProfile = async (
   req: Request,
   res: Response,
@@ -60,6 +71,7 @@ export const updateUserProfile = async (
   try {
     const userId = req.user?.id;
 
+    // Make sure userId exists
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -67,20 +79,33 @@ export const updateUserProfile = async (
       });
     }
 
-    const { firstName, lastName, phone } = req.body;
-
-    if (!firstName && !lastName && !phone) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one field is required to update profile",
-      });
-    }
-
-    const result = await updateProfile(userId, {
+    const {
       firstName,
       lastName,
       phone,
-    });
+    } = req.body;
+
+    // At least one field must be provided
+    if (
+      !firstName &&
+      !lastName &&
+      !phone
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "At least one field is required to update profile.",
+      });
+    }
+
+    const result = await updateProfile(
+      userId,
+      {
+        firstName,
+        lastName,
+        phone,
+      },
+    );
 
     return res.status(200).json(result);
   } catch (error) {
@@ -88,7 +113,10 @@ export const updateUserProfile = async (
   }
 };
 
+// ============================================
 // Change user password
+// ============================================
+
 export const changeUserPassword = async (
   req: Request,
   res: Response,
@@ -97,37 +125,50 @@ export const changeUserPassword = async (
   try {
     const userId = req.user?.id;
 
-<<<<<<< HEAD
+    // IMPORTANT:
+    // Check userId before calling changePassword().
+    // req.user?.id is string | undefined,
+    // while changePassword() requires string.
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized.",
+        message: "Unauthorized. User not found.",
       });
     }
 
-    const { oldPassword, newPassword } = req.body;
-=======
-    // Changed currentPassword to oldPassword to match our validation middleware
-    const { currentPassword, newPassword } = req.body;
->>>>>>> origin/main
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    // Validate request body
+    if (
+      !currentPassword ||
+      !newPassword
+    ) {
       return res.status(400).json({
         success: false,
-        message: "oldPassword and newPassword are required",
+        message:
+          "currentPassword and newPassword are required.",
       });
     }
 
-<<<<<<< HEAD
+    // Optional password length validation
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be at least 6 characters.",
+      });
+    }
+
+    // At this point userId is guaranteed to be a string.
     const result = await changePassword(
       userId,
-      oldPassword,
+      currentPassword,
       newPassword,
     );
 
-=======
-    const result = await changePassword(userId, currentPassword, newPassword);
->>>>>>> origin/main
     return res.status(200).json(result);
   } catch (error) {
     next(error);
