@@ -83,7 +83,6 @@ const Dashboard = () => {
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        activeItem="/dashboard"
       />
 
       {/* =====================================================
