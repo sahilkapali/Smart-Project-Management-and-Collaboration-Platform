@@ -19,14 +19,17 @@ import {
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
+import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
+import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
-import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
-import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -62,6 +65,16 @@ const navigationItems: NavigationItem[] = [
     icon: <TaskAltRoundedIcon />,
   },
   {
+    label: "Repositories",
+    path: "/repository",
+    icon: <CodeRoundedIcon />,
+  },
+  {
+    label: "Issues",
+    path: "/issues",
+    icon: <BugReportRoundedIcon />,
+  },
+  {
     label: "Teams",
     path: "/teams",
     icon: <GroupsRoundedIcon />,
@@ -70,6 +83,11 @@ const navigationItems: NavigationItem[] = [
     label: "Meetings",
     path: "/meetings",
     icon: <EventRoundedIcon />,
+  },
+  {
+    label: "Activity Feed",
+    path: "/activity",
+    icon: <HistoryRoundedIcon />,
   },
   {
     label: "Reports",
@@ -227,9 +245,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           sx={{
             position: "fixed",
             inset: 0,
-
             bgcolor: "rgba(0,0,0,0.35)",
-
             zIndex: theme.zIndex.drawer - 1,
           }}
         />
@@ -244,7 +260,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         square
         sx={{
           position: "fixed",
-
           top: 0,
           left: 0,
           bottom: 0,
@@ -294,7 +309,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         <Box
           sx={{
             flexShrink: 0,
-
             px: 2.5,
             pt: 3,
             pb: 2.5,

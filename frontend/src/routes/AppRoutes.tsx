@@ -49,12 +49,13 @@ import IssuesPage from "../pages/issues/Issues";
 import CreateIssuePage from "../pages/issues/CreateIssuePage";
 import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
 import EditIssuePage from "../pages/issues/EditIssuePage";
-import RepositoryVersionHistoryPage from '../pages/repository/RepositoryVersionHistoryPage';
+import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
 
 // ============================================================
 // Activities
 // ============================================================
-import ActivityFeedPage from '../pages/activity/ActivityFeedPage';
+
+import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
 
 // ============================================================
 // MEETINGS
@@ -142,7 +143,10 @@ const AppRoutes = () => {
           {/* ================================================== */}
           {/* PROJECTS                                           */}
           {/* ================================================== */}
-          <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
+          <Route
+            path={ROUTES.PROJECTS || "/projects"}
+            element={<Projects />}
+          />
           <Route
             path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
             element={<ProjectDetails />}
@@ -170,22 +174,29 @@ const AppRoutes = () => {
           {/* ================================================== */}
           {/* NOTIFICATIONS                                      */}
           {/* ================================================== */}
-          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+          <Route
+            path={ROUTES.NOTIFICATIONS}
+            element={<NotificationsPage />}
+          />
           {/* ================================================== */}
           {/* REPOSITORY                                         */}
           {/* ================================================== */}
           <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
           <Route path="/repository/:id" element={<RepositoryDetailPage />} />
+          <Route
+            path="/repository/:id/history"
+            element={<RepositoryVersionHistoryPage />}
+          />
           {/* ================================================== */}
           {/* ISSUES                                             */}
           {/* ================================================== */}
-          <Route path="/issues" element={<IssuesPage />} />{" "}
+          <Route path="/issues" element={<IssuesPage />} />
           <Route path="/issues/create" element={<CreateIssuePage />} />
+          <Route path="/issues/new" element={<CreateIssuePage />} />
           <Route path="/issues/:id" element={<IssueDetailsPage />} />
           <Route path="/issues/:id/edit" element={<EditIssuePage />} />
-          <Route path="/repository/:id/history" element={<RepositoryVersionHistoryPage />} />
           {/* ================================================== */}
-          {/* ISSUES                                             */}
+          {/* Activity                                           */}
           {/* ================================================== */}
           <Route path="/activity" element={<ActivityFeedPage />} />
           {/* ================================================== */}
