@@ -12,6 +12,8 @@ import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
 
 import ProtectedRoute from "../components/auth/ProtectedRoute";
+import NotificationsPage from "../pages/notification/NotificationsPage";
+import RepositoryPage from "../pages/repository/RepositoryPage";
 
 import { ROUTES } from "../utils/routes";
 
@@ -43,7 +45,13 @@ const AppRoutes = () => {
         <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
 
         <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
+
+        <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+        
+        <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
       </Route>
+
+      
     </Routes>
   );
 };
