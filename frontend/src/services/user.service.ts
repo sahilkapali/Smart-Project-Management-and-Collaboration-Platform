@@ -1,8 +1,7 @@
 import api from "./api";
-
 import type { User } from "../types/user.types";
 
-// ==================== GET PROFILE ====================
+// ==================== SHARED RESPONSES ====================
 
 interface UserProfileResponse {
   success: boolean;
@@ -10,9 +9,10 @@ interface UserProfileResponse {
   data: User;
 }
 
+// ==================== GET PROFILE ====================
+
 export const getUserProfile = async (): Promise<User> => {
   const response = await api.get<UserProfileResponse>("/users/profile");
-
   return response.data.data;
 };
 
@@ -24,16 +24,27 @@ export interface UpdateProfileData {
   phone?: string;
 }
 
-interface UpdateProfileResponse {
-  success: boolean;
-  message: string;
-  data: User;
-}
-
 export const updateUserProfile = async (
-  data: UpdateProfileData,
+  data: UpdateProfileData
 ): Promise<User> => {
-  const response = await api.put<UpdateProfileResponse>("/users/profile", data);
+  const response = await api.put<UserProfileResponse>("/users/profile", data);
+  return response.data.data;
+};
+
+// ==================== UPLOAD PROFILE IMAGE ====================
+
+export const uploadProfileImage = async (
+  formData: FormData
+): Promise<User> => {
+  const response = await api.post<UserProfileResponse>(
+    "/users/profile/image",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
 
   return response.data.data;
 };
@@ -51,11 +62,11 @@ interface ChangePasswordResponse {
 }
 
 export const changeUserPassword = async (
-  data: ChangePasswordData,
+  data: ChangePasswordData
 ): Promise<ChangePasswordResponse> => {
   const response = await api.put<ChangePasswordResponse>(
     "/users/change-password",
-    data,
+    data
   );
 
   return response.data;
