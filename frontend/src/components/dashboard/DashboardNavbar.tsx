@@ -1,18 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+
 import {
   AppBar,
   Avatar,
   Badge,
   Box,
-  Button,
-  CircularProgress,
   Divider,
   IconButton,
   InputBase,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
   Menu,
   MenuItem,
   Stack,
@@ -25,7 +20,6 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
-import CircleIcon from "@mui/icons-material/Circle";
 
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -36,80 +30,51 @@ interface DashboardNavbarProps {
   onMenuClick?: () => void;
   userName?: string;
   userAvatar?: string;
-  notificationCount?: number;
 }
 
 const DashboardNavbar = ({
   onMenuClick,
   userName = "User",
   userAvatar,
-  notificationCount,
 }: DashboardNavbarProps) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // Profile menu
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(
+    null,
+  );
 
   const [loggingOut, setLoggingOut] = useState(false);
 
-  useEffect(() => {
-    if (notificationCount !== undefined) {
-      setUnreadCount(notificationCount);
-    } else {
-      fetchCount();
-    }
-  }, [notificationCount]);
+  const profileMenuOpen = Boolean(profileAnchorEl);
 
-  // Open Notification Dropdown & Fetch Notifications
-  const handleNotifClick = async (event: React.MouseEvent<HTMLElement>) => {
-    setNotifAnchorEl(event.currentTarget);
-    try {
-      setLoadingNotifs(true);
-      const res = await getMyNotifications();
-      setNotifications((res.data || []).slice(0, 5)); // Display latest 5
-    } catch (error) {
-      console.error("Failed to load notifications:", error);
-    } finally {
-      setLoadingNotifs(false);
-    }
-  };
-
-  // ==================== PROFILE MENU ====================
+  // =========================
+  // PROFILE MENU
+  // =========================
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+    setProfileAnchorEl(event.currentTarget);
   };
 
-  // Mark single item as read and handle redirection
-  const handleItemClick = async (item: Notification) => {
-    if (!item.isRead) {
-      try {
-        await markAsRead(item._id);
-        setNotifications((prev) =>
-          prev.map((n) => (n._id === item._id ? { ...n, isRead: true } : n))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      } catch (error) {
-        console.error("Failed to mark notification as read:", error);
-      }
-    }
-
-    if (item.link) {
-      handleNotifClose();
-      navigate(item.link);
-    }
+  const handleProfileMenuClose = () => {
+    setProfileAnchorEl(null);
   };
 
-  // ==================== NAVIGATION ====================
+  // =========================
+  // NAVIGATION
+  // =========================
 
   const handleNavigation = (path: string) => {
-    handleClose();
+    handleProfileMenuClose();
     navigate(path);
   };
 
-  // ==================== LOGOUT ====================
+  // =========================
+  // LOGOUT
+  // =========================
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -119,16 +84,12 @@ const DashboardNavbar = ({
     try {
       setLoggingOut(true);
 
-      // Close profile menu
-      handleClose();
+      handleProfileMenuClose();
 
-      // Call AuthContext logout
       await logout();
 
-      // Show success message
       toast.success("Logged out successfully.");
 
-      // Redirect to login page
       navigate("/login", {
         replace: true,
       });
@@ -141,20 +102,15 @@ const DashboardNavbar = ({
     }
   };
 
-  // ==================== USER INFORMATION ====================
+  // =========================
+  // USER INITIALS
+  // =========================
 
-  const displayName =
-    userName !== "User"
-      ? userName
-      : user
-        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User"
-        : "User";
-
-  const initials = displayName
+  const initials = userName
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map((name) => name[0])
+    .map((name) => name.charAt(0))
     .join("")
     .toUpperCase();
 
@@ -163,60 +119,104 @@ const DashboardNavbar = ({
       position="fixed"
       elevation={0}
       sx={{
-        left: { xs: 0, md: 250 },
-        width: { xs: "100%", md: "calc(100% - 250px)" },
+        left: {
+          xs: 0,
+          md: 250,
+        },
+
+        width: {
+          xs: "100%",
+          md: "calc(100% - 250px)",
+        },
+
         bgcolor: "background.paper",
         color: "text.primary",
+
         borderBottom: "1px solid",
         borderColor: "divider",
+
         zIndex: theme.zIndex.appBar,
       }}
     >
       <Toolbar
         sx={{
-          minHeight: { xs: 64, md: 72 },
-          px: { xs: 1.5, sm: 2, md: 3 },
+          minHeight: {
+            xs: 64,
+            md: 72,
+          },
+
+          px: {
+            xs: 1.5,
+            sm: 2,
+            md: 3,
+          },
+
           gap: 2,
         }}
       >
-        {/* ==================== MOBILE MENU ==================== */}
+        {/* =========================
+            MOBILE MENU
+        ========================= */}
 
         <IconButton
           onClick={onMenuClick}
           aria-label="Open navigation menu"
-          sx={{ display: { xs: "inline-flex", md: "none" } }}
+          sx={{
+            display: {
+              xs: "inline-flex",
+              md: "none",
+            },
+          }}
         >
           <MenuRoundedIcon />
         </IconButton>
 
-        {/* ==================== SEARCH ==================== */}
+        {/* =========================
+            SEARCH
+        ========================= */}
 
         <Box
           sx={{
             flex: 1,
             maxWidth: 360,
-            display: { xs: "none", sm: "block" },
+
+            display: {
+              xs: "none",
+              sm: "block",
+            },
           }}
         >
           <Box
             sx={{
               height: 42,
+
               display: "flex",
               alignItems: "center",
+
               px: 1.5,
+
               border: "1px solid",
               borderColor: "divider",
+
               borderRadius: 2.5,
 
               bgcolor: "background.default",
             }}
           >
-            <SearchRoundedIcon sx={{ color: "text.secondary", fontSize: 21, mr: 1 }} />
+            <SearchRoundedIcon
+              sx={{
+                color: "text.secondary",
+                fontSize: 21,
+                mr: 1,
+              }}
+            />
+
             <InputBase
               placeholder="Search projects..."
               fullWidth
               sx={{
                 fontSize: 14,
+
                 "& input::placeholder": {
                   opacity: 1,
                   color: theme.palette.text.secondary,
@@ -228,7 +228,9 @@ const DashboardNavbar = ({
 
         <Box sx={{ flex: 1 }} />
 
-        {/* ==================== NOTIFICATIONS ==================== */}
+        {/* =========================
+            NOTIFICATIONS
+        ========================= */}
 
         <IconButton
           aria-label="Notifications"
@@ -237,24 +239,32 @@ const DashboardNavbar = ({
             color: "text.primary",
           }}
         >
-          <Badge badgeContent={3} color="primary" max={99}>
+          <Badge badgeContent={0} color="primary" max={99}>
             <NotificationsNoneRoundedIcon />
           </Badge>
         </IconButton>
 
-        {/* ==================== USER ==================== */}
+        {/* =========================
+            USER
+        ========================= */}
 
-        {/* User Profile Trigger */}
         <Stack
           direction="row"
           alignItems="center"
           spacing={1}
-          sx={{ cursor: "pointer", ml: { xs: 0, sm: 0.5 } }}
-          onClick={(e) => setProfileAnchorEl(e.currentTarget)}
+          sx={{
+            cursor: "pointer",
+
+            ml: {
+              xs: 0,
+              sm: 0.5,
+            },
+          }}
+          onClick={handleProfileClick}
         >
           <Avatar
             src={userAvatar}
-            alt={displayName}
+            alt={userName}
             sx={{
               width: 38,
               height: 38,
@@ -277,7 +287,7 @@ const DashboardNavbar = ({
             }}
           >
             <Typography variant="body2" fontWeight={700} lineHeight={1.2}>
-              {displayName}
+              {userName}
             </Typography>
           </Box>
 
@@ -293,18 +303,20 @@ const DashboardNavbar = ({
           />
         </Stack>
 
-        {/* ==================== PROFILE MENU ==================== */}
+        {/* =========================
+            PROFILE MENU
+        ========================= */}
 
         <Menu
           anchorEl={profileAnchorEl}
           open={profileMenuOpen}
-          onClose={() => setProfileAnchorEl(null)}
+          onClose={handleProfileMenuClose}
           PaperProps={{
             elevation: 4,
 
             sx: {
               mt: 1,
-              minWidth: 200,
+              minWidth: 190,
               borderRadius: 2,
             },
           }}
@@ -316,18 +328,10 @@ const DashboardNavbar = ({
           <MenuItem onClick={() => handleNavigation("/settings")}>
             Settings
           </MenuItem>
+
           <Divider />
 
-          {/* ==================== LOGOUT ==================== */}
-
-          <MenuItem
-            onClick={handleLogout}
-            disabled={loggingOut}
-            sx={{
-              color: "error.main",
-              fontWeight: 600,
-            }}
-          >
+          <MenuItem onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? "Logging out..." : "Logout"}
           </MenuItem>
         </Menu>

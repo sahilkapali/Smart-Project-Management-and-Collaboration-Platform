@@ -33,7 +33,10 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
+      <Route
+        path={ROUTES.HOME}
+        element={<Navigate to={ROUTES.LOGIN} replace />}
+      />
       <Route path={ROUTES.LOGIN} element={<Login />} />
       <Route path={ROUTES.REGISTER} element={<Register />} />
       <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
@@ -50,17 +53,27 @@ const AppRoutes = () => {
 
         {/* Projects */}
         <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
-        <Route path={ROUTES.PROJECT_DETAILS || "/projects/:id"} element={<ProjectDetails />} />
+        <Route
+          path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
+          element={<ProjectDetails />}
+        />
 
         {/* Meetings */}
-        <Route path="/projects/:projectId/meetings" element={<MeetingListPage />} />
-        <Route path="/projects/:projectId/meetings/create" element={<CreateMeetingPage />} />
+        <Route
+          path="/projects/:projectId/meetings"
+          element={<MeetingListPage />}
+        />
+        <Route
+          path="/projects/:projectId/meetings/create"
+          element={<CreateMeetingPage />}
+        />
         <Route path="/meetings/:id" element={<MeetingDetailsPage />} />
 
         {/* Features */}
         <Route path="/ai" element={<AIPage />} />
         <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
         <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       {/* Fallback for undefined routes */}
