@@ -27,6 +27,8 @@ import AIPage from "../pages/ai/AIPage";
 
 import { ROUTES } from "../utils/routes";
 
+import SettingsPage from "../pages/settings/SettingsPage";
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -113,6 +115,8 @@ const AppRoutes = () => {
         <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
         
         <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
+
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       
