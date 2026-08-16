@@ -1,32 +1,33 @@
-import { TextField } from "@mui/material";
+import {
+  TextField,
+  type TextFieldProps,
+} from "@mui/material";
 
-interface Props {
+interface Props
+  extends Omit<
+    TextFieldProps,
+    "value" | "onChange"
+  > {
   label: string;
-  type?: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  error?: boolean;
-  helperText?: string;
+  onChange: (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => void;
 }
 
 const CustomInput = ({
   label,
-  type = "text",
   value,
   onChange,
-  error,
-  helperText,
+  ...props
 }: Props) => {
   return (
     <TextField
-      fullWidth
-      margin="normal"
       label={label}
-      type={type}
       value={value}
       onChange={onChange}
-      error={error}
-      helperText={helperText}
+      fullWidth
+      {...props}
     />
   );
 };
