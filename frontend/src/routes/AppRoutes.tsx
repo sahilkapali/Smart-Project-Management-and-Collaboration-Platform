@@ -37,6 +37,8 @@ import MainLayout from "../layouts/MainLayout";
 
 import { ROUTES } from "../utils/routes";
 
+import SettingsPage from "../pages/settings/SettingsPage";
+
 const AppRoutes = () => {
   return (
     <Routes>

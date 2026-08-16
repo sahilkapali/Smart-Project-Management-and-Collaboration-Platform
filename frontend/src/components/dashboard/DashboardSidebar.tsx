@@ -199,23 +199,22 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         square
         sx={{
           position: "fixed",
-
           top: 0,
           left: 0,
           bottom: 0,
-
           width: {
             xs: 280,
             md: 250,
           },
-
           zIndex: theme.zIndex.drawer,
-
           display: "flex",
           flexDirection: "column",
 
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
+          // Adaptive background and borders matching the workspace dark theme
+          bgcolor: "background.paper",
+          color: "text.primary",
+          borderRight: 1,
+          borderColor: "divider",
 
           borderRadius: {
             xs: 0,
@@ -267,7 +266,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-
                 fontWeight: 800,
                 fontSize: 18,
               }}
@@ -291,9 +289,9 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               <Typography
                 fontWeight={500}
                 lineHeight={1.15}
+                color="text.secondary"
                 sx={{
-                  fontSize: 15,
-                  opacity: 0.9,
+                  fontSize: 14,
                 }}
               >
                 Management
