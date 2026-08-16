@@ -14,7 +14,6 @@ import ResetPassword from "../pages/auth/ResetPassword";
 // ============================================================
 
 import Dashboard from "../pages/dashboard/Dashboard";
-
 import Profile from "../pages/profile/Profile";
 import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
@@ -27,6 +26,12 @@ import ProjectDetails from "../pages/projects/ProjectDetails";
 // ============================================================
 
 import Teams from "../pages/teams/Teams";
+
+// ============================================================
+// REPORTS
+// ============================================================
+
+import Reports from "../pages/reports/Reports";
 
 // ============================================================
 // NOTIFICATIONS
@@ -85,23 +90,30 @@ const AppRoutes = () => {
       {/* PUBLIC ROUTES                                          */}
       {/* ====================================================== */}
 
-      {/* Home */}
       <Route
         path={ROUTES.HOME}
         element={<Navigate to={ROUTES.LOGIN} replace />}
       />
 
-      {/* Login */}
-      <Route path={ROUTES.LOGIN} element={<Login />} />
+      <Route
+        path={ROUTES.LOGIN}
+        element={<Login />}
+      />
 
-      {/* Register */}
-      <Route path={ROUTES.REGISTER} element={<Register />} />
+      <Route
+        path={ROUTES.REGISTER}
+        element={<Register />}
+      />
 
-      {/* Forgot Password */}
-      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+      <Route
+        path={ROUTES.FORGOT_PASSWORD}
+        element={<ForgotPassword />}
+      />
 
-      {/* Reset Password */}
-      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+      <Route
+        path={ROUTES.RESET_PASSWORD}
+        element={<ResetPassword />}
+      />
 
       {/* ====================================================== */}
       {/* PROTECTED ROUTES                                       */}
@@ -113,27 +125,43 @@ const AppRoutes = () => {
         {/* ==================================================== */}
 
         <Route element={<MainLayout />}>
+
           {/* ================================================== */}
           {/* DASHBOARD                                          */}
           {/* ================================================== */}
 
-          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route
+            path={ROUTES.DASHBOARD}
+            element={<Dashboard />}
+          />
 
           {/* ================================================== */}
           {/* PROFILE                                            */}
           {/* ================================================== */}
 
-          <Route path={ROUTES.PROFILE} element={<Profile />} />
+          <Route
+            path={ROUTES.PROFILE}
+            element={<Profile />}
+          />
 
-          <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
+          <Route
+            path={ROUTES.EDIT_PROFILE}
+            element={<EditProfile />}
+          />
 
-          <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
+          <Route
+            path={ROUTES.CHANGE_PASSWORD}
+            element={<ChangePassword />}
+          />
 
           {/* ================================================== */}
           {/* PROJECTS                                           */}
           {/* ================================================== */}
 
-          <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
+          <Route
+            path={ROUTES.PROJECTS || "/projects"}
+            element={<Projects />}
+          />
 
           <Route
             path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
@@ -144,7 +172,19 @@ const AppRoutes = () => {
           {/* TEAMS                                              */}
           {/* ================================================== */}
 
-          <Route path="/teams" element={<Teams />} />
+          <Route
+            path="/teams"
+            element={<Teams />}
+          />
+
+          {/* ================================================== */}
+          {/* REPORTS                                            */}
+          {/* ================================================== */}
+
+          <Route
+            path="/reports"
+            element={<Reports />}
+          />
 
           {/* ================================================== */}
           {/* MEETINGS                                           */}
@@ -160,31 +200,46 @@ const AppRoutes = () => {
             element={<CreateMeetingPage />}
           />
 
-          <Route path="/meetings/:id" element={<MeetingDetailsPage />} />
+          <Route
+            path="/meetings/:id"
+            element={<MeetingDetailsPage />}
+          />
 
           {/* ================================================== */}
           {/* AI                                                 */}
           {/* ================================================== */}
 
-          <Route path="/ai" element={<AIPage />} />
+          <Route
+            path="/ai"
+            element={<AIPage />}
+          />
 
           {/* ================================================== */}
           {/* NOTIFICATIONS                                      */}
           {/* ================================================== */}
 
-          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+          <Route
+            path={ROUTES.NOTIFICATIONS}
+            element={<NotificationsPage />}
+          />
 
           {/* ================================================== */}
           {/* REPOSITORY                                         */}
           {/* ================================================== */}
 
-          <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
+          <Route
+            path={ROUTES.REPOSITORY}
+            element={<RepositoryPage />}
+          />
 
           {/* ================================================== */}
           {/* SETTINGS                                           */}
           {/* ================================================== */}
 
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/settings"
+            element={<SettingsPage />}
+          />
         </Route>
       </Route>
 
@@ -192,7 +247,10 @@ const AppRoutes = () => {
       {/* FALLBACK ROUTE                                         */}
       {/* ====================================================== */}
 
-      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={ROUTES.LOGIN} replace />}
+      />
     </Routes>
   );
 };
