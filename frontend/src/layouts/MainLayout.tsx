@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { Box } from "@mui/material";
+import { Outlet } from "react-router-dom";
 
 import DashboardSidebar from "../components/dashboard/DashboardSidebar";
 import DashboardNavbar from "../components/dashboard/DashboardNavbar";
 
 import { useAuth } from "../context/AuthContext";
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-const MainLayout = ({ children }: MainLayoutProps) => {
+const MainLayout = () => {
   const { user } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -24,19 +21,28 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         bgcolor: "background.default",
       }}
     >
-      {/* Sidebar */}
+      {/* ===================================================== */}
+      {/* SIDEBAR                                                */}
+      {/* ===================================================== */}
+
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Navbar */}
+      {/* ===================================================== */}
+      {/* NAVBAR                                                 */}
+      {/* ===================================================== */}
+
       <DashboardNavbar
         onMenuClick={() => setSidebarOpen(true)}
         userName={userName}
       />
 
-      {/* Main Content */}
+      {/* ===================================================== */}
+      {/* MAIN CONTENT                                           */}
+      {/* ===================================================== */}
+
       <Box
         component="main"
         sx={{
@@ -61,7 +67,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           py: 3,
         }}
       >
-        {children}
+        {/* Current route/page will be rendered here */}
+        <Outlet />
       </Box>
     </Box>
   );

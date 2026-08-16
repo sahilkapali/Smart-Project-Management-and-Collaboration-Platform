@@ -20,21 +20,25 @@ import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
 import ProjectActivityChart from "../../components/dashboard/ProjectActivityChart";
 import TaskList from "../../components/dashboard/TaskList";
 import ProjectTimeline from "../../components/dashboard/ProjectTimeline";
-import DashboardNavbar from "../../components/dashboard/DashboardNavbar";
-import DashboardSidebar from "../../components/dashboard/DashboardSidebar";
+import DashboardSidebar from "../../components/dashboard/DashboardSidebar"; // Added missing import
 
 import dashboardService, {
   type DashboardMetrics,
 } from "../../services/dashboard.service";
 
 const Dashboard = () => {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Added missing state
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // ============================================================
+  // LOAD DASHBOARD DATA
+  // ============================================================
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -65,325 +69,279 @@ const Dashboard = () => {
       }
     };
 
-    loadDashboard();
+    void loadDashboard();
   }, []);
+
+  // ============================================================
+  // LOADING
+  // ============================================================
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          minHeight: "70vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress />
+          <Typography color="text.secondary">Loading dashboard...</Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  if (error) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 1400,
+          mx: "auto",
+        }}
+      >
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  // ============================================================
+  // NO DATA
+  // ============================================================
+
+  if (!metrics) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 1400,
+          mx: "auto",
+        }}
+      >
+        <Alert severity="info">No dashboard data available.</Alert>
+      </Box>
+    );
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
 
   return (
     <Box
       sx={{
-        minHeight: "100vh",
         width: "100%",
-        bgcolor: "background.default",
+        maxWidth: 1400,
+        mx: "auto",
       }}
     >
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
+      {/* ======================================================
+          WELCOME HEADER
+      ======================================================= */}
 
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          sx={{
+            fontSize: {
+              xs: "1.65rem",
+              sm: "1.85rem",
+              md: "2rem",
+            },
+            fontWeight: 500,
+            lineHeight: 1.15,
+          }}
+        >
+          Hello!
+        </Typography>
 
-      {/* =====================================================
-          NAVBAR
-      ====================================================== */}
+        <Typography
+          sx={{
+            fontSize: {
+              xs: "1.65rem",
+              sm: "1.85rem",
+              md: "2rem",
+            },
+            fontWeight: 700,
+            lineHeight: 1.15,
+          }}
+        >
+          Welcome Back 👋
+        </Typography>
 
-      <DashboardNavbar onMenuClick={() => setSidebarOpen(true)} />
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{
+            mt: 0.75,
+          }}
+        >
+          Here's what's happening with your projects.
+        </Typography>
+      </Box>
 
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
+      {/* ======================================================
+          PRIMARY STAT CARDS
+      ======================================================= */}
 
       <Box
-        component="main"
         sx={{
-          ml: {
-            xs: 0,
-            md: "250px",
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            lg: "repeat(3, 1fr)",
           },
-
-          pt: {
-            xs: "80px",
-            md: "88px",
-          },
-
-          px: {
-            xs: 1.5,
-            sm: 2,
-            md: 3,
-          },
-
-          pb: 4,
-
-          minHeight: "100vh",
-
-          boxSizing: "border-box",
+          gap: 2,
+          mb: 2,
         }}
       >
-        {/* ===================================================
-            LOADING
-        ==================================================== */}
+        {/* ACTIVE PROJECTS */}
+        <DashboardStatCard
+          title="Active Projects"
+          value={metrics.totalProjects}
+          subtitle="Projects you can access"
+          icon={<BarChartRoundedIcon fontSize="small" />}
+          chart={
+            metrics.totalProjects > 0 ? (
+              <ProjectActivityChart value={metrics.totalProjects} />
+            ) : undefined
+          }
+        />
 
-        {loading && (
-          <Box
-            sx={{
-              minHeight: 500,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        )}
+        {/* TASKS DUE */}
+        <DashboardStatCard
+          title="Tasks Due Today"
+          value={metrics.overdueTasks}
+          subtitle="Tasks requiring attention"
+          icon={<CalendarMonthRoundedIcon fontSize="small" />}
+        />
 
-        {/* ===================================================
-            ERROR
-        ==================================================== */}
+        {/* TEAM */}
+        <DashboardStatCard
+          title="Team Availability"
+          value={metrics.repositoriesCount}
+          subtitle="Repository resources"
+          icon={<GroupsRoundedIcon fontSize="small" />}
+        />
+      </Box>
 
-        {!loading && error && (
-          <Box sx={{ pt: 2 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        )}
+      {/* ======================================================
+          SECONDARY METRICS
+      ======================================================= */}
 
-        {/* ===================================================
-            NO DATA
-        ==================================================== */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            lg: "repeat(3, 1fr)",
+          },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <SmallMetric
+          icon={<CalendarMonthRoundedIcon fontSize="small" />}
+          title="Completed Tasks"
+          value={metrics.completedTasks}
+        />
 
-        {!loading && !error && !metrics && (
-          <Box sx={{ pt: 2 }}>
-            <Alert severity="info">No dashboard data available.</Alert>
-          </Box>
-        )}
+        <SmallMetric
+          icon={<CalendarMonthRoundedIcon fontSize="small" />}
+          title="Pending Tasks"
+          value={metrics.pendingTodoTasks}
+        />
 
-        {/* ===================================================
-            DASHBOARD
-        ==================================================== */}
+        <SmallMetric
+          icon={<BugReportRoundedIcon fontSize="small" />}
+          title="Open Issues"
+          value={metrics.openIssues}
+        />
+      </Box>
 
-        {!loading && !error && metrics && (
-          <>
-            {/* ============================================
-                  WELCOME HEADER
-              ============================================= */}
+      {/* ======================================================
+          TASKS + PROJECT TIMELINE
+      ======================================================= */}
 
-            <Box sx={{ mb: 3 }}>
-              <Typography
-                sx={{
-                  fontSize: {
-                    xs: "1.65rem",
-                    sm: "1.85rem",
-                    md: "2rem",
-                  },
-                  fontWeight: 500,
-                  lineHeight: 1.15,
-                }}
-              >
-                Hello!
-              </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: "minmax(0, 1.55fr) minmax(320px, 0.85fr)",
+          },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <TaskList tasks={[]} />
+        <ProjectTimeline />
+      </Box>
 
-              <Typography
-                sx={{
-                  fontSize: {
-                    xs: "1.65rem",
-                    sm: "1.85rem",
-                    md: "2rem",
-                  },
-                  fontWeight: 700,
-                  lineHeight: 1.15,
-                }}
-              >
-                Welcome Back 👋
-              </Typography>
+      {/* ======================================================
+          ADDITIONAL METRICS
+      ======================================================= */}
 
-              <Typography
-                variant="body1"
-                color="text.secondary"
-                sx={{
-                  mt: 0.75,
-                }}
-              >
-                Here's what's happening with your projects.
-              </Typography>
-            </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            lg: "repeat(4, 1fr)",
+          },
+          gap: 2,
+        }}
+      >
+        {/* REPOSITORIES */}
+        <SmallMetric
+          icon={<FolderRoundedIcon fontSize="small" />}
+          title="Repositories"
+          value={metrics.repositoriesCount}
+        />
 
-            {/* ============================================
-                  PRIMARY STAT CARDS
-              ============================================= */}
+        {/* TOTAL ISSUES */}
+        <SmallMetric
+          icon={<BugReportRoundedIcon fontSize="small" />}
+          title="Total Issues"
+          value={metrics.totalIssues}
+        />
 
-            <Box
-              sx={{
-                display: "grid",
+        {/* RESOLVED ISSUES */}
+        <SmallMetric
+          icon={<BugReportRoundedIcon fontSize="small" />}
+          title="Resolved Issues"
+          value={metrics.resolvedIssues}
+        />
 
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  lg: "repeat(3, 1fr)",
-                },
-
-                gap: 2,
-
-                mb: 2,
-              }}
-            >
-              {/* Active Projects */}
-
-              <DashboardStatCard
-                title="Active Projects"
-                value={metrics.totalProjects}
-                subtitle="Projects you can access"
-                icon={<BarChartRoundedIcon fontSize="small" />}
-                chart={
-                  metrics.totalProjects > 0 ? (
-                    <ProjectActivityChart value={metrics.totalProjects} />
-                  ) : undefined
-                }
-              />
-
-              {/* Tasks Due Today */}
-
-              <DashboardStatCard
-                title="Tasks Due Today"
-                value={metrics.overdueTasks}
-                subtitle="Tasks requiring attention"
-                icon={<CalendarMonthRoundedIcon fontSize="small" />}
-              />
-
-              {/* Team Availability */}
-
-              <DashboardStatCard
-                title="Team Availability"
-                value={metrics.repositoriesCount}
-                subtitle="Repository resources"
-                icon={<GroupsRoundedIcon fontSize="small" />}
-              />
-            </Box>
-
-            {/* ============================================
-                  SECONDARY METRICS
-              ============================================= */}
-
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  lg: "repeat(3, 1fr)",
-                },
-
-                gap: 2,
-
-                mb: 2,
-              }}
-            >
-              <SmallMetric
-                icon={<CalendarMonthRoundedIcon fontSize="small" />}
-                title="Completed Tasks"
-                value={metrics.completedTasks}
-              />
-
-              <SmallMetric
-                icon={<CalendarMonthRoundedIcon fontSize="small" />}
-                title="Pending Tasks"
-                value={metrics.pendingTodoTasks}
-              />
-
-              <SmallMetric
-                icon={<BugReportRoundedIcon fontSize="small" />}
-                title="Open Issues"
-                value={metrics.openIssues}
-              />
-            </Box>
-
-            {/* ============================================
-                  TASK LIST + PROJECT TIMELINE
-              ============================================= */}
-
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  lg: "minmax(0, 1.55fr) minmax(340px, 0.85fr)",
-                },
-
-                gap: 2,
-
-                mb: 2,
-              }}
-            >
-              {/* 
-                  No temporary task data.
-                  Backend task data can be passed here
-                  when available.
-                */}
-
-              <TaskList tasks={[]} />
-
-              {/* 
-                  ProjectTimeline already handles
-                  empty data by showing:
-                  "No timeline data available"
-                */}
-
-              <ProjectTimeline />
-            </Box>
-
-            {/* ============================================
-                  ADDITIONAL METRICS
-              ============================================= */}
-
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  lg: "repeat(4, 1fr)",
-                },
-
-                gap: 2,
-              }}
-            >
-              <SmallMetric
-                icon={<FolderRoundedIcon fontSize="small" />}
-                title="Repositories"
-                value={metrics.repositoriesCount}
-              />
-
-              <SmallMetric
-                icon={<BugReportRoundedIcon fontSize="small" />}
-                title="Total Issues"
-                value={metrics.totalIssues}
-              />
-
-              <SmallMetric
-                icon={<BugReportRoundedIcon fontSize="small" />}
-                title="Resolved Issues"
-                value={metrics.resolvedIssues}
-              />
-
-              <SmallMetric
-                icon={<EventRoundedIcon fontSize="small" />}
-                title="Upcoming Meetings"
-                value={metrics.upcomingMeetings}
-              />
-            </Box>
-          </>
-        )}
+        {/* UPCOMING MEETINGS */}
+        <SmallMetric
+          icon={<EventRoundedIcon fontSize="small" />}
+          title="Upcoming Meetings"
+          value={metrics.upcomingMeetings}
+        />
       </Box>
     </Box>
   );
 };
 
-/* ============================================================
-   SMALL METRIC CARD
-============================================================ */
+// ============================================================
+// SMALL METRIC CARD
+// ============================================================
 
 interface SmallMetricProps {
   title: string;
@@ -397,38 +355,28 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       elevation={0}
       sx={{
         p: 2,
-
         minHeight: 105,
-
         borderRadius: 3,
-
         border: "1px solid",
         borderColor: "divider",
-
         bgcolor: "background.paper",
-
         transition: "box-shadow 0.2s ease, transform 0.2s ease",
-
         "&:hover": {
           boxShadow: 2,
           transform: "translateY(-1px)",
         },
       }}
     >
+      {/* HEADER */}
       <Stack direction="row" alignItems="center" spacing={1}>
         <Box
           sx={{
             width: 34,
             height: 34,
-
             flexShrink: 0,
-
             borderRadius: 2,
-
             bgcolor: "action.hover",
-
             color: "primary.main",
-
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -448,6 +396,7 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
         </Typography>
       </Stack>
 
+      {/* VALUE */}
       <Typography
         variant="h5"
         fontWeight={700}

@@ -1,104 +1,108 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, Stack, CircularProgress, Alert
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  MenuItem,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { updateRepository } from '../../services/repository.service';
-
-interface EditRepositoryModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  repository: any; // The repository object being edited
-}
+import type { EditRepositoryModalProps } from '../../types/repository.types';
 
 const EditRepositoryModal: React.FC<EditRepositoryModalProps> = ({ open, onClose, onSuccess, repository }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    githubUrl: ''
-  });
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState('private');
+  const [project, setProject] = useState(''); // Added Project ID state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill the form when the modal opens or the repository changes
   useEffect(() => {
-    if (repository && open) {
-      setFormData({
-        name: repository.name || '',
-        description: repository.description || '',
-        githubUrl: repository.githubUrl || ''
-      });
+    if (repository) {
+      setName(repository.name || '');
+      setDescription(repository.description || '');
+      setVisibility(repository.visibility || 'private');
+      setProject(repository.project || ''); // Pre-fill project ID
     }
-  }, [repository, open]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  }, [repository]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!formData.name) {
-      setError('Repository Name is required.');
-      return;
-    }
+    if (!name.trim() || !project.trim() || !repository) return;
+    
+    const repoId = repository.id || repository._id;
+    if (!repoId) return;
 
     try {
       setLoading(true);
-      await updateRepository(repository._id, formData);
-      onSuccess(); 
-      onClose(); 
+      setError(null);
+      // Included project in the payload
+      await updateRepository(repoId, { name, description, visibility, project });
+      onSuccess();
+      onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update repository');
+      setError(err?.response?.data?.message || 'Failed to update repository.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle fontWeight="bold">Edit Repository</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent dividers>
-          <Stack spacing={3}>
-            {error && <Alert severity="error">{error}</Alert>}
-            
-            <TextField
-              label="Repository Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-            />
-            
-            <TextField
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-              variant="outlined"
-            />
-            
-            <TextField
-              label="GitHub URL (Optional)"
-              name="githubUrl"
-              value={formData.githubUrl}
-              onChange={handleChange}
-              fullWidth
-              variant="outlined"
-            />
-          </Stack>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <TextField
+            label="Project ID"
+            fullWidth
+            required
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          />
+          <TextField
+            label="Repository Name"
+            fullWidth
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          />
+          <TextField
+            select
+            label="Visibility"
+            fullWidth
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          >
+            <MenuItem value="private">Private</MenuItem>
+            <MenuItem value="public">Public</MenuItem>
+          </TextField>
         </DialogContent>
-        <DialogActions sx={{ p: 2, px: 3 }}>
-          <Button onClick={onClose} color="inherit" disabled={loading}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={loading} sx={{ bgcolor: '#5e35b1', '&:hover': { bgcolor: '#4527a0' } }}>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={onClose} disabled={loading} color="inherit">
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" disabled={loading || !name.trim() || !project.trim()} sx={{ bgcolor: '#5e35b1' }}>
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
           </Button>
         </DialogActions>

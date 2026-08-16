@@ -1,39 +1,79 @@
+// src/services/notification.service.ts
+
 import api from "./api";
+
 import type {
-  NotificationResponse,
-  UnreadCountResponse,
+  AppNotification,
+  GetNotificationsResponse,
+  GetUnreadCountResponse,
+  MarkNotificationReadResponse,
+  MarkAllNotificationsReadResponse,
 } from "../types/notification.types";
 
-const ENDPOINT = "/notifications";
+// ============================================================
+// GET MY NOTIFICATIONS
+// ============================================================
 
-// ==================== GET ALL NOTIFICATIONS ====================
+export const getMyNotifications = async (): Promise<AppNotification[]> => {
+  const response = await api.get<GetNotificationsResponse>("/notifications");
 
-export const getMyNotifications = async (): Promise<NotificationResponse> => {
-  const response = await api.get<NotificationResponse>(ENDPOINT);
-  return response.data;
+  if (!response.data.success) {
+    throw new Error(response.data.message || "Failed to load notifications.");
+  }
+
+  return Array.isArray(response.data.data) ? response.data.data : [];
 };
 
-// ==================== GET UNREAD COUNT ====================
+// ============================================================
+// GET UNREAD COUNT
+// ============================================================
 
-export const getUnreadCount = async (): Promise<UnreadCountResponse> => {
-  const response = await api.get<UnreadCountResponse>(`${ENDPOINT}/unread`);
-  return response.data;
+export const getUnreadNotificationCount = async (): Promise<number> => {
+  const response = await api.get<GetUnreadCountResponse>(
+    "/notifications/unread-count",
+  );
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || "Failed to load unread notification count.",
+    );
+  }
+
+  return response.data.data?.count ?? 0;
 };
 
-// Helper returning raw count number for UI components
-export const getUnreadNotificationsCount = async (): Promise<number> => {
-  const response = await getUnreadCount();
-  return response.data?.count ?? 0;
+// ============================================================
+// MARK ONE NOTIFICATION AS READ
+// ============================================================
+
+export const markNotificationAsRead = async (
+  notificationId: string,
+): Promise<AppNotification> => {
+  const response = await api.patch<MarkNotificationReadResponse>(
+    `/notifications/${notificationId}/read`,
+  );
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || "Failed to mark notification as read.",
+    );
+  }
+
+  return response.data.data;
 };
 
-// ==================== MARK AS READ ====================
+// ============================================================
+// MARK ALL NOTIFICATIONS AS READ
+// ============================================================
 
-export const markAsRead = async (id: string) => {
-  const response = await api.patch(`${ENDPOINT}/${id}/read`);
-  return response.data;
-};
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  const response = await api.patch<MarkAllNotificationsReadResponse>(
+    "/notifications/read-all",
+  );
 
-export const markAllAsRead = async () => {
-  const response = await api.patch(`${ENDPOINT}/read-all`);
-  return response.data;
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || "Failed to mark all notifications as read.",
+    );
+  }
 };

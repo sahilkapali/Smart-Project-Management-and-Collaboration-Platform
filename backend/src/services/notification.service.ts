@@ -1,28 +1,28 @@
-import { Types } from 'mongoose';
+import { Types } from "mongoose";
 
-import Notification from '../models/notification.models';
+import Notification from "../models/notification.models";
 
 import {
   NotificationType,
-  NotificationEntityType
-} from '../types/notification.types';
+  NotificationEntityType,
+} from "../types/notification.types";
 
+// =====================================================
+// CREATE NOTIFICATION
+// =====================================================
 
-// Create a notification
 export const createNotification = async (
   recipientId: string,
   message: string,
   type: NotificationType,
   senderId?: string,
   relatedEntityId?: string,
-  relatedEntityType?: NotificationEntityType
+  relatedEntityType?: NotificationEntityType,
 ) => {
-  return await Notification.create({
+  return Notification.create({
     recipient: new Types.ObjectId(recipientId),
 
-    sender: senderId
-      ? new Types.ObjectId(senderId)
-      : undefined,
+    sender: senderId ? new Types.ObjectId(senderId) : undefined,
 
     type,
 
@@ -32,66 +32,115 @@ export const createNotification = async (
       ? new Types.ObjectId(relatedEntityId)
       : undefined,
 
-    relatedEntityType
+    relatedEntityType,
+
+    isRead: false,
   });
 };
 
+// =====================================================
+// GET USER NOTIFICATIONS
+// =====================================================
 
-// Get notifications for the logged-in user
-export const getUserNotifications = async (
-  userId: string
-) => {
-  return await Notification.find({
-    recipient: userId
+export const getUserNotifications = async (userId: string) => {
+  return Notification.find({
+    recipient: new Types.ObjectId(userId),
   })
-    .populate('sender', 'name email avatar')
-    .sort({ createdAt: -1 })
-    .limit(50);
+    .populate("sender", "firstName lastName email profileImage")
+    .sort({
+      createdAt: -1,
+    })
+    .limit(50)
+    .lean();
 };
 
+// =====================================================
+// GET ONE NOTIFICATION
+// =====================================================
 
-// Mark one notification as read
-export const markAsRead = async (
+export const getNotificationById = async (
   notificationId: string,
-  userId: string
+  userId: string,
 ) => {
-  return await Notification.findOneAndUpdate(
+  return Notification.findOne({
+    _id: notificationId,
+    recipient: new Types.ObjectId(userId),
+  })
+    .populate("sender", "firstName lastName email profileImage")
+    .lean();
+};
+
+// =====================================================
+// GET UNREAD COUNT
+// =====================================================
+
+export const getUnreadCount = async (userId: string) => {
+  return Notification.countDocuments({
+    recipient: new Types.ObjectId(userId),
+    isRead: false,
+  });
+};
+
+// =====================================================
+// MARK ONE AS READ
+// =====================================================
+
+export const markAsRead = async (notificationId: string, userId: string) => {
+  return Notification.findOneAndUpdate(
     {
       _id: notificationId,
-      recipient: userId
+      recipient: new Types.ObjectId(userId),
     },
     {
-      isRead: true
+      $set: {
+        isRead: true,
+      },
     },
     {
-      new: true
-    }
+      new: true,
+    },
   );
 };
 
+// =====================================================
+// MARK ALL AS READ
+// =====================================================
 
-// Mark all notifications as read
-export const markAllAsRead = async (
-  userId: string
-) => {
-  return await Notification.updateMany(
+export const markAllAsRead = async (userId: string) => {
+  return Notification.updateMany(
     {
-      recipient: userId,
-      isRead: false
+      recipient: new Types.ObjectId(userId),
+      isRead: false,
     },
     {
-      isRead: true
-    }
+      $set: {
+        isRead: true,
+      },
+    },
   );
 };
 
+// =====================================================
+// DELETE ONE
+// =====================================================
 
-// Get unread notification count
-export const getUnreadCount = async (
-  userId: string
+export const deleteNotification = async (
+  notificationId: string,
+  userId: string,
 ) => {
-  return await Notification.countDocuments({
-    recipient: userId,
-    isRead: false
+  return Notification.findOneAndDelete({
+    _id: notificationId,
+    recipient: new Types.ObjectId(userId),
+  });
+};
+
+// =====================================================
+// DELETE ALL READ NOTIFICATIONS
+// =====================================================
+
+export const clearReadNotifications = async (userId: string) => {
+  return Notification.deleteMany({
+    recipient: new Types.ObjectId(userId),
+    isRead: true,
   });
 };
