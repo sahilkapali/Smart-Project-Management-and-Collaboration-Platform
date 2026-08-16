@@ -104,6 +104,51 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
   const [loggingOut, setLoggingOut] = useState(false);
 
+  /*
+   * Detect current theme.
+   *
+   * In dark mode:
+   *   sidebar = #1e293b
+   *   text = white
+   *
+   * In light mode:
+   *   sidebar = white
+   *   text = dark
+   */
+  const isDarkMode = theme.palette.mode === "dark";
+
+  const sidebarTextColor = isDarkMode
+    ? theme.palette.common.white
+    : theme.palette.text.primary;
+
+  const sidebarSecondaryTextColor = isDarkMode
+    ? "rgba(255,255,255,0.70)"
+    : theme.palette.text.secondary;
+
+  const sidebarHoverBackground = isDarkMode
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(37,99,235,0.08)";
+
+  const sidebarActiveBackground = isDarkMode
+    ? "rgba(37,99,235,0.28)"
+    : "rgba(37,99,235,0.12)";
+
+  const sidebarActiveHoverBackground = isDarkMode
+    ? "rgba(37,99,235,0.36)"
+    : "rgba(37,99,235,0.18)";
+
+  const sidebarBorderColor = isDarkMode
+    ? "rgba(255,255,255,0.10)"
+    : theme.palette.divider;
+
+  const logoBackground = isDarkMode
+    ? "rgba(255,255,255,0.10)"
+    : "rgba(37,99,235,0.10)";
+
+  const logoBorder = isDarkMode
+    ? "rgba(255,255,255,0.18)"
+    : "rgba(37,99,235,0.20)";
+
   // =========================================================
   // NAVIGATION
   // =========================================================
@@ -183,7 +228,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             position: "fixed",
             inset: 0,
 
-            bgcolor: "rgba(0, 0, 0, 0.35)",
+            bgcolor: "rgba(0,0,0,0.35)",
 
             zIndex: theme.zIndex.drawer - 1,
           }}
@@ -199,22 +244,31 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         square
         sx={{
           position: "fixed",
+
           top: 0,
           left: 0,
           bottom: 0,
+
           width: {
             xs: 280,
             md: 250,
           },
+
           zIndex: theme.zIndex.drawer,
+
           display: "flex",
           flexDirection: "column",
 
-          // Adaptive background and borders matching the workspace dark theme
+          /*
+           * IMPORTANT:
+           * Use MUI theme colors so the sidebar automatically
+           * changes between light and dark mode.
+           */
           bgcolor: "background.paper",
-          color: "text.primary",
-          borderRight: 1,
-          borderColor: "divider",
+          color: sidebarTextColor,
+
+          borderRight: "1px solid",
+          borderColor: sidebarBorderColor,
 
           borderRadius: {
             xs: 0,
@@ -223,7 +277,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
           transform: {
             xs: open ? "translateX(0)" : "translateX(-100%)",
-
             md: "translateX(0)",
           },
 
@@ -259,13 +312,19 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
                 borderRadius: 2,
 
-                bgcolor: "rgba(255,255,255,0.16)",
+                bgcolor: logoBackground,
 
-                border: "1px solid rgba(255,255,255,0.22)",
+                border: "1px solid",
+                borderColor: logoBorder,
+
+                color: isDarkMode
+                  ? theme.palette.common.white
+                  : theme.palette.primary.main,
 
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+
                 fontWeight: 800,
                 fontSize: 18,
               }}
@@ -281,6 +340,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                 lineHeight={1.15}
                 sx={{
                   fontSize: 16,
+                  color: sidebarTextColor,
                 }}
               >
                 Smart Project
@@ -289,9 +349,9 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               <Typography
                 fontWeight={500}
                 lineHeight={1.15}
-                color="text.secondary"
                 sx={{
                   fontSize: 14,
+                  color: sidebarSecondaryTextColor,
                 }}
               >
                 Management
@@ -312,10 +372,10 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
                   borderRadius: 2,
 
-                  color: "inherit",
+                  color: sidebarTextColor,
 
                   "&:hover": {
-                    bgcolor: "rgba(255,255,255,0.10)",
+                    bgcolor: sidebarHoverBackground,
                   },
                 }}
               >
@@ -332,8 +392,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         <Divider
           sx={{
             flexShrink: 0,
-
-            borderColor: "rgba(255,255,255,0.12)",
+            borderColor: sidebarBorderColor,
           }}
         />
 
@@ -348,7 +407,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             minHeight: 0,
 
             overflowY: "auto",
-
             overflowX: "hidden",
 
             py: 2,
@@ -358,11 +416,13 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             },
 
             "&::-webkit-scrollbar-track": {
-              background: "rgba(255,255,255,0.04)",
+              background: "transparent",
             },
 
             "&::-webkit-scrollbar-thumb": {
-              background: "rgba(255,255,255,0.20)",
+              background: isDarkMode
+                ? "rgba(255,255,255,0.20)"
+                : "rgba(0,0,0,0.15)",
 
               borderRadius: 10,
             },
@@ -391,25 +451,45 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
                     borderRadius: 2,
 
-                    color: "primary.contrastText",
+                    /*
+                     * IMPORTANT:
+                     * Do NOT use primary.contrastText here.
+                     * That caused white text in light mode.
+                     */
+                    color: active
+                      ? theme.palette.primary.main
+                      : sidebarTextColor,
 
-                    transition: "background-color 0.2s ease",
+                    transition: "background-color 0.2s ease, color 0.2s ease",
 
                     "& .MuiListItemIcon-root": {
                       minWidth: 38,
+
                       color: "inherit",
                     },
 
+                    "& .MuiListItemText-primary": {
+                      color: "inherit",
+                    },
+
+                    /*
+                     * ACTIVE ITEM
+                     */
+
                     "&.Mui-selected": {
-                      bgcolor: "rgba(0,0,0,0.18)",
+                      bgcolor: sidebarActiveBackground,
                     },
 
                     "&.Mui-selected:hover": {
-                      bgcolor: "rgba(0,0,0,0.24)",
+                      bgcolor: sidebarActiveHoverBackground,
                     },
 
+                    /*
+                     * NORMAL HOVER
+                     */
+
                     "&:hover": {
-                      bgcolor: "rgba(255,255,255,0.10)",
+                      bgcolor: sidebarHoverBackground,
                     },
                   }}
                 >
@@ -421,6 +501,8 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                       fontSize: 14,
 
                       fontWeight: active ? 700 : 500,
+
+                      color: "inherit",
                     }}
                   />
                 </ListItemButton>
@@ -440,7 +522,8 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             px: 1.5,
             py: 2,
 
-            borderTop: "1px solid rgba(255,255,255,0.12)",
+            borderTop: "1px solid",
+            borderColor: sidebarBorderColor,
           }}
         >
           <ListItemButton
@@ -453,26 +536,29 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
               justifyContent: "center",
 
-              color: "primary.contrastText",
+              color: sidebarTextColor,
 
               opacity: loggingOut ? 0.7 : 1,
 
               "&:hover": {
-                bgcolor: "rgba(255,255,255,0.10)",
+                bgcolor: sidebarHoverBackground,
               },
 
               "&.Mui-disabled": {
-                color: "primary.contrastText",
+                color: sidebarTextColor,
+              },
+
+              "& .MuiListItemIcon-root": {
+                minWidth: 34,
+                color: "inherit",
+              },
+
+              "& .MuiListItemText-primary": {
+                color: "inherit",
               },
             }}
           >
-            <ListItemIcon
-              sx={{
-                minWidth: 34,
-
-                color: "inherit",
-              }}
-            >
+            <ListItemIcon>
               <LogoutRoundedIcon />
             </ListItemIcon>
 
@@ -481,6 +567,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               primaryTypographyProps={{
                 fontSize: 14,
                 fontWeight: 600,
+                color: "inherit",
               }}
             />
           </ListItemButton>
