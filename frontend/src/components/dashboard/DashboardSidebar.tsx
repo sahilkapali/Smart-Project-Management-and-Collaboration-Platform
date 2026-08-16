@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
+
 import {
   Box,
   ButtonBase,
@@ -19,17 +21,22 @@ import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
-import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import TipsAndUpdatesRoundedIcon from "@mui/icons-material/TipsAndUpdatesRounded";
+import EventRoundedIcon from "@mui/icons-material/EventRounded";
+import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+import { useAuth } from "../../context/AuthContext";
+import { ROUTES } from "../../utils/routes";
 
 interface DashboardSidebarProps {
   open?: boolean;
   onClose?: () => void;
-  activeItem?: string;
 }
 
 interface NavigationItem {
@@ -41,16 +48,16 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   {
     label: "Dashboard",
-    path: "/dashboard",
+    path: ROUTES.DASHBOARD,
     icon: <DashboardRoundedIcon />,
   },
   {
-    label: "My Projects",
+    label: "Projects",
     path: "/projects",
     icon: <FolderRoundedIcon />,
   },
   {
-    label: "Tasks & Deadlines",
+    label: "Tasks",
     path: "/tasks",
     icon: <TaskAltRoundedIcon />,
   },
@@ -60,30 +67,46 @@ const navigationItems: NavigationItem[] = [
     icon: <GroupsRoundedIcon />,
   },
   {
+    label: "Meetings",
+    path: "/meetings",
+    icon: <EventRoundedIcon />,
+  },
+  {
+    label: "Reports",
+    path: "/reports",
+    icon: <AssessmentRoundedIcon />,
+  },
+  {
+    label: "Calendar",
+    path: "/calendar",
+    icon: <CalendarMonthRoundedIcon />,
+  },
+  {
+    label: "Notifications",
+    path: ROUTES.NOTIFICATIONS,
+    icon: <NotificationsRoundedIcon />,
+  },
+  {
     label: "Settings",
     path: "/settings",
     icon: <SettingsRoundedIcon />,
   },
-  {
-    label: "Help Center",
-    path: "/help",
-    icon: <HelpOutlineRoundedIcon />,
-  },
 ];
 
-const DashboardSidebar = ({
-  open = true,
-  onClose,
-}: DashboardSidebarProps) => {
+const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
   const theme = useTheme();
-
   const navigate = useNavigate();
-
   const location = useLocation();
 
-  const isMobile = useMediaQuery(
-    theme.breakpoints.down("md"),
-  );
+  const { logout } = useAuth();
+
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  // =========================================================
+  // NAVIGATION
+  // =========================================================
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -93,16 +116,55 @@ const DashboardSidebar = ({
     }
   };
 
+  // =========================================================
+  // ACTIVE ITEM
+  // =========================================================
+
   const isActive = (path: string) => {
-    if (path === "/dashboard") {
-      return location.pathname === "/dashboard";
+    if (path === ROUTES.DASHBOARD) {
+      return location.pathname === ROUTES.DASHBOARD;
     }
 
     return (
-      location.pathname === path ||
-      location.pathname.startsWith(`${path}/`)
+      location.pathname === path || location.pathname.startsWith(`${path}/`)
     );
   };
+
+  // =========================================================
+  // LOGOUT
+  // =========================================================
+
+  const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    try {
+      setLoggingOut(true);
+
+      if (isMobile) {
+        onClose?.();
+      }
+
+      await logout();
+
+      toast.success("Logged out successfully.");
+
+      navigate(ROUTES.LOGIN, {
+        replace: true,
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      toast.error("Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  // =========================================================
+  // MOBILE CLOSED
+  // =========================================================
 
   if (isMobile && !open) {
     return null;
@@ -110,7 +172,9 @@ const DashboardSidebar = ({
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* ===================================================== */}
+      {/* MOBILE OVERLAY                                        */}
+      {/* ===================================================== */}
 
       {isMobile && open && (
         <Box
@@ -118,13 +182,17 @@ const DashboardSidebar = ({
           sx={{
             position: "fixed",
             inset: 0,
+
             bgcolor: "rgba(0, 0, 0, 0.35)",
+
             zIndex: theme.zIndex.drawer - 1,
           }}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ===================================================== */}
+      {/* SIDEBAR                                               */}
+      {/* ===================================================== */}
 
       <Paper
         elevation={0}
@@ -155,49 +223,46 @@ const DashboardSidebar = ({
           },
 
           transform: {
-            xs: open
-              ? "translateX(0)"
-              : "translateX(-100%)",
+            xs: open ? "translateX(0)" : "translateX(-100%)",
 
             md: "translateX(0)",
           },
 
-          transition: theme.transitions.create(
-            "transform",
-            {
-              duration:
-                theme.transitions.duration.shorter,
-            },
-          ),
+          transition: theme.transitions.create("transform", {
+            duration: theme.transitions.duration.shorter,
+          }),
 
           overflow: "hidden",
         }}
       >
-        {/* Brand */}
+        {/* ================================================= */}
+        {/* BRAND                                             */}
+        {/* ================================================= */}
 
         <Box
           sx={{
+            flexShrink: 0,
+
             px: 2.5,
             pt: 3,
             pb: 2.5,
           }}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.5}
-          >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            {/* Logo */}
+
             <Box
               sx={{
                 width: 42,
                 height: 42,
+
+                flexShrink: 0,
+
                 borderRadius: 2,
 
-                bgcolor:
-                  "rgba(255,255,255,0.16)",
+                bgcolor: "rgba(255,255,255,0.16)",
 
-                border:
-                  "1px solid rgba(255,255,255,0.22)",
+                border: "1px solid rgba(255,255,255,0.22)",
 
                 display: "flex",
                 alignItems: "center",
@@ -209,6 +274,8 @@ const DashboardSidebar = ({
             >
               S
             </Box>
+
+            {/* Brand name */}
 
             <Box sx={{ flex: 1 }}>
               <Typography
@@ -233,16 +300,25 @@ const DashboardSidebar = ({
               </Typography>
             </Box>
 
-            {/* Mobile close button */}
+            {/* Mobile close */}
 
             {isMobile && (
               <ButtonBase
                 onClick={onClose}
+                aria-label="Close navigation"
                 sx={{
                   width: 36,
                   height: 36,
+
+                  flexShrink: 0,
+
                   borderRadius: 2,
+
                   color: "inherit",
+
+                  "&:hover": {
+                    bgcolor: "rgba(255,255,255,0.10)",
+                  },
                 }}
               >
                 <CloseRoundedIcon />
@@ -251,162 +327,151 @@ const DashboardSidebar = ({
           </Stack>
         </Box>
 
+        {/* ================================================= */}
+        {/* DIVIDER                                           */}
+        {/* ================================================= */}
+
         <Divider
           sx={{
-            borderColor:
-              "rgba(255,255,255,0.12)",
+            flexShrink: 0,
+
+            borderColor: "rgba(255,255,255,0.12)",
           }}
         />
 
-        {/* Navigation */}
+        {/* ================================================= */}
+        {/* NAVIGATION                                        */}
+        {/* ================================================= */}
 
-        <List
-          disablePadding
+        <Box
           sx={{
-            px: 1.5,
+            flex: 1,
+
+            minHeight: 0,
+
+            overflowY: "auto",
+
+            overflowX: "hidden",
+
             py: 2,
+
+            "&::-webkit-scrollbar": {
+              width: 5,
+            },
+
+            "&::-webkit-scrollbar-track": {
+              background: "rgba(255,255,255,0.04)",
+            },
+
+            "&::-webkit-scrollbar-thumb": {
+              background: "rgba(255,255,255,0.20)",
+
+              borderRadius: 10,
+            },
           }}
         >
-          {navigationItems.map((item) => {
-            const active = isActive(item.path);
-
-            return (
-              <ListItemButton
-                key={item.path}
-                selected={active}
-                onClick={() =>
-                  handleNavigation(item.path)
-                }
-                sx={{
-                  minHeight: 48,
-                  mb: 0.5,
-                  px: 1.5,
-
-                  borderRadius: 2,
-
-                  color:
-                    "primary.contrastText",
-
-                  "& .MuiListItemIcon-root": {
-                    minWidth: 38,
-                    color: "inherit",
-                  },
-
-                  "&.Mui-selected": {
-                    bgcolor:
-                      "rgba(0,0,0,0.18)",
-                  },
-
-                  "&.Mui-selected:hover": {
-                    bgcolor:
-                      "rgba(0,0,0,0.24)",
-                  },
-
-                  "&:hover": {
-                    bgcolor:
-                      "rgba(255,255,255,0.10)",
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  {item.icon}
-                </ListItemIcon>
-
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontSize: 14,
-                    fontWeight: active
-                      ? 700
-                      : 500,
-                  }}
-                />
-              </ListItemButton>
-            );
-          })}
-        </List>
-
-        {/* Flexible space */}
-
-        <Box sx={{ flex: 1 }} />
-
-        {/* Collaboration Tips */}
-
-        <Paper
-          elevation={0}
-          sx={{
-            mx: 1.5,
-            mb: 2,
-            p: 1.75,
-
-            borderRadius: 2.5,
-
-            bgcolor:
-              "rgba(255,255,255,0.12)",
-
-            color: "inherit",
-
-            border:
-              "1px solid rgba(255,255,255,0.10)",
-          }}
-        >
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ mb: 1 }}
-          >
-            <TipsAndUpdatesRoundedIcon
-              sx={{ fontSize: 20 }}
-            />
-
-            <Typography
-              variant="body2"
-              fontWeight={700}
-            >
-              Collaboration Tips
-            </Typography>
-          </Stack>
-
-          <Typography
-            variant="caption"
+          <List
+            disablePadding
             sx={{
-              display: "block",
-              opacity: 0.82,
-              lineHeight: 1.5,
+              px: 1.5,
             }}
           >
-            Keep your projects, tasks and
-            team activities organized in one
-            place.
-          </Typography>
-        </Paper>
+            {navigationItems.map((item) => {
+              const active = isActive(item.path);
 
-        {/* Logout */}
+              return (
+                <ListItemButton
+                  key={item.path}
+                  selected={active}
+                  onClick={() => handleNavigation(item.path)}
+                  sx={{
+                    minHeight: 48,
 
-        <Box sx={{ px: 1.5, pb: 2.5 }}>
+                    mb: 0.5,
+
+                    px: 1.5,
+
+                    borderRadius: 2,
+
+                    color: "primary.contrastText",
+
+                    transition: "background-color 0.2s ease",
+
+                    "& .MuiListItemIcon-root": {
+                      minWidth: 38,
+                      color: "inherit",
+                    },
+
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(0,0,0,0.18)",
+                    },
+
+                    "&.Mui-selected:hover": {
+                      bgcolor: "rgba(0,0,0,0.24)",
+                    },
+
+                    "&:hover": {
+                      bgcolor: "rgba(255,255,255,0.10)",
+                    },
+                  }}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontSize: 14,
+
+                      fontWeight: active ? 700 : 500,
+                    }}
+                  />
+                </ListItemButton>
+              );
+            })}
+          </List>
+        </Box>
+
+        {/* ================================================= */}
+        {/* LOGOUT                                            */}
+        {/* ================================================= */}
+
+        <Box
+          sx={{
+            flexShrink: 0,
+
+            px: 1.5,
+            py: 2,
+
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
           <ListItemButton
-            onClick={() =>
-              handleNavigation("/logout")
-            }
+            onClick={handleLogout}
+            disabled={loggingOut}
             sx={{
               minHeight: 46,
+
               borderRadius: 2,
 
               justifyContent: "center",
 
-              color:
-                "primary.contrastText",
+              color: "primary.contrastText",
+
+              opacity: loggingOut ? 0.7 : 1,
 
               "&:hover": {
-                bgcolor:
-                  "rgba(255,255,255,0.10)",
+                bgcolor: "rgba(255,255,255,0.10)",
+              },
+
+              "&.Mui-disabled": {
+                color: "primary.contrastText",
               },
             }}
           >
             <ListItemIcon
               sx={{
                 minWidth: 34,
+
                 color: "inherit",
               }}
             >
@@ -414,7 +479,7 @@ const DashboardSidebar = ({
             </ListItemIcon>
 
             <ListItemText
-              primary="Logout"
+              primary={loggingOut ? "Logging out..." : "Logout"}
               primaryTypographyProps={{
                 fontSize: 14,
                 fontWeight: 600,

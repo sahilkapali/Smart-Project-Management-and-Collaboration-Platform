@@ -21,6 +21,9 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+import { useAuth } from "../../context/AuthContext";
 
 interface DashboardNavbarProps {
   onMenuClick?: () => void;
@@ -34,17 +37,19 @@ const DashboardNavbar = ({
   userAvatar,
 }: DashboardNavbarProps) => {
   const theme = useTheme();
-
   const navigate = useNavigate();
 
-  const [anchorEl, setAnchorEl] =
-    useState<null | HTMLElement>(null);
+  const { logout, user } = useAuth();
+
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const menuOpen = Boolean(anchorEl);
 
-  const handleProfileClick = (
-    event: React.MouseEvent<HTMLElement>,
-  ) => {
+  // ==================== PROFILE MENU ====================
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -52,12 +57,55 @@ const DashboardNavbar = ({
     setAnchorEl(null);
   };
 
+  // ==================== NAVIGATION ====================
+
   const handleNavigation = (path: string) => {
     handleClose();
     navigate(path);
   };
 
-  const initials = userName
+  // ==================== LOGOUT ====================
+
+  const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    try {
+      setLoggingOut(true);
+
+      // Close profile menu
+      handleClose();
+
+      // Call AuthContext logout
+      await logout();
+
+      // Show success message
+      toast.success("Logged out successfully.");
+
+      // Redirect to login page
+      navigate("/login", {
+        replace: true,
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      toast.error("Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  // ==================== USER INFORMATION ====================
+
+  const displayName =
+    userName !== "User"
+      ? userName
+      : user
+        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User"
+        : "User";
+
+  const initials = displayName
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -105,7 +153,7 @@ const DashboardNavbar = ({
           gap: 2,
         }}
       >
-        {/* Mobile menu */}
+        {/* ==================== MOBILE MENU ==================== */}
 
         <IconButton
           onClick={onMenuClick}
@@ -120,7 +168,7 @@ const DashboardNavbar = ({
           <MenuRoundedIcon />
         </IconButton>
 
-        {/* Search */}
+        {/* ==================== SEARCH ==================== */}
 
         <Box
           sx={{
@@ -147,8 +195,7 @@ const DashboardNavbar = ({
 
               borderRadius: 2.5,
 
-              bgcolor:
-                "background.default",
+              bgcolor: "background.default",
             }}
           >
             <SearchRoundedIcon
@@ -167,9 +214,7 @@ const DashboardNavbar = ({
 
                 "& input::placeholder": {
                   opacity: 1,
-                  color:
-                    theme.palette.text
-                      .secondary,
+                  color: theme.palette.text.secondary,
                 },
               }}
             />
@@ -178,27 +223,21 @@ const DashboardNavbar = ({
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Notifications */}
+        {/* ==================== NOTIFICATIONS ==================== */}
 
         <IconButton
           aria-label="Notifications"
-          onClick={() =>
-            navigate("/notifications")
-          }
+          onClick={() => navigate("/notifications")}
           sx={{
             color: "text.primary",
           }}
         >
-          <Badge
-            badgeContent={3}
-            color="primary"
-            max={99}
-          >
+          <Badge badgeContent={3} color="primary" max={99}>
             <NotificationsNoneRoundedIcon />
           </Badge>
         </IconButton>
 
-        {/* User */}
+        {/* ==================== USER ==================== */}
 
         <Stack
           direction="row"
@@ -216,13 +255,12 @@ const DashboardNavbar = ({
         >
           <Avatar
             src={userAvatar}
-            alt={userName}
+            alt={displayName}
             sx={{
               width: 38,
               height: 38,
 
-              bgcolor:
-                "primary.main",
+              bgcolor: "primary.main",
 
               fontSize: 14,
               fontWeight: 700,
@@ -239,12 +277,8 @@ const DashboardNavbar = ({
               },
             }}
           >
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              lineHeight={1.2}
-            >
-              {userName}
+            <Typography variant="body2" fontWeight={700} lineHeight={1.2}>
+              {displayName}
             </Typography>
           </Box>
 
@@ -255,13 +289,12 @@ const DashboardNavbar = ({
                 sm: "block",
               },
 
-              color:
-                "text.secondary",
+              color: "text.secondary",
             }}
           />
         </Stack>
 
-        {/* Profile menu */}
+        {/* ==================== PROFILE MENU ==================== */}
 
         <Menu
           anchorEl={anchorEl}
@@ -272,35 +305,32 @@ const DashboardNavbar = ({
 
             sx: {
               mt: 1,
-              minWidth: 180,
+              minWidth: 200,
               borderRadius: 2,
             },
           }}
         >
-          <MenuItem
-            onClick={() =>
-              handleNavigation("/profile")
-            }
-          >
+          <MenuItem onClick={() => handleNavigation("/profile")}>
             Profile
           </MenuItem>
 
-          <MenuItem
-            onClick={() =>
-              handleNavigation("/settings")
-            }
-          >
+          <MenuItem onClick={() => handleNavigation("/settings")}>
             Settings
           </MenuItem>
 
           <Divider />
 
+          {/* ==================== LOGOUT ==================== */}
+
           <MenuItem
-            onClick={() =>
-              handleNavigation("/logout")
-            }
+            onClick={handleLogout}
+            disabled={loggingOut}
+            sx={{
+              color: "error.main",
+              fontWeight: 600,
+            }}
           >
-            Logout
+            {loggingOut ? "Logging out..." : "Logout"}
           </MenuItem>
         </Menu>
       </Toolbar>
