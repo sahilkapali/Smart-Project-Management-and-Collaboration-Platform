@@ -36,7 +36,7 @@ router.put(
   authenticateUser(),
   validate([
     {
-      field: "oldPassword",
+      field: "currentPassword",
       location: "body",
       required: true,
       minLength: 6,

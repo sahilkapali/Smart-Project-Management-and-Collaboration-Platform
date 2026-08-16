@@ -16,6 +16,8 @@ import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
 
 import ProtectedRoute from "../components/auth/ProtectedRoute";
+import NotificationsPage from "../pages/notification/NotificationsPage";
+import RepositoryPage from "../pages/repository/RepositoryPage";
 
 import MeetingListPage from "../pages/meetings/MeetingListPage";
 import CreateMeetingPage from "../pages/meetings/CreateMeetingPage";
@@ -78,6 +80,7 @@ const AppRoutes = () => {
           element={<EditProfile />}
         />
 
+<<<<<<< HEAD
         <Route
           path={ROUTES.CHANGE_PASSWORD}
           element={<ChangePassword />}
@@ -106,7 +109,16 @@ const AppRoutes = () => {
           path="/ai"
           element={<AIPage />}
         />
+=======
+        <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
+
+        <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+        
+        <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
+>>>>>>> origin/main
       </Route>
+
+      
     </Routes>
   );
 };

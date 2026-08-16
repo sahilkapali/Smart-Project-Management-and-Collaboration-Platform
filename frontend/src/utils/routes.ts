@@ -11,4 +11,8 @@ export const ROUTES = {
   CHANGE_PASSWORD: "/profile/change-password",
 
   DASHBOARD: "/dashboard",
+
+  NOTIFICATIONS: '/notifications',
+
+  REPOSITORY: '/repository'
 };

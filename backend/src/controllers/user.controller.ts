@@ -97,6 +97,7 @@ export const changeUserPassword = async (
   try {
     const userId = req.user?.id;
 
+<<<<<<< HEAD
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -105,20 +106,28 @@ export const changeUserPassword = async (
     }
 
     const { oldPassword, newPassword } = req.body;
+=======
+    // Changed currentPassword to oldPassword to match our validation middleware
+    const { currentPassword, newPassword } = req.body;
+>>>>>>> origin/main
 
-    if (!oldPassword || !newPassword) {
+    if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
         message: "oldPassword and newPassword are required",
       });
     }
 
+<<<<<<< HEAD
     const result = await changePassword(
       userId,
       oldPassword,
       newPassword,
     );
 
+=======
+    const result = await changePassword(userId, currentPassword, newPassword);
+>>>>>>> origin/main
     return res.status(200).json(result);
   } catch (error) {
     next(error);
