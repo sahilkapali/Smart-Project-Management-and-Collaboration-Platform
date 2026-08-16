@@ -28,13 +28,9 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 import CircleIcon from "@mui/icons-material/Circle";
 
 import { useNavigate } from "react-router-dom";
-import {
-  getMyNotifications,
-  getUnreadNotificationsCount,
-  markAllAsRead,
-  markAsRead,
-} from "../../services/notification.service";
-import type { Notification } from "../../types/notification.types";
+import toast from "react-hot-toast";
+
+import { useAuth } from "../../context/AuthContext";
 
 interface DashboardNavbarProps {
   onMenuClick?: () => void;
@@ -52,27 +48,11 @@ const DashboardNavbar = ({
   const theme = useTheme();
   const navigate = useNavigate();
 
-  // Profile Menu Anchor State
-  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
+  const { logout, user } = useAuth();
 
-  // Notification Dropdown State
-  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
-  const [unreadCount, setUnreadCount] = useState<number>(notificationCount ?? 0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loadingNotifs, setLoadingNotifs] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const profileMenuOpen = Boolean(profileAnchorEl);
-  const notifMenuOpen = Boolean(notifAnchorEl);
-
-  // Fetch Unread Count
-  const fetchCount = async () => {
-    try {
-      const count = await getUnreadNotificationsCount();
-      setUnreadCount(count);
-    } catch (error) {
-      console.error("Failed to fetch notification count:", error);
-    }
-  };
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (notificationCount !== undefined) {
@@ -96,8 +76,10 @@ const DashboardNavbar = ({
     }
   };
 
-  const handleNotifClose = () => {
-    setNotifAnchorEl(null);
+  // ==================== PROFILE MENU ====================
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
 
   // Mark single item as read and handle redirection
@@ -120,18 +102,55 @@ const DashboardNavbar = ({
     }
   };
 
-  // Mark all items as read
-  const handleMarkAllRead = async () => {
+  // ==================== NAVIGATION ====================
+
+  const handleNavigation = (path: string) => {
+    handleClose();
+    navigate(path);
+  };
+
+  // ==================== LOGOUT ====================
+
+  const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
     try {
-      await markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
+      setLoggingOut(true);
+
+      // Close profile menu
+      handleClose();
+
+      // Call AuthContext logout
+      await logout();
+
+      // Show success message
+      toast.success("Logged out successfully.");
+
+      // Redirect to login page
+      navigate("/login", {
+        replace: true,
+      });
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      console.error("Logout error:", error);
+
+      toast.error("Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
     }
   };
 
-  const initials = userName
+  // ==================== USER INFORMATION ====================
+
+  const displayName =
+    userName !== "User"
+      ? userName
+      : user
+        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User"
+        : "User";
+
+  const initials = displayName
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -160,7 +179,8 @@ const DashboardNavbar = ({
           gap: 2,
         }}
       >
-        {/* Mobile menu trigger */}
+        {/* ==================== MOBILE MENU ==================== */}
+
         <IconButton
           onClick={onMenuClick}
           aria-label="Open navigation menu"
@@ -169,7 +189,8 @@ const DashboardNavbar = ({
           <MenuRoundedIcon />
         </IconButton>
 
-        {/* Search Input */}
+        {/* ==================== SEARCH ==================== */}
+
         <Box
           sx={{
             flex: 1,
@@ -186,6 +207,7 @@ const DashboardNavbar = ({
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 2.5,
+
               bgcolor: "background.default",
             }}
           >
@@ -206,131 +228,21 @@ const DashboardNavbar = ({
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Notifications Icon Button */}
+        {/* ==================== NOTIFICATIONS ==================== */}
+
         <IconButton
           aria-label="Notifications"
-          onClick={handleNotifClick}
-          sx={{ color: "text.primary" }}
+          onClick={() => navigate("/notifications")}
+          sx={{
+            color: "text.primary",
+          }}
         >
-          <Badge
-            badgeContent={unreadCount}
-            color="primary"
-            max={99}
-            invisible={unreadCount === 0}
-          >
+          <Badge badgeContent={3} color="primary" max={99}>
             <NotificationsNoneRoundedIcon />
           </Badge>
         </IconButton>
 
-        {/* Notification Dropdown Menu */}
-        <Menu
-          anchorEl={notifAnchorEl}
-          open={notifMenuOpen}
-          onClose={handleNotifClose}
-          PaperProps={{
-            elevation: 4,
-            sx: {
-              mt: 1.5,
-              width: 340,
-              maxHeight: 450,
-              borderRadius: 3,
-            },
-          }}
-        >
-          <Box
-            sx={{
-              p: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography variant="subtitle1" fontWeight={700}>
-              Notifications
-            </Typography>
-            {unreadCount > 0 && (
-              <Button
-                size="small"
-                onClick={handleMarkAllRead}
-                sx={{ textTransform: "none", fontSize: 12 }}
-              >
-                Mark all read
-              </Button>
-            )}
-          </Box>
-
-          <Divider />
-
-          {loadingNotifs ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-              <CircularProgress size={24} />
-            </Box>
-          ) : notifications.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
-                No notifications found
-              </Typography>
-            </Box>
-          ) : (
-            <List disablePadding>
-              {notifications.map((item) => (
-                <ListItem
-                  key={item._id}
-                  onClick={() => handleItemClick(item)}
-                  sx={{
-                    cursor: "pointer",
-                    bgcolor: item.isRead ? "transparent" : "action.hover",
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                    "&:hover": { bgcolor: "action.selected" },
-                  }}
-                >
-                  <ListItemAvatar sx={{ minWidth: 32 }}>
-                    {!item.isRead && (
-                      <CircleIcon sx={{ fontSize: 10, color: "primary.main" }} />
-                    )}
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        variant="body2"
-                        fontWeight={item.isRead ? 400 : 600}
-                      >
-                        {item.title || item.message}
-                      </Typography>
-                    }
-                    secondary={
-                      <Typography variant="caption" color="text.secondary">
-                        {item.createdAt
-                          ? new Date(item.createdAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : ""}
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-
-          <Divider />
-
-          <Box sx={{ p: 1, textAlign: "center" }}>
-            <Button
-              fullWidth
-              size="small"
-              onClick={() => {
-                handleNotifClose();
-                navigate("/notifications");
-              }}
-              sx={{ textTransform: "none" }}
-            >
-              View all notifications
-            </Button>
-          </Box>
-        </Menu>
+        {/* ==================== USER ==================== */}
 
         {/* User Profile Trigger */}
         <Stack
@@ -342,11 +254,13 @@ const DashboardNavbar = ({
         >
           <Avatar
             src={userAvatar}
-            alt={userName}
+            alt={displayName}
             sx={{
               width: 38,
               height: 38,
+
               bgcolor: "primary.main",
+
               fontSize: 14,
               fontWeight: 700,
             }}
@@ -354,54 +268,67 @@ const DashboardNavbar = ({
             {!userAvatar && initials}
           </Avatar>
 
-          <Box sx={{ display: { xs: "none", sm: "block" } }}>
+          <Box
+            sx={{
+              display: {
+                xs: "none",
+                sm: "block",
+              },
+            }}
+          >
             <Typography variant="body2" fontWeight={700} lineHeight={1.2}>
-              {userName}
+              {displayName}
             </Typography>
           </Box>
 
           <KeyboardArrowDownRoundedIcon
             sx={{
-              display: { xs: "none", sm: "block" },
+              display: {
+                xs: "none",
+                sm: "block",
+              },
+
               color: "text.secondary",
             }}
           />
         </Stack>
 
-        {/* Profile Menu Dropdown */}
+        {/* ==================== PROFILE MENU ==================== */}
+
         <Menu
           anchorEl={profileAnchorEl}
           open={profileMenuOpen}
           onClose={() => setProfileAnchorEl(null)}
           PaperProps={{
             elevation: 4,
-            sx: { mt: 1, minWidth: 180, borderRadius: 2 },
+
+            sx: {
+              mt: 1,
+              minWidth: 200,
+              borderRadius: 2,
+            },
           }}
         >
-          <MenuItem
-            onClick={() => {
-              setProfileAnchorEl(null);
-              navigate("/profile");
-            }}
-          >
+          <MenuItem onClick={() => handleNavigation("/profile")}>
             Profile
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setProfileAnchorEl(null);
-              navigate("/settings");
-            }}
-          >
+
+          <MenuItem onClick={() => handleNavigation("/settings")}>
             Settings
           </MenuItem>
           <Divider />
+
+          {/* ==================== LOGOUT ==================== */}
+
           <MenuItem
-            onClick={() => {
-              setProfileAnchorEl(null);
-              navigate("/logout");
+            onClick={handleLogout}
+            disabled={loggingOut}
+            sx={{
+              color: "error.main",
+              fontWeight: 600,
             }}
           >
-            Logout
+            {loggingOut ? "Logging out..." : "Logout"}
           </MenuItem>
         </Menu>
       </Toolbar>
