@@ -62,7 +62,7 @@ const navigationItems: NavigationItem[] = [
     icon: <TaskAltRoundedIcon />,
   },
   {
-    label: "Team Members",
+    label: "Teams",
     path: "/teams",
     icon: <GroupsRoundedIcon />,
   },
