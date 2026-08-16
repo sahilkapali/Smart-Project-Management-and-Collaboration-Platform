@@ -1,12 +1,12 @@
 import axios from "axios";
+<<<<<<< HEAD
+=======
 
+>>>>>>> origin/main
 import { getToken, removeToken } from "../utils/auth";
 
 const api = axios.create({
   baseURL: "http://localhost:8080/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
   withCredentials: true,
 });
 
@@ -21,6 +21,11 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Do not manually set Content-Type for FormData.
+    if (!(config.data instanceof FormData)) {
+      config.headers["Content-Type"] = "application/json";
+    }
+
     return config;
   },
   (error) => {
@@ -28,6 +33,14 @@ api.interceptors.request.use(
   },
 );
 
+<<<<<<< HEAD
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      removeToken();
+
+=======
 /**
  * Handle authentication errors globally.
  */
@@ -42,6 +55,7 @@ api.interceptors.response.use(
       localStorage.removeItem("user");
 
       // Avoid redirecting repeatedly if already on login
+>>>>>>> origin/main
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
@@ -51,4 +65,8 @@ api.interceptors.response.use(
   },
 );
 
+<<<<<<< HEAD
 export default api;
+=======
+export default api;
+>>>>>>> origin/main

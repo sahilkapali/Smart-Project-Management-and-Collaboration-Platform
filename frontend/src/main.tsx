@@ -11,7 +11,9 @@ import App from "./App";
 import theme from "./theme/theme";
 import "./index.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(
+  document.getElementById("root")!
+).render(
   <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider theme={theme}>
