@@ -1,6 +1,7 @@
 import express from "express";
 
 import {
+  getUsers,
   getUserProfile,
   updateUserProfile,
   changeUserPassword,
@@ -11,15 +12,25 @@ import { validate } from "../middleware/validation.middleware";
 
 const router = express.Router();
 
-//User Profile
+// Get all users
+// Used by Meeting Participant Selector
+router.get("/", authenticateUser(), getUsers);
 
 // Get logged-in user's profile
-router.get("/profile", authenticateUser(), getUserProfile);
+router.get(
+  "/profile",
+  authenticateUser(),
+  getUserProfile,
+);
 
 // Update logged-in user's profile
-router.put("/profile", authenticateUser(), updateUserProfile);
+router.put(
+  "/profile",
+  authenticateUser(),
+  updateUserProfile,
+);
 
-//Change Password
+// Change password
 router.put(
   "/change-password",
   authenticateUser(),

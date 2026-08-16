@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+
 import * as meetingService from "../services/meeting.service";
 import * as aiService from "../services/gemini.service";
 
@@ -7,6 +8,7 @@ import * as aiService from "../services/gemini.service";
 // --------------------------------------------------
 const isValidObjectId = (id: any): boolean => {
   if (typeof id !== "string") return false;
+
   return /^[0-9a-fA-F]{24}$/.test(id);
 };
 
@@ -30,7 +32,7 @@ const isValidUrl = (urlString: any): boolean => {
 export const createMeeting = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const {
@@ -56,7 +58,7 @@ export const createMeeting = async (
       title.length > 100
     ) {
       errors.push(
-        "Meeting title must be a string between 3 and 100 characters"
+        "Meeting title must be a string between 3 and 100 characters",
       );
     }
 
@@ -89,12 +91,12 @@ export const createMeeting = async (
       errors.push("Participants must be an array");
     } else {
       const allValid = parsedParticipants.every(
-        (id: string) => isValidObjectId(id)
+        (id: string) => isValidObjectId(id),
       );
 
       if (!allValid) {
         errors.push(
-          "One or more participant IDs are invalid MongoDB IDs"
+          "One or more participant IDs are invalid MongoDB IDs",
         );
       }
     }
@@ -119,7 +121,7 @@ export const createMeeting = async (
       start >= end
     ) {
       errors.push(
-        "Meeting end time must be later than the start time"
+        "Meeting end time must be later than the start time",
       );
     }
 
@@ -134,12 +136,12 @@ export const createMeeting = async (
           (note: any) =>
             !note ||
             typeof note.content !== "string" ||
-            note.content.trim().length === 0
+            note.content.trim().length === 0,
         );
 
         if (invalidNotes) {
           errors.push(
-            "Each note must contain a non-empty content field"
+            "Each note must contain a non-empty content field",
           );
         }
       }
@@ -187,9 +189,10 @@ export const createMeeting = async (
     // ------------------------------------------------
     // Create meeting
     // ------------------------------------------------
-    const meeting = await meetingService.createMeeting(
-      meetingData
-    );
+    const meeting =
+      await meetingService.createMeeting(
+        meetingData,
+      );
 
     return res.status(201).json({
       success: true,
@@ -208,7 +211,7 @@ export const createMeeting = async (
 export const updateMeeting = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -227,6 +230,16 @@ export const updateMeeting = async (
     const errors: string[] = [];
 
     // ------------------------------------------------
+    // Validate meeting ID
+    // ------------------------------------------------
+    if (!id || !isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid meeting ID",
+      });
+    }
+
+    // ------------------------------------------------
     // Validate title
     // ------------------------------------------------
     if (title !== undefined) {
@@ -236,7 +249,7 @@ export const updateMeeting = async (
         title.length > 100
       ) {
         errors.push(
-          "Meeting title must be a string between 3 and 100 characters"
+          "Meeting title must be a string between 3 and 100 characters",
         );
       }
     }
@@ -272,12 +285,12 @@ export const updateMeeting = async (
         errors.push("Participants must be an array");
       } else {
         const allValid = participants.every(
-          (pid: string) => isValidObjectId(pid)
+          (pid: string) => isValidObjectId(pid),
         );
 
         if (!allValid) {
           errors.push(
-            "One or more participant IDs are invalid MongoDB IDs"
+            "One or more participant IDs are invalid MongoDB IDs",
           );
         }
       }
@@ -293,7 +306,9 @@ export const updateMeeting = async (
       start = new Date(startTime);
 
       if (isNaN(start.getTime())) {
-        errors.push("Start time must be a valid date");
+        errors.push(
+          "Start time must be a valid date",
+        );
       }
     }
 
@@ -301,13 +316,15 @@ export const updateMeeting = async (
       end = new Date(endTime);
 
       if (isNaN(end.getTime())) {
-        errors.push("End time must be a valid date");
+        errors.push(
+          "End time must be a valid date",
+        );
       }
     }
 
     if (start && end && start >= end) {
       errors.push(
-        "Meeting end time must be later than the start time"
+        "Meeting end time must be later than the start time",
       );
     }
 
@@ -322,12 +339,12 @@ export const updateMeeting = async (
           (note: any) =>
             !note ||
             typeof note.content !== "string" ||
-            note.content.trim().length === 0
+            note.content.trim().length === 0,
         );
 
         if (invalidNotes) {
           errors.push(
-            "Each note must contain a non-empty content field"
+            "Each note must contain a non-empty content field",
           );
         }
       }
@@ -350,7 +367,7 @@ export const updateMeeting = async (
     const updatedMeeting =
       await meetingService.updateMeeting(
         id as string,
-        req.body
+        req.body,
       );
 
     if (!updatedMeeting) {
@@ -377,12 +394,15 @@ export const updateMeeting = async (
 export const getProjectMeetings = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { projectId } = req.params;
 
-    if (!projectId || !isValidObjectId(projectId)) {
+    if (
+      !projectId ||
+      !isValidObjectId(projectId)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid projectId",
@@ -391,7 +411,7 @@ export const getProjectMeetings = async (
 
     const meetings =
       await meetingService.getMeetingsByProject(
-        projectId as string
+        projectId as string,
       );
 
     return res.status(200).json({
@@ -410,7 +430,7 @@ export const getProjectMeetings = async (
 export const getMeetingById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -423,7 +443,9 @@ export const getMeetingById = async (
     }
 
     const meeting =
-      await meetingService.getMeetingById(id as string);
+      await meetingService.getMeetingById(
+        id as string,
+      );
 
     if (!meeting) {
       return res.status(404).json({
@@ -448,7 +470,7 @@ export const getMeetingById = async (
 export const deleteMeeting = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -461,7 +483,9 @@ export const deleteMeeting = async (
     }
 
     const deleted =
-      await meetingService.deleteMeeting(id as string);
+      await meetingService.deleteMeeting(
+        id as string,
+      );
 
     if (!deleted) {
       return res.status(404).json({
@@ -480,20 +504,258 @@ export const deleteMeeting = async (
 };
 
 // ==================================================
+// ADD MEETING NOTES
+// POST /api/meetings/:id/notes
+// ==================================================
+export const addMeetingNotes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    // ------------------------------------------------
+    // Validate meeting ID
+    // ------------------------------------------------
+    if (!id || !isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid meeting ID",
+      });
+    }
+
+    // ------------------------------------------------
+    // Validate note content
+    // ------------------------------------------------
+    if (
+      !content ||
+      typeof content !== "string" ||
+      content.trim().length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Note content is required.",
+      });
+    }
+
+    // ------------------------------------------------
+    // Add note
+    // ------------------------------------------------
+    const meeting =
+      await meetingService.addMeetingNotes(
+        id as string,
+        content.trim(),
+      );
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found.",
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Meeting note added successfully.",
+      data: meeting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================================================
+// UPDATE MEETING NOTES
+// PUT /api/meetings/:id/notes
+// ==================================================
+export const updateMeetingNotes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { noteId, content } = req.body;
+
+    // ------------------------------------------------
+    // Validate meeting ID
+    // ------------------------------------------------
+    if (!id || !isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid meeting ID",
+      });
+    }
+
+    // ------------------------------------------------
+    // Validate note ID
+    // ------------------------------------------------
+    if (
+      !noteId ||
+      !isValidObjectId(noteId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid note ID",
+      });
+    }
+
+    // ------------------------------------------------
+    // Validate content
+    // ------------------------------------------------
+    if (
+      !content ||
+      typeof content !== "string" ||
+      content.trim().length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Note content is required.",
+      });
+    }
+
+    // ------------------------------------------------
+    // Update note
+    // ------------------------------------------------
+    const meeting =
+      await meetingService.updateMeetingNotes(
+        id as string,
+        noteId,
+        content.trim(),
+      );
+
+    if (meeting === null) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found.",
+      });
+    }
+
+    if (meeting === undefined) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting note not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Meeting note updated successfully.",
+      data: meeting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================================================
+// PATCH MEETING NOTES
+// PATCH /api/meetings/:id/notes
+// ==================================================
+export const patchMeetingNotes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { noteId, content } = req.body;
+
+    // ------------------------------------------------
+    // Validate meeting ID
+    // ------------------------------------------------
+    if (!id || !isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid meeting ID",
+      });
+    }
+
+    // ------------------------------------------------
+    // Validate note ID
+    // ------------------------------------------------
+    if (
+      !noteId ||
+      !isValidObjectId(noteId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid note ID",
+      });
+    }
+
+    // ------------------------------------------------
+    // Validate content
+    // ------------------------------------------------
+    if (
+      content !== undefined &&
+      (
+        typeof content !== "string" ||
+        content.trim().length === 0
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Note content must be a non-empty string.",
+      });
+    }
+
+    // ------------------------------------------------
+    // Patch note
+    // ------------------------------------------------
+    const meeting =
+      await meetingService.patchMeetingNotes(
+        id as string,
+        noteId,
+        content?.trim(),
+      );
+
+    if (meeting === null) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found.",
+      });
+    }
+
+    if (meeting === undefined) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting note not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Meeting note updated successfully.",
+      data: meeting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================================================
 // AI SUMMARY
 // PATCH /api/meetings/:id/ai-summary
 // ==================================================
 export const autoSummarizeMeeting = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
     const { noteId } = req.body;
 
     const meeting =
-      await meetingService.getMeetingById(id as string);
+      await meetingService.getMeetingById(
+        id as string,
+      );
 
     if (!meeting) {
       return res.status(404).json({
@@ -510,17 +772,19 @@ export const autoSummarizeMeeting = async (
     ) {
       return res.status(400).json({
         success: false,
-        message: "No meeting notes available to summarize.",
+        message:
+          "No meeting notes available to summarize.",
       });
     }
 
     let targetNoteIndex = -1;
 
     if (noteId) {
-      targetNoteIndex = meetingData.notes.findIndex(
-        (note: any) =>
-          note._id.toString() === noteId
-      );
+      targetNoteIndex =
+        meetingData.notes.findIndex(
+          (note: any) =>
+            note._id.toString() === noteId,
+        );
     } else {
       targetNoteIndex =
         meetingData.notes.length - 1;
@@ -538,11 +802,12 @@ export const autoSummarizeMeeting = async (
     }
 
     const rawContent =
-      meetingData.notes[targetNoteIndex].content;
+      meetingData.notes[targetNoteIndex]
+        .content;
 
     const aiSummary =
       await aiService.generateMeetingSummary(
-        rawContent
+        rawContent,
       );
 
     meetingData.notes[
@@ -554,7 +819,7 @@ export const autoSummarizeMeeting = async (
         id as string,
         {
           notes: meetingData.notes,
-        }
+        },
       );
 
     return res.status(200).json({
@@ -575,13 +840,15 @@ export const autoSummarizeMeeting = async (
 export const extractMeetingActionItems = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
 
     const meeting =
-      await meetingService.getMeetingById(id as string);
+      await meetingService.getMeetingById(
+        id as string,
+      );
 
     if (!meeting) {
       return res.status(404).json({
@@ -603,16 +870,19 @@ export const extractMeetingActionItems = async (
       });
     }
 
-    const combinedNotes = meetingData.notes
-      .map((note: any) => note.content)
-      .filter(
-        (content: string) => content
-      )
-      .join("\n\n---\n\n");
+    const combinedNotes =
+      meetingData.notes
+        .map(
+          (note: any) => note.content,
+        )
+        .filter(
+          (content: string) => content,
+        )
+        .join("\n\n---\n\n");
 
     const actionItems =
       await aiService.generateActionItems(
-        combinedNotes
+        combinedNotes,
       );
 
     const updatedMeeting =
@@ -620,7 +890,7 @@ export const extractMeetingActionItems = async (
         id as string,
         {
           actionItems,
-        }
+        },
       );
 
     return res.status(200).json({
