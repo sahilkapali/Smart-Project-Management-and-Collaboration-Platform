@@ -41,16 +41,16 @@ export const changeUserPassword = async (req: Request, res: Response, next: Next
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized." });
 
     // Changed currentPassword to oldPassword to match our validation middleware
-    const { oldPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
 
-    if (!oldPassword || !newPassword) {
+    if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
         message: "oldPassword and newPassword are required",
       });
     }
 
-    const result = await changePassword(userId, oldPassword, newPassword);
+    const result = await changePassword(userId, currentPassword, newPassword);
     return res.status(200).json(result);
   } catch (error) {
     next(error);
