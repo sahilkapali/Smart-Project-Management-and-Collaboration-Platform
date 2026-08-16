@@ -27,6 +27,8 @@ import ProtectedRoute from "../components/auth/ProtectedRoute";
 
 import { ROUTES } from "../utils/routes";
 
+import SettingsPage from "../pages/settings/SettingsPage";
+
 const AppRoutes = () => {
   return (
     <Routes>

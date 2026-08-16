@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AppBar,
   Avatar,
   Badge,
   Box,
+  Button,
+  CircularProgress,
   Divider,
   IconButton,
   InputBase,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
   Menu,
   MenuItem,
   Stack,
@@ -19,45 +25,132 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import CircleIcon from "@mui/icons-material/Circle";
 
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+import { useAuth } from "../../context/AuthContext";
 
 interface DashboardNavbarProps {
   onMenuClick?: () => void;
   userName?: string;
   userAvatar?: string;
+  notificationCount?: number;
 }
 
 const DashboardNavbar = ({
   onMenuClick,
   userName = "User",
   userAvatar,
+  notificationCount,
 }: DashboardNavbarProps) => {
   const theme = useTheme();
-
   const navigate = useNavigate();
 
-  const [anchorEl, setAnchorEl] =
-    useState<null | HTMLElement>(null);
+  const { logout, user } = useAuth();
 
-  const menuOpen = Boolean(anchorEl);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const handleProfileClick = (
-    event: React.MouseEvent<HTMLElement>,
-  ) => {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (notificationCount !== undefined) {
+      setUnreadCount(notificationCount);
+    } else {
+      fetchCount();
+    }
+  }, [notificationCount]);
+
+  // Open Notification Dropdown & Fetch Notifications
+  const handleNotifClick = async (event: React.MouseEvent<HTMLElement>) => {
+    setNotifAnchorEl(event.currentTarget);
+    try {
+      setLoadingNotifs(true);
+      const res = await getMyNotifications();
+      setNotifications((res.data || []).slice(0, 5)); // Display latest 5
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+    } finally {
+      setLoadingNotifs(false);
+    }
+  };
+
+  // ==================== PROFILE MENU ====================
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  // Mark single item as read and handle redirection
+  const handleItemClick = async (item: Notification) => {
+    if (!item.isRead) {
+      try {
+        await markAsRead(item._id);
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === item._id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+      }
+    }
+
+    if (item.link) {
+      handleNotifClose();
+      navigate(item.link);
+    }
   };
+
+  // ==================== NAVIGATION ====================
 
   const handleNavigation = (path: string) => {
     handleClose();
     navigate(path);
   };
 
-  const initials = userName
+  // ==================== LOGOUT ====================
+
+  const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    try {
+      setLoggingOut(true);
+
+      // Close profile menu
+      handleClose();
+
+      // Call AuthContext logout
+      await logout();
+
+      // Show success message
+      toast.success("Logged out successfully.");
+
+      // Redirect to login page
+      navigate("/login", {
+        replace: true,
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      toast.error("Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  // ==================== USER INFORMATION ====================
+
+  const displayName =
+    userName !== "User"
+      ? userName
+      : user
+        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User"
+        : "User";
+
+  const initials = displayName
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -70,106 +163,63 @@ const DashboardNavbar = ({
       position="fixed"
       elevation={0}
       sx={{
-        left: {
-          xs: 0,
-          md: 250,
-        },
-
-        width: {
-          xs: "100%",
-          md: "calc(100% - 250px)",
-        },
-
+        left: { xs: 0, md: 250 },
+        width: { xs: "100%", md: "calc(100% - 250px)" },
         bgcolor: "background.paper",
         color: "text.primary",
-
         borderBottom: "1px solid",
         borderColor: "divider",
-
         zIndex: theme.zIndex.appBar,
       }}
     >
       <Toolbar
         sx={{
-          minHeight: {
-            xs: 64,
-            md: 72,
-          },
-
-          px: {
-            xs: 1.5,
-            sm: 2,
-            md: 3,
-          },
-
+          minHeight: { xs: 64, md: 72 },
+          px: { xs: 1.5, sm: 2, md: 3 },
           gap: 2,
         }}
       >
-        {/* Mobile menu */}
+        {/* ==================== MOBILE MENU ==================== */}
 
         <IconButton
           onClick={onMenuClick}
           aria-label="Open navigation menu"
-          sx={{
-            display: {
-              xs: "inline-flex",
-              md: "none",
-            },
-          }}
+          sx={{ display: { xs: "inline-flex", md: "none" } }}
         >
           <MenuRoundedIcon />
         </IconButton>
 
-        {/* Search */}
+        {/* ==================== SEARCH ==================== */}
 
         <Box
           sx={{
             flex: 1,
             maxWidth: 360,
-
-            display: {
-              xs: "none",
-              sm: "block",
-            },
+            display: { xs: "none", sm: "block" },
           }}
         >
           <Box
             sx={{
               height: 42,
-
               display: "flex",
               alignItems: "center",
-
               px: 1.5,
-
               border: "1px solid",
               borderColor: "divider",
-
               borderRadius: 2.5,
 
-              bgcolor:
-                "background.default",
+              bgcolor: "background.default",
             }}
           >
-            <SearchRoundedIcon
-              sx={{
-                color: "text.secondary",
-                fontSize: 21,
-                mr: 1,
-              }}
-            />
-
+            <SearchRoundedIcon sx={{ color: "text.secondary", fontSize: 21, mr: 1 }} />
             <InputBase
               placeholder="Search projects..."
               fullWidth
               sx={{
                 fontSize: 14,
-
                 "& input::placeholder": {
                   opacity: 1,
-                  color:
-                    theme.palette.text
-                      .secondary,
+                  color: theme.palette.text.secondary,
                 },
               }}
             />
@@ -178,51 +228,38 @@ const DashboardNavbar = ({
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Notifications */}
+        {/* ==================== NOTIFICATIONS ==================== */}
 
         <IconButton
           aria-label="Notifications"
-          onClick={() =>
-            navigate("/notifications")
-          }
+          onClick={() => navigate("/notifications")}
           sx={{
             color: "text.primary",
           }}
         >
-          <Badge
-            badgeContent={3}
-            color="primary"
-            max={99}
-          >
+          <Badge badgeContent={3} color="primary" max={99}>
             <NotificationsNoneRoundedIcon />
           </Badge>
         </IconButton>
 
-        {/* User */}
+        {/* ==================== USER ==================== */}
 
+        {/* User Profile Trigger */}
         <Stack
           direction="row"
           alignItems="center"
           spacing={1}
-          sx={{
-            cursor: "pointer",
-
-            ml: {
-              xs: 0,
-              sm: 0.5,
-            },
-          }}
-          onClick={handleProfileClick}
+          sx={{ cursor: "pointer", ml: { xs: 0, sm: 0.5 } }}
+          onClick={(e) => setProfileAnchorEl(e.currentTarget)}
         >
           <Avatar
             src={userAvatar}
-            alt={userName}
+            alt={displayName}
             sx={{
               width: 38,
               height: 38,
 
-              bgcolor:
-                "primary.main",
+              bgcolor: "primary.main",
 
               fontSize: 14,
               fontWeight: 700,
@@ -239,12 +276,8 @@ const DashboardNavbar = ({
               },
             }}
           >
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              lineHeight={1.2}
-            >
-              {userName}
+            <Typography variant="body2" fontWeight={700} lineHeight={1.2}>
+              {displayName}
             </Typography>
           </Box>
 
@@ -255,52 +288,47 @@ const DashboardNavbar = ({
                 sm: "block",
               },
 
-              color:
-                "text.secondary",
+              color: "text.secondary",
             }}
           />
         </Stack>
 
-        {/* Profile menu */}
+        {/* ==================== PROFILE MENU ==================== */}
 
         <Menu
-          anchorEl={anchorEl}
-          open={menuOpen}
-          onClose={handleClose}
+          anchorEl={profileAnchorEl}
+          open={profileMenuOpen}
+          onClose={() => setProfileAnchorEl(null)}
           PaperProps={{
             elevation: 4,
 
             sx: {
               mt: 1,
-              minWidth: 180,
+              minWidth: 200,
               borderRadius: 2,
             },
           }}
         >
-          <MenuItem
-            onClick={() =>
-              handleNavigation("/profile")
-            }
-          >
+          <MenuItem onClick={() => handleNavigation("/profile")}>
             Profile
           </MenuItem>
 
-          <MenuItem
-            onClick={() =>
-              handleNavigation("/settings")
-            }
-          >
+          <MenuItem onClick={() => handleNavigation("/settings")}>
             Settings
           </MenuItem>
-
           <Divider />
 
+          {/* ==================== LOGOUT ==================== */}
+
           <MenuItem
-            onClick={() =>
-              handleNavigation("/logout")
-            }
+            onClick={handleLogout}
+            disabled={loggingOut}
+            sx={{
+              color: "error.main",
+              fontWeight: 600,
+            }}
           >
-            Logout
+            {loggingOut ? "Logging out..." : "Logout"}
           </MenuItem>
         </Menu>
       </Toolbar>
