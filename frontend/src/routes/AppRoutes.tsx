@@ -1,39 +1,29 @@
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
-// ==================== AUTH PAGES ====================
-
+// Auth Components
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
-// ==================== DASHBOARD ====================
-
+// Main Components
 import Dashboard from "../pages/dashboard/Dashboard";
-
-// ==================== PROFILE ====================
-
 import Profile from "../pages/profile/Profile";
 import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
-
-// ==================== OTHER PAGES ====================
-
+import Projects from "../pages/projects/Projects";
+import ProjectDetails from "../pages/projects/ProjectDetails";
 import NotificationsPage from "../pages/notification/NotificationsPage";
 import RepositoryPage from "../pages/repository/RepositoryPage";
 
+// Meetings & AI
 import MeetingListPage from "../pages/meetings/MeetingListPage";
 import CreateMeetingPage from "../pages/meetings/CreateMeetingPage";
 import MeetingDetailsPage from "../pages/meetings/MeetingDetailsPage";
-
 import AIPage from "../pages/ai/AIPage";
 
-// ==================== ROUTE COMPONENTS ====================
-
+// Protected Layout / Auth Guard
 import ProtectedRoute from "../components/auth/ProtectedRoute";
-import MainLayout from "../layouts/MainLayout";
-
-// ==================== ROUTE CONSTANTS ====================
 
 import { ROUTES } from "../utils/routes";
 
@@ -42,82 +32,39 @@ import SettingsPage from "../pages/settings/SettingsPage";
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* ================================================== */}
-      {/* PUBLIC ROUTES                                      */}
-      {/* ================================================== */}
-
-      <Route
-        path={ROUTES.HOME}
-        element={<Navigate to={ROUTES.LOGIN} replace />}
-      />
-
+      {/* Public Routes */}
+      <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
       <Route path={ROUTES.LOGIN} element={<Login />} />
-
       <Route path={ROUTES.REGISTER} element={<Register />} />
-
       <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
-
       <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
-      {/* ================================================== */}
-      {/* PROTECTED ROUTES                                   */}
-      {/* ================================================== */}
-
+      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
-        {/* ================================================== */}
-        {/* MAIN LAYOUT                                        */}
-        {/* ================================================== */}
+        <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
 
-        <Route
-          element={
-            <MainLayout>
-              <Outlet />
-            </MainLayout>
-          }
-        >
-          {/* ==================== DASHBOARD ==================== */}
+        {/* Profile */}
+        <Route path={ROUTES.PROFILE} element={<Profile />} />
+        <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
+        <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
 
-          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+        {/* Projects */}
+        <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
+        <Route path={ROUTES.PROJECT_DETAILS || "/projects/:id"} element={<ProjectDetails />} />
 
-          {/* ==================== PROFILE ==================== */}
+        {/* Meetings */}
+        <Route path="/projects/:projectId/meetings" element={<MeetingListPage />} />
+        <Route path="/projects/:projectId/meetings/create" element={<CreateMeetingPage />} />
+        <Route path="/meetings/:id" element={<MeetingDetailsPage />} />
 
-          <Route path={ROUTES.PROFILE} element={<Profile />} />
-
-          {/* ==================== EDIT PROFILE ==================== */}
-
-          <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
-
-          {/* ==================== CHANGE PASSWORD ==================== */}
-
-          <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
-
-          {/* ==================== NOTIFICATIONS ==================== */}
-
-          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
-
-          {/* ==================== REPOSITORY ==================== */}
-
-          <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
-
-          {/* ==================== MEETINGS ==================== */}
-
-          <Route
-            path="/projects/:projectId/meetings"
-            element={<MeetingListPage />}
-          />
-
-          <Route
-            path="/projects/:projectId/meetings/create"
-            element={<CreateMeetingPage />}
-          />
-
-          <Route path="/meetings/:id" element={<MeetingDetailsPage />} />
-
-          {/* ==================== AI ==================== */}
-
-          <Route path="/ai" element={<AIPage />} />
-        </Route>
+        {/* Features */}
+        <Route path="/ai" element={<AIPage />} />
+        <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+        <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
       </Route>
+
+      {/* Fallback for undefined routes */}
+      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
     </Routes>
   );
 };
