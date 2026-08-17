@@ -15,6 +15,8 @@ export const ROUTES = {
   PROJECTS: "/projects",
   PROJECT_DETAILS: "/projects/:projectId",
 
+  TASKS:"/tasks",
+
   NOTIFICATIONS: '/notifications',
 
   REPOSITORY: '/repository'

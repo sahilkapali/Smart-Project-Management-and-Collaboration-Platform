@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Alert,
@@ -25,11 +29,13 @@ import {
 } from "@mui/material";
 
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+
+import { useNavigate } from "react-router-dom";
 
 import projectService from "../../services/project.service";
 import type { Project } from "../../types/project.types";
@@ -38,112 +44,159 @@ import CreateProjectDialog from "./CreateProjectDialog";
 import EditProjectDialog from "./EditProjectDialog";
 
 const Projects = () => {
-  // ============================================================
-  // STATE
-  // ============================================================
+  const navigate = useNavigate();
 
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] =
+    useState<Project[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] =
+    useState("ALL");
 
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] =
+    useState(false);
 
-  // Menu
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] =
+    useState<null | HTMLElement>(null);
 
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] =
+    useState<Project | null>(null);
 
-  // Delete dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] =
+    useState(false);
 
-  // Edit dialog
-  const [editOpen, setEditOpen] = useState(false);
+  const [editOpen, setEditOpen] =
+    useState(false);
 
-  // ============================================================
-  // LOAD PROJECTS
-  // ============================================================
+  /*
+   * LOAD PROJECTS
+   */
+  const loadProjects =
+    useCallback(async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-  const loadProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+        const data: any =
+          await projectService.getProjects();
 
-      const data: any = await projectService.getProjects();
+        const projectsData =
+          Array.isArray(data)
+            ? data
+            : data?.projects ||
+              data?.data ||
+              [];
 
-      const projectsData = Array.isArray(data)
-        ? data
-        : data?.projects || data?.data || [];
+        setProjects(projectsData);
+      } catch (err: any) {
+        console.error(
+          "Loading projects failed:",
+          err,
+        );
 
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
-    } catch (err: any) {
-      console.error("Loading projects failed:", err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to load projects.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        if (
+          err?.response?.status === 403
+        ) {
+          setError(
+            "You do not have permission to view these projects.",
+          );
+        } else {
+          setError(
+            err?.response?.data?.message ||
+              "Unable to load projects.",
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   useEffect(() => {
-    void loadProjects();
+    loadProjects();
   }, [loadProjects]);
 
-  // ============================================================
-  // FILTER PROJECTS
-  // ============================================================
+  /*
+   * SAFE PROJECT LIST
+   */
+  const safeProjects =
+    Array.isArray(projects)
+      ? projects
+      : [];
 
-  const safeProjects = Array.isArray(projects) ? projects : [];
+  /*
+   * SEARCH + FILTER
+   */
+  const filteredProjects =
+    safeProjects.filter(
+      (project) => {
+        const searchValue =
+          search
+            .trim()
+            .toLowerCase();
 
-  const filteredProjects = safeProjects.filter((project) => {
-    const searchValue = search.trim().toLowerCase();
+        const matchesSearch =
+          !searchValue ||
+          project.name
+            ?.toLowerCase()
+            .includes(searchValue) ||
+          project.description
+            ?.toLowerCase()
+            .includes(searchValue);
 
-    const projectName = project.name?.toLowerCase() || "";
+        const matchesStatus =
+          statusFilter === "ALL" ||
+          project.status ===
+            statusFilter;
 
-    const projectDescription = project.description?.toLowerCase() || "";
+        return (
+          matchesSearch &&
+          matchesStatus
+        );
+      },
+    );
 
-    const matchesSearch =
-      !searchValue ||
-      projectName.includes(searchValue) ||
-      projectDescription.includes(searchValue);
-
-    const matchesStatus =
-      statusFilter === "ALL" || project.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // ============================================================
-  // STATUS HELPERS
-  // ============================================================
-
-  const getStatusLabel = (status: string) => {
+  /*
+   * STATUS LABEL
+   */
+  const getStatusLabel = (
+    status: string,
+  ) => {
     if (!status) {
       return "Unknown";
     }
 
     return status
       .replaceAll("_", " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      .replace(
+        /\b\w/g,
+        (letter) =>
+          letter.toUpperCase(),
+      );
   };
 
-  const getProgress = (status: string) => {
+  /*
+   * PROGRESS
+   */
+  const getProgress = (
+    status: string,
+  ) => {
     switch (status) {
       case "COMPLETED":
         return 100;
 
       case "IN_PROGRESS":
-      case "ACTIVE":
         return 50;
+
+      case "ACTIVE":
+        return 75;
 
       case "PENDING":
         return 0;
@@ -156,113 +209,205 @@ const Projects = () => {
     }
   };
 
-  // ============================================================
-  // PROJECT MENU
-  // ============================================================
+  /*
+   * GET PROJECT ID
+   *
+   * Supports the common formats used by
+   * MongoDB/backend responses:
+   *
+   *   project.id
+   *   project._id
+   *   project.projectId
+   *
+   * It also handles MongoDB's:
+   *
+   *   { $oid: "..." }
+   */
+  const getProjectId = (
+    project: Project,
+  ): string => {
+    const value =
+      project as any;
 
+    const normalizeId = (
+      id: any,
+    ): string => {
+      if (!id) {
+        return "";
+      }
+
+      if (
+        typeof id === "string" ||
+        typeof id === "number"
+      ) {
+        return String(id);
+      }
+
+      if (
+        typeof id === "object" &&
+        id.$oid
+      ) {
+        return String(id.$oid);
+      }
+
+      if (
+        typeof id === "object" &&
+        id._id
+      ) {
+        return normalizeId(
+          id._id,
+        );
+      }
+
+      return "";
+    };
+
+    return (
+      normalizeId(value.id) ||
+      normalizeId(value._id) ||
+      normalizeId(
+        value.projectId,
+      )
+    );
+  };
+
+  /*
+   * OPEN PROJECT DETAILS
+   */
+  const handleProjectClick = (
+    project: Project,
+  ) => {
+    const projectId =
+      getProjectId(project);
+
+    if (!projectId) {
+      setError(
+        "This project does not have a valid ID.",
+      );
+      return;
+    }
+
+    navigate(
+      `/projects/${String(projectId)}`,
+    );
+  };
+
+  /*
+   * OPEN THREE-DOT MENU
+   */
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
     project: Project,
   ) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedProject(project);
+    event.stopPropagation();
+
+    setAnchorEl(
+      event.currentTarget,
+    );
+
+    setSelectedProject(
+      project,
+    );
   };
 
+  /*
+   * CLOSE MENU
+   */
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
 
-  // ============================================================
-  // EDIT PROJECT
-  // ============================================================
-
+  /*
+   * EDIT
+   */
   const handleEditClick = () => {
     handleMenuClose();
-
-    if (!selectedProject) {
-      return;
-    }
-
     setEditOpen(true);
   };
 
-  // ============================================================
-  // DELETE PROJECT
-  // ============================================================
-
+  /*
+   * DELETE
+   */
   const handleDeleteClick = () => {
     handleMenuClose();
-
-    if (!selectedProject) {
-      return;
-    }
-
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!selectedProject) {
-      return;
-    }
+  /*
+   * CONFIRM DELETE
+   */
+  const handleDeleteConfirm =
+    async () => {
+      if (!selectedProject) {
+        return;
+      }
 
-    const projectId = selectedProject.id || (selectedProject as any)._id;
+      const projectId =
+        getProjectId(
+          selectedProject,
+        );
 
-    if (!projectId) {
-      setError("Project ID is missing.");
-      setDeleteDialogOpen(false);
-      return;
-    }
+      if (!projectId) {
+        setError(
+          "Invalid project ID.",
+        );
+        return;
+      }
 
-    try {
-      await projectService.deleteProject(projectId);
+      try {
+        await projectService.deleteProject(
+          projectId,
+        );
 
-      setProjects((previousProjects) =>
-        previousProjects.filter((project) => {
-          const currentId = project.id || (project as any)._id;
+        setDeleteDialogOpen(
+          false,
+        );
 
-          return currentId !== projectId;
-        }),
-      );
+        setSelectedProject(
+          null,
+        );
 
-      setDeleteDialogOpen(false);
-      setSelectedProject(null);
-    } catch (err: any) {
-      console.error("Failed to delete project:", err);
+        await loadProjects();
+      } catch (err: any) {
+        console.error(
+          "Failed to delete project:",
+          err,
+        );
 
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to delete project.",
-      );
+        if (
+          err?.response?.status === 403
+        ) {
+          setError(
+            "You do not have permission to delete this project.",
+          );
+        } else {
+          setError(
+            err?.response?.data
+              ?.message ||
+              "Failed to delete project.",
+          );
+        }
 
-      setDeleteDialogOpen(false);
-    }
-  };
-
-  // ============================================================
-  // CLOSE EDIT
-  // ============================================================
-
-  const handleEditClose = () => {
-    setEditOpen(false);
-    setSelectedProject(null);
-  };
-
-  // ============================================================
-  // PAGE
-  // ============================================================
+        setDeleteDialogOpen(
+          false,
+        );
+      }
+    };
 
   return (
     <Box
       sx={{
-        width: "100%",
-        maxWidth: 1400,
-        mx: "auto",
+        minHeight: "100vh",
+        bgcolor:
+          "background.default",
+        p: {
+          xs: 2,
+          sm: 3,
+          md: 4,
+        },
       }}
     >
-      {/* ======================================================
-          HEADER
-      ======================================================= */}
+      {/* HEADER */}
 
       <Stack
         direction={{
@@ -285,10 +430,8 @@ const Projects = () => {
               fontSize: {
                 xs: "1.8rem",
                 sm: "2.2rem",
-                md: "2.4rem",
               },
               fontWeight: 700,
-              lineHeight: 1.2,
             }}
           >
             Projects
@@ -296,23 +439,24 @@ const Projects = () => {
 
           <Typography
             color="text.secondary"
-            sx={{
-              mt: 0.5,
-            }}
           >
-            Manage and track all your projects
+            Manage and track all
+            your projects
           </Typography>
         </Box>
 
-        {/* NEW PROJECT */}
-
         <Button
           variant="contained"
-          startIcon={<AddRoundedIcon />}
-          onClick={() => setCreateOpen(true)}
+          startIcon={
+            <AddRoundedIcon />
+          }
+          onClick={() =>
+            setCreateOpen(true)
+          }
           sx={{
             borderRadius: 2,
-            textTransform: "none",
+            textTransform:
+              "none",
             fontWeight: 700,
             px: 2.5,
           }}
@@ -321,9 +465,7 @@ const Projects = () => {
         </Button>
       </Stack>
 
-      {/* ======================================================
-          SEARCH + FILTER
-      ======================================================= */}
+      {/* SEARCH + FILTER */}
 
       <Stack
         direction={{
@@ -336,21 +478,24 @@ const Projects = () => {
         }}
       >
         <TextField
-          fullWidth
           placeholder="Search projects..."
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) =>
+            setSearch(
+              event.target.value,
+            )
+          }
           size="small"
           sx={{
-            maxWidth: {
+            width: {
               xs: "100%",
-              sm: 360,
+              sm: 480,
             },
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" />
+                <SearchRoundedIcon />
               </InputAdornment>
             ),
           }}
@@ -359,28 +504,42 @@ const Projects = () => {
         <Select
           size="small"
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
+          onChange={(event) =>
+            setStatusFilter(
+              event.target.value,
+            )
+          }
           sx={{
-            minWidth: 150,
+            minWidth: 190,
           }}
         >
-          <MenuItem value="ALL">All</MenuItem>
+          <MenuItem value="ALL">
+            All
+          </MenuItem>
 
-          <MenuItem value="PENDING">Pending</MenuItem>
+          <MenuItem value="PENDING">
+            Pending
+          </MenuItem>
 
-          <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+          <MenuItem value="IN_PROGRESS">
+            In Progress
+          </MenuItem>
 
-          <MenuItem value="ACTIVE">Active</MenuItem>
+          <MenuItem value="ACTIVE">
+            Active
+          </MenuItem>
 
-          <MenuItem value="COMPLETED">Completed</MenuItem>
+          <MenuItem value="COMPLETED">
+            Completed
+          </MenuItem>
 
-          <MenuItem value="CANCELLED">Cancelled</MenuItem>
+          <MenuItem value="CANCELLED">
+            Cancelled
+          </MenuItem>
         </Select>
       </Stack>
 
-      {/* ======================================================
-          ERROR
-      ======================================================= */}
+      {/* ERROR */}
 
       {error && (
         <Alert
@@ -389,71 +548,65 @@ const Projects = () => {
             mb: 3,
             borderRadius: 2,
           }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => void loadProjects()}
-            >
-              Retry
-            </Button>
-          }
         >
           {error}
         </Alert>
       )}
 
-      {/* ======================================================
-          LOADING
-      ======================================================= */}
+      {/* LOADING */}
 
       {loading ? (
         <Box
           sx={{
-            minHeight: 350,
+            minHeight: 300,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent:
+              "center",
           }}
         >
-          <Stack alignItems="center" spacing={2}>
-            <CircularProgress />
-
-            <Typography color="text.secondary">Loading projects...</Typography>
-          </Stack>
+          <CircularProgress />
         </Box>
-      ) : filteredProjects.length === 0 ? (
-        /* ====================================================
-           EMPTY STATE
-        ===================================================== */
+      ) : filteredProjects.length ===
+        0 ? (
+        /* EMPTY */
 
         <Card
           elevation={0}
           sx={{
-            border: "1px solid",
-            borderColor: "divider",
+            border:
+              "1px solid",
+            borderColor:
+              "divider",
             borderRadius: 3,
           }}
         >
           <CardContent
             sx={{
-              minHeight: 350,
+              minHeight: 300,
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection:
+                "column",
+              alignItems:
+                "center",
+              justifyContent:
+                "center",
               textAlign: "center",
             }}
           >
             <FolderRoundedIcon
               sx={{
-                fontSize: 60,
-                color: "text.secondary",
-                mb: 1.5,
+                fontSize: 55,
+                color:
+                  "text.secondary",
+                mb: 1,
               }}
             />
 
-            <Typography variant="h6" fontWeight={700}>
+            <Typography
+              variant="h6"
+              fontWeight={700}
+            >
               No projects available
             </Typography>
 
@@ -463,260 +616,271 @@ const Projects = () => {
                 mt: 0.5,
               }}
             >
-              {search || statusFilter !== "ALL"
-                ? "No projects match your current filters."
-                : "Create a project to get started."}
+              Create a project
+              to get started.
             </Typography>
-
-            {!search && statusFilter === "ALL" && (
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => setCreateOpen(true)}
-                sx={{
-                  mt: 2,
-                  textTransform: "none",
-                  borderRadius: 2,
-                }}
-              >
-                Create Project
-              </Button>
-            )}
           </CardContent>
         </Card>
       ) : (
-        /* ====================================================
-           PROJECT CARDS
-        ===================================================== */
+        /* PROJECT CARDS */
 
         <Box
           sx={{
             display: "grid",
-
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
               lg: "repeat(3, 1fr)",
             },
-
-            gap: 2.5,
+            gap: 2,
           }}
         >
-          {filteredProjects.map((project, index) => {
-            const progress = getProgress(project.status);
+          {filteredProjects.map(
+            (
+              project,
+              index,
+            ) => {
+              const progress =
+                getProgress(
+                  project.status,
+                );
 
-            const uniqueKey =
-              project.id || (project as any)._id || `project-${index}`;
+              const uniqueKey =
+                getProjectId(
+                  project,
+                ) ||
+                `project-${index}`;
 
-            return (
-              <Card
-                key={uniqueKey}
-                elevation={0}
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 3,
+              return (
+                <Card
+                  key={uniqueKey}
+                  elevation={0}
+                  onClick={() =>
+                    handleProjectClick(
+                      project,
+                    )
+                  }
+                  sx={{
+                    border:
+                      "1px solid",
+                    borderColor:
+                      "divider",
+                    borderRadius: 3,
 
-                  height: "100%",
+                    cursor:
+                      "pointer",
 
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                    transition:
+                      "transform 0.2s ease, box-shadow 0.2s ease",
 
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 3,
-                  },
-                }}
-              >
-                <CardContent>
-                  {/* =====================================
-                        CARD HEADER
-                    ====================================== */}
+                    "&:hover": {
+                      transform:
+                        "translateY(-4px)",
 
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="flex-start"
-                    spacing={1}
-                  >
+                      boxShadow:
+                        "0 12px 30px rgba(0,0,0,0.15)",
+                    },
+                  }}
+                >
+                  <CardContent>
+                    {/* PROJECT TITLE */}
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                    >
+                      <Box
+                        sx={{
+                          minWidth: 0,
+                        }}
+                      >
+                        <Typography
+                          fontWeight={700}
+                          fontSize={17}
+                          noWrap
+                        >
+                          {project.name ||
+                            "Untitled Project"}
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mt: 0.5,
+                            display:
+                              "-webkit-box",
+                            WebkitLineClamp:
+                              2,
+                            WebkitBoxOrient:
+                              "vertical",
+                            overflow:
+                              "hidden",
+                          }}
+                        >
+                          {project.description ||
+                            "No description available."}
+                        </Typography>
+                      </Box>
+
+                      {/* THREE DOTS */}
+
+                      <IconButton
+                        size="small"
+                        onClick={(event) =>
+                          handleMenuOpen(
+                            event,
+                            project,
+                          )
+                        }
+                      >
+                        <MoreVertRoundedIcon />
+                      </IconButton>
+                    </Stack>
+
+                    {/* PROGRESS */}
+
                     <Box
                       sx={{
-                        minWidth: 0,
-                        flex: 1,
+                        mt: 2,
                       }}
                     >
-                      <Typography fontWeight={700} fontSize={17} noWrap>
-                        {project.name || "Untitled Project"}
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        sx={{
+                          mb: 0.7,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                        >
+                          Progress
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                        >
+                          {progress}%
+                        </Typography>
+                      </Stack>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          progress
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 5,
+                        }}
+                      />
+                    </Box>
+
+                    {/* STATUS */}
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{
+                        mt: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        Status
                       </Typography>
 
                       <Typography
                         variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          mt: 0.5,
-
-                          display: "-webkit-box",
-
-                          WebkitLineClamp: 2,
-
-                          WebkitBoxOrient: "vertical",
-
-                          overflow: "hidden",
-
-                          minHeight: 40,
-                        }}
+                        fontWeight={600}
                       >
-                        {project.description || "No description available."}
-                      </Typography>
-                    </Box>
-
-                    {/* MENU */}
-
-                    <IconButton
-                      size="small"
-                      onClick={(event) => handleMenuOpen(event, project)}
-                    >
-                      <MoreVertRoundedIcon />
-                    </IconButton>
-                  </Stack>
-
-                  {/* =====================================
-                        PROGRESS
-                    ====================================== */}
-
-                  <Box
-                    sx={{
-                      mt: 2.5,
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      sx={{
-                        mb: 0.7,
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight={600}>
-                        Progress
-                      </Typography>
-
-                      <Typography variant="body2" fontWeight={700}>
-                        {progress}%
+                        {getStatusLabel(
+                          project.status,
+                        )}
                       </Typography>
                     </Stack>
 
-                    <LinearProgress
-                      variant="determinate"
-                      value={progress}
+                    {/* TEAM */}
+
+                    {project.teamId && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display:
+                            "block",
+                          mt: 1,
+                        }}
+                      >
+                        Team:{" "}
+                        {
+                          project.teamId
+                        }
+                      </Typography>
+                    )}
+
+                    {/* AVATARS */}
+
+                    <Stack
+                      direction="row"
+                      spacing={-0.8}
                       sx={{
-                        height: 7,
-                        borderRadius: 5,
-                      }}
-                    />
-                  </Box>
-
-                  {/* =====================================
-                        STATUS
-                    ====================================== */}
-
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{
-                      mt: 2,
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Status
-                    </Typography>
-
-                    <Typography variant="body2" fontWeight={600}>
-                      {getStatusLabel(project.status)}
-                    </Typography>
-                  </Stack>
-
-                  {/* =====================================
-                        TEAM
-                    ====================================== */}
-
-                  {project.teamId && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: "block",
-                        mt: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        mt: 2,
                       }}
                     >
-                      Team: {project.teamId}
-                    </Typography>
-                  )}
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        P
+                      </Avatar>
 
-                  {/* =====================================
-                        AVATARS
-                    ====================================== */}
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        M
+                      </Avatar>
 
-                  <Stack
-                    direction="row"
-                    spacing={-0.8}
-                    sx={{
-                      mt: 2,
-                    }}
-                  >
-                    <Avatar
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        fontSize: 12,
-                        border: 2,
-                        borderColor: "background.paper",
-                      }}
-                    >
-                      P
-                    </Avatar>
-
-                    <Avatar
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        fontSize: 12,
-                        border: 2,
-                        borderColor: "background.paper",
-                      }}
-                    >
-                      M
-                    </Avatar>
-
-                    <Avatar
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        fontSize: 12,
-                        border: 2,
-                        borderColor: "background.paper",
-                      }}
-                    >
-                      T
-                    </Avatar>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        T
+                      </Avatar>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            },
+          )}
         </Box>
       )}
 
-      {/* ======================================================
-          PROJECT MENU
-      ======================================================= */}
+      {/* THREE-DOT MENU */}
 
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        onClose={
+          handleMenuClose
+        }
         transformOrigin={{
           horizontal: "right",
           vertical: "top",
@@ -735,7 +899,9 @@ const Projects = () => {
         }}
       >
         <MenuItem
-          onClick={handleEditClick}
+          onClick={
+            handleEditClick
+          }
           sx={{
             py: 1,
           }}
@@ -744,17 +910,23 @@ const Projects = () => {
             fontSize="small"
             sx={{
               mr: 1.5,
-              color: "text.secondary",
+              color:
+                "text.secondary",
             }}
           />
 
-          <Typography variant="body2" fontWeight={500}>
+          <Typography
+            variant="body2"
+            fontWeight={500}
+          >
             Edit
           </Typography>
         </MenuItem>
 
         <MenuItem
-          onClick={handleDeleteClick}
+          onClick={
+            handleDeleteClick
+          }
           sx={{
             py: 1,
             color: "error.main",
@@ -767,19 +939,26 @@ const Projects = () => {
             }}
           />
 
-          <Typography variant="body2" fontWeight={500}>
+          <Typography
+            variant="body2"
+            fontWeight={500}
+          >
             Delete
           </Typography>
         </MenuItem>
       </Menu>
 
-      {/* ======================================================
-          DELETE DIALOG
-      ======================================================= */}
+      {/* DELETE DIALOG */}
 
       <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        open={
+          deleteDialogOpen
+        }
+        onClose={() =>
+          setDeleteDialogOpen(
+            false,
+          )
+        }
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -787,12 +966,26 @@ const Projects = () => {
           },
         }}
       >
-        <DialogTitle fontWeight={700}>Delete Project?</DialogTitle>
+        <DialogTitle
+          fontWeight={700}
+        >
+          Delete Project?
+        </DialogTitle>
 
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete{" "}
-            <strong>{selectedProject?.name}</strong>? This action cannot be
+            Are you sure you want
+            to delete{" "}
+            <b>
+              {
+                selectedProject?.name
+              }
+            </b>
+            ?
+
+            <br />
+
+            This action cannot be
             undone.
           </DialogContentText>
         </DialogContent>
@@ -804,10 +997,15 @@ const Projects = () => {
           }}
         >
           <Button
-            onClick={() => setDeleteDialogOpen(false)}
+            onClick={() =>
+              setDeleteDialogOpen(
+                false,
+              )
+            }
             color="inherit"
             sx={{
-              textTransform: "none",
+              textTransform:
+                "none",
               fontWeight: 600,
             }}
           >
@@ -815,12 +1013,15 @@ const Projects = () => {
           </Button>
 
           <Button
-            onClick={() => void handleDeleteConfirm()}
+            onClick={
+              handleDeleteConfirm
+            }
             color="error"
             variant="contained"
             disableElevation
             sx={{
-              textTransform: "none",
+              textTransform:
+                "none",
               fontWeight: 600,
               borderRadius: 2,
             }}
@@ -830,26 +1031,32 @@ const Projects = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ======================================================
-          CREATE PROJECT DIALOG
-      ======================================================= */}
+      {/* CREATE */}
 
       <CreateProjectDialog
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={loadProjects}
+        onClose={() =>
+          setCreateOpen(false)
+        }
+        onCreated={
+          loadProjects
+        }
       />
 
-      {/* ======================================================
-          EDIT PROJECT DIALOG
-      ======================================================= */}
+      {/* EDIT */}
 
       {selectedProject && (
         <EditProjectDialog
           open={editOpen}
-          project={selectedProject}
-          onClose={handleEditClose}
-          onUpdated={loadProjects}
+          project={
+            selectedProject
+          }
+          onClose={() =>
+            setEditOpen(false)
+          }
+          onUpdated={
+            loadProjects
+          }
         />
       )}
     </Box>
