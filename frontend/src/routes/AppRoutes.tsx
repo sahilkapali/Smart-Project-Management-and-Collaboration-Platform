@@ -134,14 +134,10 @@ const AppRoutes = () => {
       />
 
       {/* ====================================================== */}
-      {/* PROTECTED ROUTES                                       */}
+      {/* EVERYTHING BELOW IS PROTECTED                          */}
       {/* ====================================================== */}
 
       <Route element={<ProtectedRoute />}>
-
-        {/* ==================================================== */}
-        {/* MAIN APPLICATION LAYOUT                              */}
-        {/* ==================================================== */}
 
         <Route element={<MainLayout />}>
 
@@ -188,6 +184,31 @@ const AppRoutes = () => {
           />
 
           {/* ================================================== */}
+          {/* MEETINGS                                           */}
+          {/* ================================================== */}
+
+          <Route
+            path="/projects/:projectId/meetings"
+            element={<MeetingListPage />}
+        
+          />
+
+          <Route
+             path="/meetings"
+            element={<MeetingListPage />}
+          />
+
+          <Route
+            path="/projects/:projectId/meetings/create"
+            element={<CreateMeetingPage />}
+          />
+
+          <Route
+            path="/meetings/:id"
+            element={<MeetingDetailsPage />}
+          />
+
+          {/* ================================================== */}
           {/* TEAMS                                              */}
           {/* ================================================== */}
 
@@ -203,25 +224,6 @@ const AppRoutes = () => {
           <Route
             path="/reports"
             element={<Reports />}
-          />
-
-          {/* ================================================== */}
-          {/* MEETINGS                                           */}
-          {/* ================================================== */}
-
-          <Route
-            path="/projects/:projectId/meetings"
-            element={<MeetingListPage />}
-          />
-
-          <Route
-            path="/projects/:projectId/meetings/create"
-            element={<CreateMeetingPage />}
-          />
-
-          <Route
-            path="/meetings/:id"
-            element={<MeetingDetailsPage />}
           />
 
           {/* ================================================== */}
@@ -309,10 +311,11 @@ const AppRoutes = () => {
           />
 
         </Route>
+
       </Route>
 
       {/* ====================================================== */}
-      {/* FALLBACK ROUTE                                         */}
+      {/* FALLBACK                                               */}
       {/* ====================================================== */}
 
       <Route

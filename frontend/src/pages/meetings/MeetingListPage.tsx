@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -21,92 +21,325 @@ import {
 
 import MeetingCard from "../../components/meeting/MeetingCard";
 import meetingService from "../../services/meeting.service";
+import projectService from "../../services/project.service";
 
 import type { Meeting } from "../../types/meeting.types";
+import type { Project } from "../../types/project.types";
 
 const MeetingListPage = () => {
-  const { projectId } = useParams<{
-    projectId: string;
-  }>();
+  const { projectId } = useParams<{ projectId: string }>();
 
   const navigate = useNavigate();
 
-  const [meetings, setMeetings] = useState<Meeting[]>(
-    []
-  );
+  // ============================================================
+  // STATE
+  // ============================================================
+
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
 
-  const loadMeetings = async () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
-      setLoading(false);
-      return;
-    }
+  // ============================================================
+  // PROJECT ID HELPER
+  // ============================================================
 
+  const getProjectId = (
+    project: Project,
+  ): string | undefined => {
+    return (
+      project.id ||
+      (project as Project & { _id?: string })._id
+    );
+  };
+
+  // ============================================================
+  // LOAD PROJECTS
+  // ============================================================
+
+  const loadProjects = useCallback(async () => {
+    try {
+      const response: any =
+        await projectService.getProjects();
+
+      const projectsData = Array.isArray(response)
+        ? response
+        : response?.projects ||
+          response?.data ||
+          [];
+
+      const safeProjects = Array.isArray(projectsData)
+        ? projectsData
+        : [];
+
+      setProjects(safeProjects);
+
+      return safeProjects;
+    } catch (err: any) {
+      console.error(
+        "Failed to load projects:",
+        err,
+      );
+
+      throw err;
+    }
+  }, []);
+
+  // ============================================================
+  // LOAD MEETINGS
+  // ============================================================
+
+  const loadMeetings = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response =
-        await meetingService.getProjectMeetings(
-          projectId
+      /*
+       * ========================================================
+       * PROJECT-SPECIFIC MEETINGS
+       * ========================================================
+       *
+       * Normal route:
+       *
+       * /projects/:projectId/meetings
+       *
+       * In this case the project ID already comes from
+       * useParams().
+       */
+
+      if (projectId) {
+        const response =
+          await meetingService.getProjectMeetings(
+            projectId,
+          );
+
+        if (!response.success) {
+          setMeetings([]);
+
+          setError(
+            response.message ||
+              "Unable to load meetings.",
+          );
+
+          return;
+        }
+
+        setMeetings(response.data ?? []);
+
+        return;
+      }
+
+      /*
+       * ========================================================
+       * NO PROJECT ID
+       * ========================================================
+       *
+       * If this page is ever opened without a projectId,
+       * retrieve projects first and collect their meetings.
+       */
+
+      const safeProjects = await loadProjects();
+
+      if (safeProjects.length === 0) {
+        setMeetings([]);
+        return;
+      }
+
+      const projectIds = safeProjects
+        .map((project) =>
+          getProjectId(project),
+        )
+        .filter(
+          (id): id is string =>
+            Boolean(id),
         );
 
-      if (response.success) {
-        setMeetings(response.data ?? []);
-      } else {
+      if (projectIds.length === 0) {
+        setMeetings([]);
         setError(
-          response.message ||
-            "Unable to load meetings."
+          "No valid project IDs were found.",
         );
+        return;
       }
+
+      /*
+       * ========================================================
+       * LOAD MEETINGS FOR ALL PROJECTS
+       * ========================================================
+       */
+
+      const responses =
+        await Promise.all(
+          projectIds.map((id) =>
+            meetingService.getProjectMeetings(
+              id,
+            ),
+          ),
+        );
+
+      const allMeetings =
+        responses.flatMap((response) =>
+          response.success
+            ? response.data ?? []
+            : [],
+        );
+
+      /*
+       * ========================================================
+       * REMOVE DUPLICATES
+       * ========================================================
+       */
+
+      const uniqueMeetings = Array.from(
+        new Map(
+          allMeetings.map((meeting) => [
+            meeting._id,
+            meeting,
+          ]),
+        ).values(),
+      );
+
+      /*
+       * ========================================================
+       * SORT MEETINGS
+       * ========================================================
+       */
+
+      uniqueMeetings.sort(
+        (a, b) =>
+          new Date(
+            b.startTime,
+          ).getTime() -
+          new Date(
+            a.startTime,
+          ).getTime(),
+      );
+
+      setMeetings(uniqueMeetings);
     } catch (err: any) {
       console.error(
         "Failed to load meetings:",
-        err
+        err,
       );
+
+      setMeetings([]);
 
       setError(
         err?.response?.data?.message ||
-          "Unable to load meetings."
+          err?.message ||
+          "Unable to load meetings.",
       );
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, loadProjects]);
+
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
 
   useEffect(() => {
-    loadMeetings();
-  }, [projectId]);
+    void loadMeetings();
+  }, [loadMeetings]);
+
+  // ============================================================
+  // CREATE MEETING
+  // ============================================================
 
   const handleCreateMeeting = () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
+    /*
+     * If we're already inside a project,
+     * use that project's ID.
+     */
+
+    if (projectId) {
+      navigate(
+        `/projects/${projectId}/meetings/create`,
+      );
+
+      return;
+    }
+
+    /*
+     * If there is no projectId,
+     * use the first available project.
+     */
+
+    const firstProject = projects[0];
+
+    if (!firstProject) {
+      setError(
+        "You need to create a project before creating a meeting.",
+      );
+
+      return;
+    }
+
+    const firstProjectId =
+      getProjectId(firstProject);
+
+    if (!firstProjectId) {
+      setError(
+        "Project ID is missing.",
+      );
+
       return;
     }
 
     navigate(
-      `/projects/${projectId}/meetings/create`
+      `/projects/${firstProjectId}/meetings/create`,
     );
   };
 
-  const handleViewMeeting = (meeting: Meeting) => {
-    navigate(`/meetings/${meeting._id}`);
+  // ============================================================
+  // VIEW MEETING
+  // ============================================================
+
+  const handleViewMeeting = (
+    meeting: Meeting,
+  ) => {
+    if (!meeting?._id) {
+      setError(
+        "Meeting ID is missing.",
+      );
+
+      return;
+    }
+
+    navigate(
+      `/meetings/${meeting._id}`,
+    );
   };
+
+  // ============================================================
+  // PAGE
+  // ============================================================
 
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        width: "100%",
+        minHeight: "100%",
         bgcolor: "background.default",
-        py: 5,
       }}
     >
-      <Container maxWidth="xl">
-        {/* Page Header */}
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: {
+            xs: 2,
+            sm: 3,
+            md: 4,
+          },
+        }}
+      >
+        {/* ==================================================== */}
+        {/* HEADER                                               */}
+        {/* ==================================================== */}
+
         <Stack
           direction={{
             xs: "column",
@@ -118,55 +351,72 @@ const MeetingListPage = () => {
             sm: "center",
           }}
           spacing={2}
-          sx={{ mb: 4 }}
+          sx={{
+            mb: 3,
+          }}
         >
           <Box>
             <Stack
               direction="row"
               spacing={1}
               alignItems="center"
-              sx={{ mb: 1 }}
+              sx={{
+                mb: 0.5,
+              }}
             >
               <CalendarMonth
                 color="primary"
-                sx={{ fontSize: 32 }}
+                sx={{
+                  fontSize: {
+                    xs: 28,
+                    sm: 32,
+                  },
+                }}
               />
 
               <Typography
-                variant="h3"
-                fontWeight={800}
+                sx={{
+                  fontSize: {
+                    xs: "1.8rem",
+                    sm: "2.2rem",
+                    md: "2.4rem",
+                  },
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                }}
               >
                 Meetings
               </Typography>
             </Stack>
 
             <Typography
-              variant="body1"
               color="text.secondary"
             >
               View and manage your project
-              meetings.
+              meetings
             </Typography>
           </Box>
 
           <Button
             variant="contained"
-            size="large"
             startIcon={<Add />}
             onClick={handleCreateMeeting}
             sx={{
               borderRadius: 2,
-              px: 3,
-              py: 1.3,
               textTransform: "none",
               fontWeight: 700,
+              px: 2.5,
+              py: 1.1,
             }}
           >
             Create Meeting
           </Button>
         </Stack>
 
-        {/* Error */}
+        {/* ==================================================== */}
+        {/* ERROR                                                */}
+        {/* ==================================================== */}
+
         {error && (
           <Alert
             severity="error"
@@ -179,7 +429,9 @@ const MeetingListPage = () => {
                 color="inherit"
                 size="small"
                 startIcon={<Refresh />}
-                onClick={loadMeetings}
+                onClick={() => {
+                  void loadMeetings();
+                }}
               >
                 Retry
               </Button>
@@ -189,18 +441,22 @@ const MeetingListPage = () => {
           </Alert>
         )}
 
-        {/* Loading */}
+        {/* ==================================================== */}
+        {/* LOADING                                              */}
+        {/* ==================================================== */}
+
         {loading ? (
           <Paper
             elevation={0}
             sx={{
-              minHeight: 300,
+              minHeight: 320,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               borderRadius: 3,
               border: "1px solid",
               borderColor: "divider",
+              bgcolor: "background.paper",
             }}
           >
             <Stack
@@ -217,7 +473,10 @@ const MeetingListPage = () => {
             </Stack>
           </Paper>
         ) : meetings.length === 0 ? (
-          /* Empty state */
+          /* ================================================== */
+          /* EMPTY STATE                                        */
+          /* ================================================== */
+
           <Paper
             elevation={0}
             sx={{
@@ -229,6 +488,7 @@ const MeetingListPage = () => {
               borderRadius: 3,
               border: "1px solid",
               borderColor: "divider",
+              bgcolor: "background.paper",
               p: 4,
             }}
           >
@@ -255,15 +515,21 @@ const MeetingListPage = () => {
               <Typography
                 color="text.secondary"
               >
-                Schedule your first meeting for
-                this project and invite your team
-                members.
+                Schedule your first meeting
+                for this project and invite
+                your team members.
               </Typography>
 
               <Button
                 variant="contained"
                 startIcon={<Add />}
-                onClick={handleCreateMeeting}
+                onClick={
+                  handleCreateMeeting
+                }
+                disabled={
+                  !projectId &&
+                  projects.length === 0
+                }
                 sx={{
                   mt: 1,
                   borderRadius: 2,
@@ -276,26 +542,33 @@ const MeetingListPage = () => {
             </Stack>
           </Paper>
         ) : (
-          /* Meeting cards */
+          /* ================================================== */
+          /* MEETING CARDS                                      */
+          /* ================================================== */
+
           <Grid
             container
-            spacing={3}
+            spacing={2.5}
           >
-            {meetings.map((meeting) => (
-              <Grid
-                key={meeting._id}
-                size={{
-                  xs: 12,
-                  sm: 6,
-                  lg: 4,
-                }}
-              >
-                <MeetingCard
-                  meeting={meeting}
-                  onView={handleViewMeeting}
-                />
-              </Grid>
-            ))}
+            {meetings.map(
+              (meeting) => (
+                <Grid
+                  key={meeting._id}
+                  size={{
+                    xs: 12,
+                    sm: 6,
+                    lg: 4,
+                  }}
+                >
+                  <MeetingCard
+                    meeting={meeting}
+                    onView={
+                      handleViewMeeting
+                    }
+                  />
+                </Grid>
+              ),
+            )}
           </Grid>
         )}
       </Container>

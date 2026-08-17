@@ -1,4 +1,5 @@
 import api from "./api";
+
 import type {
   CreateMeetingData,
   MeetingResponse,
@@ -8,7 +9,7 @@ import type {
 
 const meetingService = {
   /**
-   * Create a meeting
+   * Create meeting
    * POST /api/meetings
    */
   createMeeting: async (
@@ -23,29 +24,31 @@ const meetingService = {
   },
 
   /**
-   * Get meetings for a project
+   * Get project meetings
    * GET /api/meetings/project/:projectId
    */
   getProjectMeetings: async (
     projectId: string,
   ): Promise<MeetingListResponse> => {
-    const response = await api.get<MeetingListResponse>(
-      `/meetings/project/${projectId}`,
-    );
+    const response =
+      await api.get<MeetingListResponse>(
+        `/meetings/project/${projectId}`,
+      );
 
     return response.data;
   },
 
   /**
-   * Get one meeting
+   * Get meeting
    * GET /api/meetings/:id
    */
   getMeetingById: async (
     id: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.get<MeetingResponse>(
-      `/meetings/${id}`,
-    );
+    const response =
+      await api.get<MeetingResponse>(
+        `/meetings/${id}`,
+      );
 
     return response.data;
   },
@@ -58,10 +61,11 @@ const meetingService = {
     id: string,
     data: UpdateMeetingData,
   ): Promise<MeetingResponse> => {
-    const response = await api.put<MeetingResponse>(
-      `/meetings/${id}`,
-      data,
-    );
+    const response =
+      await api.put<MeetingResponse>(
+        `/meetings/${id}`,
+        data,
+      );
 
     return response.data;
   },
@@ -84,12 +88,13 @@ const meetingService = {
     meetingId: string,
     notes: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.post<MeetingResponse>(
-      `/meetings/${meetingId}/notes`,
-      {
-        content: notes,
-      },
-    );
+    const response =
+      await api.post<MeetingResponse>(
+        `/meetings/${meetingId}/notes`,
+        {
+          content: notes,
+        },
+      );
 
     return response.data;
   },
@@ -103,19 +108,20 @@ const meetingService = {
     noteId: string,
     content: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.put<MeetingResponse>(
-      `/meetings/${meetingId}/notes`,
-      {
-        noteId,
-        content,
-      },
-    );
+    const response =
+      await api.put<MeetingResponse>(
+        `/meetings/${meetingId}/notes`,
+        {
+          noteId,
+          content,
+        },
+      );
 
     return response.data;
   },
 
   /**
-   * Partially update meeting notes
+   * Patch meeting notes
    * PATCH /api/meetings/:id/notes
    */
   patchMeetingNotes: async (
@@ -123,44 +129,49 @@ const meetingService = {
     noteId: string,
     content: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.patch<MeetingResponse>(
-      `/meetings/${meetingId}/notes`,
-      {
-        noteId,
-        content,
-      },
-    );
+    const response =
+      await api.patch<MeetingResponse>(
+        `/meetings/${meetingId}/notes`,
+        {
+          noteId,
+          content,
+        },
+      );
 
     return response.data;
   },
 
   /**
-   * Generate AI summary for a meeting note
+   * Generate AI meeting summary
    * PATCH /api/meetings/:id/ai-summary
    */
   summarizeMeeting: async (
     meetingId: string,
     noteId?: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.patch<MeetingResponse>(
-      `/meetings/${meetingId}/ai-summary`,
-      noteId ? { noteId } : {},
-    );
+    const response =
+      await api.patch<MeetingResponse>(
+        `/meetings/${meetingId}/ai-summary`,
+        noteId
+          ? { noteId }
+          : {},
+      );
 
     return response.data;
   },
 
   /**
-   * Extract action items from meeting notes
+   * Extract action items
    * PATCH /api/meetings/:id/action-items
    */
   extractActionItems: async (
     meetingId: string,
   ): Promise<MeetingResponse> => {
-    const response = await api.patch<MeetingResponse>(
-      `/meetings/${meetingId}/action-items`,
-      {},
-    );
+    const response =
+      await api.patch<MeetingResponse>(
+        `/meetings/${meetingId}/action-items`,
+        {},
+      );
 
     return response.data;
   },
