@@ -15,6 +15,7 @@ import api from "../../services/api";
 
 import type {
   UserReference,
+  ProjectReference,
   CreateMeetingData,
 } from "../../types/meeting.types";
 
@@ -25,25 +26,44 @@ const CreateMeetingPage = () => {
 
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState<UserReference[]>(
-    [],
-  );
+  /*
+   * Users
+   */
+  const [users, setUsers] =
+    useState<UserReference[]>([]);
 
+  /*
+   * Projects
+   */
+  const [projects, setProjects] =
+    useState<ProjectReference[]>([]);
+
+  /*
+   * Loading states
+   */
   const [loadingUsers, setLoadingUsers] =
     useState(true);
 
-  const [loading, setLoading] = useState(false);
+  const [loadingProjects, setLoadingProjects] =
+    useState(true);
 
-  const [error, setError] = useState("");
+  const [loading, setLoading] =
+    useState(false);
 
+  /*
+   * Error
+   */
+  const [error, setError] =
+    useState("");
+
+  /*
+   * Load users
+   */
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        /*
-         * Adjust this endpoint if your user.routes.ts
-         * exposes project/team members differently.
-         */
-        const response = await api.get("/users");
+        const response =
+          await api.get("/users");
 
         setUsers(
           response.data?.data ||
@@ -63,23 +83,92 @@ const CreateMeetingPage = () => {
     loadUsers();
   }, []);
 
+  /*
+   * Load projects
+   */
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        /*
+         * Get all projects available to
+         * the authenticated user.
+         */
+        const response =
+          await api.get("/projects");
+
+        const projectData =
+          response.data?.data ||
+            response.data?.projects ||
+            [];
+
+        setProjects(projectData);
+      } catch (err: any) {
+        setError(
+          err?.response?.data?.message ||
+            "Unable to load projects.",
+        );
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    loadProjects();
+  }, []);
+
+  /*
+   * Create meeting
+   */
   const handleSubmit = async (
     data: CreateMeetingData,
   ) => {
     try {
       setLoading(true);
+      setError("");
 
+      /*
+       * data.projectId is the project
+       * selected in MeetingForm.
+       */
       const response =
-        await meetingService.createMeeting(data);
+        await meetingService.createMeeting(
+          data,
+        );
 
-      navigate(
-        `/meetings/${response.data._id}`,
+      /*
+       * MeetingResponse:
+       *
+       * {
+       *   success: true,
+       *   data: Meeting
+       * }
+       *
+       * Therefore response.data is
+       * the Meeting object.
+       */
+      const meetingId =
+        response.data?._id;
+
+      if (meetingId) {
+        navigate(
+          `/meetings/${meetingId}`,
+        );
+      } else {
+        navigate("/meetings");
+      }
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          "Unable to create meeting.",
       );
     } finally {
       setLoading(false);
     }
   };
 
+  /*
+   * Project ID is required by the
+   * current route.
+   */
   if (!projectId) {
     return (
       <Container sx={{ py: 5 }}>
@@ -90,7 +179,13 @@ const CreateMeetingPage = () => {
     );
   }
 
-  if (loadingUsers) {
+  /*
+   * Wait for users and projects
+   */
+  if (
+    loadingUsers ||
+    loadingProjects
+  ) {
     return (
       <Box
         sx={{
@@ -105,7 +200,10 @@ const CreateMeetingPage = () => {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 5 }}>
+    <Container
+      maxWidth="md"
+      sx={{ py: 5 }}
+    >
       {error && (
         <Alert
           severity="warning"
@@ -129,6 +227,7 @@ const CreateMeetingPage = () => {
       >
         <MeetingForm
           users={users}
+          projects={projects}
           projectId={projectId}
           onSubmit={handleSubmit}
           loading={loading}

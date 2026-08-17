@@ -4,22 +4,27 @@ import {
   Typography,
 } from "@mui/material";
 
-const AILoading = () => {
+interface AILoadingProps {
+  message?: string;
+}
+
+const AILoading = ({
+  message = "AI is processing...",
+}: AILoadingProps) => {
   return (
     <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        py: 5,
         gap: 2,
+        py: 4,
       }}
     >
-      <CircularProgress />
+      <CircularProgress size={28} />
 
       <Typography color="text.secondary">
-        AI is thinking...
+        {message}
       </Typography>
     </Box>
   );

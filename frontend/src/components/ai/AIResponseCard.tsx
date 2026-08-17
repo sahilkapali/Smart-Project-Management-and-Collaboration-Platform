@@ -1,52 +1,51 @@
 import {
-  Card,
-  CardContent,
+  Paper,
   Typography,
+  Box,
 } from "@mui/material";
 
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-
 interface AIResponseCardProps {
+  title?: string;
   response: string;
 }
 
 const AIResponseCard = ({
+  title = "AI Result",
   response,
 }: AIResponseCardProps) => {
+  if (!response) {
+    return null;
+  }
+
   return (
-    <Card
+    <Paper
+      elevation={0}
       sx={{
-        mt: 3,
+        p: 3,
         borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
       }}
     >
-      <CardContent>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            mb: 2,
-          }}
-        >
-          <AutoAwesomeIcon color="primary" />
-          AI Response
-        </Typography>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        sx={{ mb: 2 }}
+      >
+        {title}
+      </Typography>
 
-        <Typography
-          sx={{
-            whiteSpace: "pre-wrap",
-            lineHeight: 1.7,
-          }}
-        >
+      <Box
+        sx={{
+          whiteSpace: "pre-wrap",
+          lineHeight: 1.7,
+        }}
+      >
+        <Typography>
           {response}
         </Typography>
-      </CardContent>
-    </Card>
+      </Box>
+    </Paper>
   );
 };
 
