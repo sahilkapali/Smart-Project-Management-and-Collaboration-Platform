@@ -21,9 +21,7 @@ import type { Project } from "../../types/project.types";
 interface ProjectCardProps {
   project: Project;
 
-  onDelete?: (
-    project: Project,
-  ) => void;
+  onDelete?: (project: Project) => void;
 }
 
 const ProjectCard = ({
@@ -37,9 +35,16 @@ const ProjectCard = ({
 
   const menuOpen = Boolean(anchorEl);
 
+  /*
+   * ============================================================
+   * MENU
+   * ============================================================
+   */
+
   const handleOpenMenu = (
     event: React.MouseEvent<HTMLElement>,
   ) => {
+    // Prevent the card click from opening ProjectDetails
     event.stopPropagation();
 
     setAnchorEl(event.currentTarget);
@@ -49,25 +54,79 @@ const ProjectCard = ({
     setAnchorEl(null);
   };
 
+  /*
+   * ============================================================
+   * OPEN PROJECT DETAILS
+   * ============================================================
+   *
+   * Example:
+   *
+   * /projects/1
+   * /projects/2
+   * /projects/25
+   *
+   * ProjectDetails.tsx will receive the ID through useParams().
+   */
+
   const handleOpenProject = () => {
-    navigate(
-      `/projects/${project.id}`,
-    );
+    if (!project?.id) {
+      console.error(
+        "Cannot open project details: project ID is missing.",
+      );
+
+      return;
+    }
+
+    navigate(`/projects/${project.id}`);
   };
 
-  const handleEdit = () => {
+  /*
+   * ============================================================
+   * EDIT PROJECT
+   * ============================================================
+   */
+
+  const handleEdit = (
+    event?: React.MouseEvent<HTMLElement>,
+  ) => {
+    event?.stopPropagation();
+
     handleCloseMenu();
 
-    navigate(
-      `/projects/${project.id}/edit`,
-    );
+    if (!project?.id) {
+      console.error(
+        "Cannot edit project: project ID is missing.",
+      );
+
+      return;
+    }
+
+    navigate(`/projects/${project.id}/edit`);
   };
 
-  const handleDelete = () => {
+  /*
+   * ============================================================
+   * DELETE PROJECT
+   * ============================================================
+   */
+
+  const handleDelete = (
+    event?: React.MouseEvent<HTMLElement>,
+  ) => {
+    event?.stopPropagation();
+
     handleCloseMenu();
 
-    onDelete?.(project);
+    if (onDelete) {
+      onDelete(project);
+    }
   };
+
+  /*
+   * ============================================================
+   * FORMAT DATE
+   * ============================================================
+   */
 
   const formatDate = (
     value?: string | null,
@@ -78,16 +137,18 @@ const ProjectCard = ({
 
     const date = new Date(value);
 
-    if (
-      Number.isNaN(
-        date.getTime(),
-      )
-    ) {
+    if (Number.isNaN(date.getTime())) {
       return value;
     }
 
     return date.toLocaleDateString();
   };
+
+  /*
+   * ============================================================
+   * FORMAT STATUS
+   * ============================================================
+   */
 
   const formatStatus = (
     value?: string | null,
@@ -101,15 +162,31 @@ const ProjectCard = ({
       .toLowerCase()
       .replace(
         /\b\w/g,
-        (letter) =>
-          letter.toUpperCase(),
+        (letter) => letter.toUpperCase(),
       );
   };
+
+  /*
+   * ============================================================
+   * PROJECT CARD
+   * ============================================================
+   */
 
   return (
     <Paper
       elevation={0}
       onClick={handleOpenProject}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (
+          event.key === "Enter" ||
+          event.key === " "
+        ) {
+          event.preventDefault();
+          handleOpenProject();
+        }
+      }}
       sx={{
         p: 2,
         borderRadius: 2.5,
@@ -121,16 +198,23 @@ const ProjectCard = ({
           "transform 0.18s ease, box-shadow 0.18s ease",
 
         "&:hover": {
-          transform:
-            "translateY(-2px)",
-
+          transform: "translateY(-2px)",
           boxShadow:
             "0 10px 28px rgba(0,0,0,0.08)",
+        },
+
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
         },
       }}
     >
       <Stack spacing={2}>
-        {/* Header */}
+
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
 
         <Stack
           direction="row"
@@ -143,6 +227,7 @@ const ProjectCard = ({
             alignItems="center"
             sx={{
               minWidth: 0,
+              flex: 1,
             }}
           >
             <Box
@@ -151,20 +236,14 @@ const ProjectCard = ({
                 height: 38,
                 flexShrink: 0,
                 borderRadius: 2,
-                bgcolor:
-                  "action.hover",
-                color:
-                  "primary.main",
+                bgcolor: "action.hover",
+                color: "primary.main",
                 display: "flex",
-                alignItems:
-                  "center",
-                justifyContent:
-                  "center",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <FolderRoundedIcon
-                fontSize="small"
-              />
+              <FolderRoundedIcon fontSize="small" />
             </Box>
 
             <Typography
@@ -174,54 +253,73 @@ const ProjectCard = ({
                 maxWidth: "100%",
               }}
             >
-              {project.name}
+              {project.name || "Untitled Project"}
             </Typography>
           </Stack>
 
+          {/* =================================================
+              MORE MENU BUTTON
+          ================================================= */}
+
           <IconButton
             size="small"
-            onClick={
-              handleOpenMenu
+            onClick={handleOpenMenu}
+            aria-label="Project options"
+            aria-controls={
+              menuOpen
+                ? `project-menu-${project.id}`
+                : undefined
+            }
+            aria-haspopup="true"
+            aria-expanded={
+              menuOpen ? "true" : undefined
             }
           >
             <MoreVertRoundedIcon fontSize="small" />
           </IconButton>
 
+          {/* =================================================
+              MENU
+          ================================================= */}
+
           <Menu
+            id={`project-menu-${project.id}`}
             anchorEl={anchorEl}
             open={menuOpen}
-            onClose={
-              handleCloseMenu
-            }
+            onClose={handleCloseMenu}
             onClick={(event) =>
               event.stopPropagation()
             }
           >
             <MenuItem
-              onClick={handleEdit}
+              onClick={(event) =>
+                handleEdit(event)
+              }
             >
               Edit
             </MenuItem>
 
             <MenuItem
-              onClick={handleDelete}
+              onClick={(event) =>
+                handleDelete(event)
+              }
             >
               Delete
             </MenuItem>
           </Menu>
         </Stack>
 
-        {/* Description */}
+        {/* =====================================================
+            DESCRIPTION
+        ===================================================== */}
 
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{
-            display:
-              "-webkit-box",
+            display: "-webkit-box",
             WebkitLineClamp: 2,
-            WebkitBoxOrient:
-              "vertical",
+            WebkitBoxOrient: "vertical",
             overflow: "hidden",
             minHeight: 40,
           }}
@@ -230,7 +328,9 @@ const ProjectCard = ({
             "No description available."}
         </Typography>
 
-        {/* Status */}
+        {/* =====================================================
+            STATUS
+        ===================================================== */}
 
         <Box>
           <Typography
@@ -248,24 +348,21 @@ const ProjectCard = ({
             variant="body2"
             fontWeight={700}
             sx={{
-              display:
-                "inline-flex",
+              display: "inline-flex",
               px: 1.2,
               py: 0.5,
               borderRadius: 1.5,
-              bgcolor:
-                "action.hover",
-              color:
-                "primary.main",
+              bgcolor: "action.hover",
+              color: "primary.main",
             }}
           >
-            {formatStatus(
-              project.status,
-            )}
+            {formatStatus(project.status)}
           </Typography>
         </Box>
 
-        {/* Team */}
+        {/* =====================================================
+            TEAM
+        ===================================================== */}
 
         <Stack
           direction="row"
@@ -275,8 +372,7 @@ const ProjectCard = ({
           <GroupsRoundedIcon
             sx={{
               fontSize: 18,
-              color:
-                "text.secondary",
+              color: "text.secondary",
             }}
           />
 
@@ -293,8 +389,7 @@ const ProjectCard = ({
               variant="body2"
               fontWeight={600}
               sx={{
-                wordBreak:
-                  "break-all",
+                wordBreak: "break-all",
               }}
             >
               {project.teamId ||
@@ -303,7 +398,9 @@ const ProjectCard = ({
           </Box>
         </Stack>
 
-        {/* Dates */}
+        {/* =====================================================
+            PROJECT DATES
+        ===================================================== */}
 
         <Stack
           direction="row"
@@ -313,8 +410,7 @@ const ProjectCard = ({
           <CalendarMonthRoundedIcon
             sx={{
               fontSize: 18,
-              color:
-                "text.secondary",
+              color: "text.secondary",
             }}
           />
 
@@ -331,25 +427,22 @@ const ProjectCard = ({
               variant="body2"
               fontWeight={600}
             >
-              {formatDate(
-                project.startDate,
-              )}
+              {formatDate(project.startDate)}
               {" — "}
-              {formatDate(
-                project.endDate,
-              )}
+              {formatDate(project.endDate)}
             </Typography>
           </Box>
         </Stack>
 
-        {/* Project ID */}
+        {/* =====================================================
+            PROJECT ID
+        ===================================================== */}
 
         <Box
           sx={{
             pt: 0.5,
             borderTop: "1px solid",
-            borderColor:
-              "divider",
+            borderColor: "divider",
           }}
         >
           <Typography
@@ -364,13 +457,13 @@ const ProjectCard = ({
             display="block"
             sx={{
               mt: 0.3,
-              wordBreak:
-                "break-all",
+              wordBreak: "break-all",
             }}
           >
-            {project.id}
+            {project.id || "No available data"}
           </Typography>
         </Box>
+
       </Stack>
     </Paper>
   );

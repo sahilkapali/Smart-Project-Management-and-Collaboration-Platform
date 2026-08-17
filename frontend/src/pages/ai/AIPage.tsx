@@ -1,20 +1,32 @@
-import { useEffect, useState } from "react";
-
-import { useParams } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Alert,
-  Button,
   Container,
-  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
+  Button,
   Typography,
 } from "@mui/material";
 
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 import aiService from "../../services/ai.service";
+
+import projectService from "../../services/project.service";
+
+import type {
+  Project,
+} from "../../types/project.types";
+
+import AIResponseCard from "../../components/ai/AIResponseCard";
 
 import AILoading from "../../components/ai/AILoading";
 import AIResponseCard from "../../components/ai/AIResponseCard";
@@ -23,162 +35,280 @@ import type {
   AIOutput,
 } from "../../types/ai.types";
 
+
 const AIPage = () => {
-  const { projectId } =
-    useParams<{
-      projectId: string;
-    }>();
 
-  const [outputs, setOutputs] =
-    useState<AIOutput[]>([]);
+  /* =======================================================
+     PROJECTS
+  ======================================================= */
 
-  const [insight, setInsight] =
+  const [projects, setProjects] =
+    useState<Project[]>([]);
+
+  const [selectedProjectId, setSelectedProjectId] =
     useState("");
 
-  const [loadingHistory, setLoadingHistory] =
+
+  /* =======================================================
+     LOADING STATES
+  ======================================================= */
+
+  const [projectsLoading, setProjectsLoading] =
     useState(true);
 
-  const [generatingInsight, setGeneratingInsight] =
+  const [loading, setLoading] =
     useState(false);
+
+
+  /* =======================================================
+     AI RESPONSE
+  ======================================================= */
+
+  const [response, setResponse] =
+    useState("");
+
+
+  /* =======================================================
+     ERROR
+  ======================================================= */
 
   const [error, setError] =
     useState("");
 
-  const loadHistory = async () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
-      setLoadingHistory(false);
-      return;
-    }
 
-    try {
-      setLoadingHistory(true);
-      setError("");
-
-      const result =
-        await aiService.getProjectAIOutputs(
-          projectId,
-        );
-
-      setOutputs(result.data || []);
-    } catch (err: any) {
-      console.error(
-        "Failed to load AI history:",
-        err,
-      );
-
-      setError(
-        err?.response?.data?.message ||
-          "Unable to load project AI history.",
-      );
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
+  /* =======================================================
+     LOAD PROJECTS
+  ======================================================= */
 
   useEffect(() => {
-    loadHistory();
-  }, [projectId]);
 
-  const handleGenerateInsight = async () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
-      return;
-    }
+    const loadProjects = async () => {
 
-    try {
-      setGeneratingInsight(true);
-      setError("");
-      setInsight("");
+      try {
 
-      const result =
-        await aiService.generateProjectInsight(
-          projectId,
+        setProjectsLoading(true);
+
+        setError("");
+
+        const data =
+          await projectService.getProjects();
+
+        const projectsData =
+          Array.isArray(data)
+            ? data
+            : [];
+
+        setProjects(
+          projectsData,
         );
 
-      const generated =
-        result.data?.output;
+      } catch (err: any) {
 
-      if (!generated) {
+        console.error(
+          "Failed to load projects:",
+          err,
+        );
+
         setError(
-          "AI returned no project insight.",
+          err?.response?.data?.message ||
+          "Unable to load projects.",
         );
+
+      } finally {
+
+        setProjectsLoading(false);
+
+      }
+
+    };
+
+
+    loadProjects();
+
+  }, []);
+
+
+  /* =======================================================
+     GET PROJECT ID
+  ======================================================= */
+
+  const getProjectId = (
+    project: Project,
+  ): string => {
+
+    return String(
+      project.id ||
+      (project as any)._id ||
+      "",
+    );
+
+  };
+
+
+  /* =======================================================
+     GENERATE AI INSIGHT
+  ======================================================= */
+
+  const handleGenerateInsight =
+    async () => {
+
+      if (!selectedProjectId) {
+
+        setError(
+          "Please select a project.",
+        );
+
         return;
       }
 
-      setInsight(generated);
 
-      await loadHistory();
-    } catch (err: any) {
-      console.error(
-        "Project AI insight failed:",
-        err,
-      );
+      try {
 
-      setError(
-        err?.response?.data?.message ||
-          "Unable to generate project insight.",
-      );
-    } finally {
-      setGeneratingInsight(false);
-    }
-  };
+        setLoading(true);
+
+        setError("");
+
+        setResponse("");
+
+
+        const result =
+          await aiService.getProjectInsight(
+            selectedProjectId,
+          );
+
+
+        /* ===============================================
+           AI DATA
+        =============================================== */
+
+        const aiData =
+          result?.data;
+
+
+        if (!aiData) {
+
+          setResponse(
+            "AI returned no response.",
+          );
+
+          return;
+        }
+
+
+        /* ===============================================
+           EXTRACT AI RESPONSE
+        =============================================== */
+
+        const output =
+          aiData.output ||
+          aiData.response ||
+          aiData.answer ||
+          aiData.summary;
+
+
+        if (
+          typeof output ===
+          "string"
+        ) {
+
+          setResponse(
+            output,
+          );
+
+          return;
+        }
+
+
+        /* ===============================================
+           FALLBACK
+        =============================================== */
+
+        setResponse(
+          JSON.stringify(
+            aiData,
+            null,
+            2,
+          ),
+        );
+
+      } catch (err: any) {
+
+        console.error(
+          "AI insight failed:",
+          err,
+        );
+
+        setError(
+          err?.response?.data?.message ||
+          err?.message ||
+          "Unable to generate AI insight.",
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+
+  /* =======================================================
+     SELECTED PROJECT
+  ======================================================= */
+
+  const selectedProject =
+    projects.find(
+      (project) =>
+        getProjectId(project) ===
+        selectedProjectId,
+    );
+
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
+
     <Container
       maxWidth="md"
-      sx={{ py: 5 }}
+      sx={{
+        py: 6,
+      }}
     >
+
       <Stack spacing={4}>
-        <Stack spacing={1}>
-          <Typography
-            variant="h3"
-            fontWeight={800}
-          >
-            AI Assistant
-          </Typography>
 
-          <Typography color="text.secondary">
-            AI insights and history for this
-            project.
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-          >
-            Project ID: {projectId}
-          </Typography>
-        </Stack>
-
-        {error && (
-          <Alert
-            severity="error"
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={loadHistory}
-              >
-                Retry
-              </Button>
-            }
-          >
-            {error}
-          </Alert>
-        )}
+        {/* =================================================
+            AI HEADER
+        ================================================= */}
 
         <Paper
           elevation={0}
           sx={{
-            p: 4,
-            borderRadius: 3,
+            p: {
+              xs: 3,
+              md: 5,
+            },
+
+            borderRadius: 4,
+
             border: "1px solid",
-            borderColor: "divider",
+
+            borderColor:
+              "divider",
           }}
         >
+
           <Stack spacing={3}>
+
+            {/* =============================================
+                TITLE
+            ============================================= */}
+
             <Stack spacing={1}>
+
               <Typography
                 variant="h5"
                 fontWeight={700}
@@ -186,105 +316,231 @@ const AIPage = () => {
                 Project AI Insight
               </Typography>
 
-              <Typography color="text.secondary">
-                Generate an AI analysis using
-                the current project's information.
+
+              <Typography
+                color="text.secondary"
+              >
+                Generate intelligent insights
+                and recommendations for your
+                project.
               </Typography>
+
             </Stack>
 
-            {generatingInsight ? (
-              <AILoading
-                message="Generating project insight..."
-              />
-            ) : (
-              <Button
-                variant="contained"
-                startIcon={
-                  <AutoAwesomeIcon />
-                }
-                onClick={
-                  handleGenerateInsight
-                }
+
+            {/* =============================================
+                ERROR
+            ============================================= */}
+
+            {error && (
+
+              <Alert
+                severity="error"
               >
-                Generate Project Insight
-              </Button>
+                {error}
+              </Alert>
+
             )}
 
-            {insight && (
-              <AIResponseCard
-                title="Latest Project Insight"
-                response={insight}
-              />
+
+            {/* =============================================
+                PROJECT SELECT
+            ============================================= */}
+
+            <FormControl
+              fullWidth
+              disabled={
+                projectsLoading ||
+                loading
+              }
+            >
+
+              <InputLabel>
+                Select Project
+              </InputLabel>
+
+
+              <Select
+                value={
+                  selectedProjectId
+                }
+                label="Select Project"
+                onChange={(event) => {
+
+                  setSelectedProjectId(
+                    event.target.value,
+                  );
+
+                  setResponse("");
+
+                  setError("");
+
+                }}
+              >
+
+                {projects.length ===
+                  0 && (
+
+                  <MenuItem
+                    value=""
+                    disabled
+                  >
+                    No projects available
+                  </MenuItem>
+
+                )}
+
+
+                {projects.map(
+                  (project) => {
+
+                    const projectId =
+                      getProjectId(
+                        project,
+                      );
+
+                    return (
+
+                      <MenuItem
+                        key={
+                          projectId
+                        }
+                        value={
+                          projectId
+                        }
+                      >
+                        {project.name ||
+                          "Untitled Project"}
+                      </MenuItem>
+
+                    );
+
+                  },
+                )}
+
+              </Select>
+
+            </FormControl>
+
+
+            {/* =============================================
+                SELECTED PROJECT
+            ============================================= */}
+
+            {selectedProject && (
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+
+                  borderRadius: 2,
+
+                  bgcolor:
+                    "action.hover",
+                }}
+              >
+
+                <Stack spacing={0.5}>
+
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                  >
+                    {selectedProject.name ||
+                      "Untitled Project"}
+                  </Typography>
+
+
+                  {selectedProject.description && (
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {
+                        selectedProject.description
+                      }
+                    </Typography>
+
+                  )}
+
+                </Stack>
+
+              </Paper>
+
             )}
-          </Stack>
-        </Paper>
 
-        <Divider />
 
-        <Stack spacing={2}>
-          <Typography
-            variant="h5"
-            fontWeight={700}
-          >
-            AI History
-          </Typography>
+            {/* =============================================
+                AI BUTTON
+            ============================================= */}
 
-          {loadingHistory ? (
-            <AILoading message="Loading AI history..." />
-          ) : outputs.length === 0 ? (
-            <Paper
-              elevation={0}
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={
+                <AutoAwesomeIcon />
+              }
+              onClick={
+                handleGenerateInsight
+              }
+              disabled={
+                loading ||
+                projectsLoading ||
+                !selectedProjectId
+              }
               sx={{
-                p: 3,
-                borderRadius: 3,
-                border: "1px solid",
-                borderColor: "divider",
+                borderRadius: 2,
+
+                textTransform:
+                  "none",
+
+                fontWeight: 700,
+
+                py: 1.5,
               }}
             >
-              <Typography color="text.secondary">
-                No AI outputs have been generated
-                for this project yet.
-              </Typography>
-            </Paper>
-          ) : (
-            <Stack spacing={2}>
-              {outputs.map((item) => (
-                <AIResponseCard
-                  key={
-                    item._id ||
-                    `${item.type}-${item.createdAt}`
-                  }
-                  title={formatAIType(item.type)}
-                  response={item.output}
-                />
-              ))}
-            </Stack>
-          )}
-        </Stack>
+              {loading
+                ? "Generating Insight..."
+                : "Generate AI Insight"}
+            </Button>
+
+          </Stack>
+
+        </Paper>
+
+
+        {/* =================================================
+            LOADING
+        ================================================= */}
+
+        {loading && (
+          <AILoading />
+        )}
+
+
+        {/* =================================================
+            RESPONSE
+        ================================================= */}
+
+        {!loading &&
+          response && (
+
+          <AIResponseCard
+            response={
+              response
+            }
+          />
+
+        )}
+
       </Stack>
+
     </Container>
+
   );
 };
 
-const formatAIType = (
-  type: AIOutput["type"],
-) => {
-  switch (type) {
-    case "TASK_PRIORITY":
-      return "Task Priority";
-
-    case "MEETING_SUMMARY":
-      return "Meeting Summary";
-
-    case "ACTION_ITEMS":
-      return "Action Items";
-
-    case "INSIGHT":
-      return "Project Insight";
-
-    default:
-      return "AI Result";
-  }
-};
 
 export default AIPage;

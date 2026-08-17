@@ -1,156 +1,278 @@
 import api from "./api";
 
-import type {
-  AIResponse,
-  AIHistoryResponse,
-  AIQuestionRequest,
-  AITaskPriorityResponse,
-} from "../types/ai.types";
+/**
+ * =========================================================
+ * AI SERVICE
+ * =========================================================
+ *
+ * These methods use ONLY the existing backend endpoints.
+ *
+ * Existing backend endpoints:
+ *
+ * POST  /api/ai/insight
+ * GET   /api/ai/project/:projectId
+ * GET   /api/ai/task/:taskId
+ * GET   /api/ai/meeting/:meetingId
+ *
+ * PATCH /api/tasks/:id/ai-prioritize
+ *
+ * PATCH /api/meetings/:id/ai-summary
+ * PATCH /api/meetings/:id/action-items
+ *
+ * No backend changes are required.
+ */
+
+
+/* =========================================================
+   TYPES
 
 import type { Meeting } from "../types/meeting.types";
 
 const aiService = {
-  // =====================================================
-  // PROJECT AI INSIGHT
-  // POST /api/ai/insight
-  // =====================================================
 
-  generateProjectInsight: async (
+  /* =======================================================
+     PROJECT AI INSIGHT
+
+     Backend:
+     POST /api/ai/insight
+
+     Request:
+     {
+       projectId: "..."
+     }
+  ======================================================= */
+
+  getProjectInsight: async (
     projectId: string,
-  ): Promise<AIResponse> => {
-    const data: AIQuestionRequest = {
-      projectId,
-    };
+  ): Promise<
+    AIDataResponse<AIOutput>
+  > => {
 
-    const response = await api.post<AIResponse>(
-      "/ai/insight",
-      data,
-    );
+    if (!projectId?.trim()) {
+      throw new Error(
+        "Project ID is required.",
+      );
+    }
+
+    const response =
+      await api.post<
+        AIDataResponse<AIOutput>
+      >(
+        "/ai/insight",
+        {
+          projectId: projectId.trim(),
+        },
+      );
 
     return response.data;
   },
 
-  // =====================================================
-  // PROJECT AI HISTORY
-  // GET /api/ai/project/:projectId
-  // =====================================================
+
+  /* =======================================================
+     GET PROJECT AI OUTPUTS
+
+     Backend:
+     GET /api/ai/project/:projectId
+  ======================================================= */
 
   getProjectAIOutputs: async (
     projectId: string,
-  ): Promise<AIHistoryResponse> => {
+  ): Promise<
+    AIDataResponse<AIOutput[]>
+  > => {
+
+    if (!projectId?.trim()) {
+      throw new Error(
+        "Project ID is required.",
+      );
+    }
+
     const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/project/${projectId}`,
+      await api.get<
+        AIDataResponse<AIOutput[]>
+      >(
+        `/ai/project/${projectId.trim()}`,
       );
 
     return response.data;
   },
 
-  // =====================================================
-  // TASK AI PRIORITIZATION
-  // PATCH /api/tasks/:id/ai-prioritize
-  // =====================================================
 
-  prioritizeTask: async (
-    taskId: string,
-  ): Promise<AITaskPriorityResponse> => {
-    const response =
-      await api.patch<AITaskPriorityResponse>(
-        `/tasks/${taskId}/ai-prioritize`,
-      );
+  /* =======================================================
+     GET TASK AI OUTPUTS
 
-    return response.data;
-  },
-
-  // =====================================================
-  // TASK AI HISTORY
-  // GET /api/ai/task/:taskId
-  // =====================================================
+     Backend:
+     GET /api/ai/task/:taskId
+  ======================================================= */
 
   getTaskAIOutputs: async (
     taskId: string,
-  ): Promise<AIHistoryResponse> => {
+  ): Promise<
+    AIDataResponse<AIOutput[]>
+  > => {
+
+    if (!taskId?.trim()) {
+      throw new Error(
+        "Task ID is required.",
+      );
+    }
+
     const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/task/${taskId}`,
+      await api.get<
+        AIDataResponse<AIOutput[]>
+      >(
+        `/ai/task/${taskId.trim()}`,
       );
 
     return response.data;
   },
 
-  // =====================================================
-  // MEETING SUMMARY
-  // PATCH /api/meetings/:id/ai-summary
-  //
-  // Backend response:
-  // {
-  //   success: true,
-  //   message: string,
-  //   data: Meeting
-  // }
-  // =====================================================
 
-  summarizeMeeting: async (
-    meetingId: string,
-    noteId?: string,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    data: Meeting;
-  }> => {
-    const response = await api.patch<{
-      success: boolean;
-      message: string;
-      data: Meeting;
-    }>(
-      `/meetings/${meetingId}/ai-summary`,
-      noteId ? { noteId } : {},
-    );
+  /* =======================================================
+     GET MEETING AI OUTPUTS
 
-    return response.data;
-  },
-
-  // =====================================================
-  // MEETING ACTION ITEMS
-  // PATCH /api/meetings/:id/action-items
-  //
-  // Backend returns the updated Meeting.
-  // =====================================================
-
-  extractActionItems: async (
-    meetingId: string,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    data: Meeting;
-  }> => {
-    const response = await api.patch<{
-      success: boolean;
-      message: string;
-      data: Meeting;
-    }>(
-      `/meetings/${meetingId}/action-items`,
-      {},
-    );
-
-    return response.data;
-  },
-
-  // =====================================================
-  // MEETING AI HISTORY
-  // GET /api/ai/meeting/:meetingId
-  // =====================================================
+     Backend:
+     GET /api/ai/meeting/:meetingId
+  ======================================================= */
 
   getMeetingAIOutputs: async (
     meetingId: string,
-  ): Promise<AIHistoryResponse> => {
+  ): Promise<
+    AIDataResponse<AIOutput[]>
+  > => {
+
+    if (!meetingId?.trim()) {
+      throw new Error(
+        "Meeting ID is required.",
+      );
+    }
+
     const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/meeting/${meetingId}`,
+      await api.get<
+        AIDataResponse<AIOutput[]>
+      >(
+        `/ai/meeting/${meetingId.trim()}`,
       );
 
     return response.data;
   },
+
+
+  /* =======================================================
+     AI TASK PRIORITIZATION
+
+     Backend:
+     PATCH /api/tasks/:id/ai-prioritize
+  ======================================================= */
+
+  prioritizeTask: async (
+    taskId: string,
+  ): Promise<
+    AIDataResponse<AIPrioritizedTask>
+  > => {
+
+    if (!taskId?.trim()) {
+      throw new Error(
+        "Task ID is required.",
+      );
+    }
+
+    const response =
+      await api.patch<
+        AIDataResponse<AIPrioritizedTask>
+      >(
+        `/tasks/${taskId.trim()}/ai-prioritize`,
+        {},
+      );
+
+    return response.data;
+  },
+
+
+  /* =======================================================
+     MEETING AI SUMMARY
+
+     Backend:
+     PATCH /api/meetings/:id/ai-summary
+  ======================================================= */
+
+  summarizeMeeting: async (
+    meetingId: string,
+  ): Promise<
+    AIDataResponse<AIOutput>
+  > => {
+
+    if (!meetingId?.trim()) {
+      throw new Error(
+        "Meeting ID is required.",
+      );
+    }
+
+    const response =
+      await api.patch<
+        AIDataResponse<AIOutput>
+      >(
+        `/meetings/${meetingId.trim()}/ai-summary`,
+        {},
+      );
+
+    return response.data;
+  },
+
+
+  /* =======================================================
+     MEETING ACTION ITEMS
+
+     Backend:
+     PATCH /api/meetings/:id/action-items
+  ======================================================= */
+
+  extractActionItems: async (
+    meetingId: string,
+  ): Promise<
+    AIDataResponse<AIOutput>
+  > => {
+
+    if (!meetingId?.trim()) {
+      throw new Error(
+        "Meeting ID is required.",
+      );
+    }
+
+    const response =
+      await api.patch<
+        AIDataResponse<AIOutput>
+      >(
+        `/meetings/${meetingId.trim()}/action-items`,
+        {},
+      );
+
+    return response.data;
+  },
+
+
+  /* =======================================================
+     BACKWARD COMPATIBILITY
+
+     Some existing frontend code may call:
+
+       aiService.autoPrioritizeTask(taskId)
+
+     Keep this method so those components continue working.
+  ======================================================= */
+
+  autoPrioritizeTask: async (
+    taskId: string,
+  ): Promise<
+    AIDataResponse<AIPrioritizedTask>
+  > => {
+
+    return aiService.prioritizeTask(
+      taskId,
+    );
+  },
+
 };
+
 
 export default aiService;
