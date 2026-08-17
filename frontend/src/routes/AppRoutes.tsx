@@ -14,7 +14,6 @@ import ResetPassword from "../pages/auth/ResetPassword";
 // ============================================================
 
 import Dashboard from "../pages/dashboard/Dashboard";
-
 import Profile from "../pages/profile/Profile";
 import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
@@ -27,6 +26,12 @@ import ProjectDetails from "../pages/projects/ProjectDetails";
 // ============================================================
 
 import Teams from "../pages/teams/Teams";
+
+// ============================================================
+// REPORTS
+// ============================================================
+
+import Reports from "../pages/reports/Reports";
 
 // ============================================================
 // NOTIFICATIONS
@@ -102,23 +107,30 @@ const AppRoutes = () => {
       {/* PUBLIC ROUTES                                          */}
       {/* ====================================================== */}
 
-      {/* Home */}
       <Route
         path={ROUTES.HOME}
         element={<Navigate to={ROUTES.LOGIN} replace />}
       />
 
-      {/* Login */}
-      <Route path={ROUTES.LOGIN} element={<Login />} />
+      <Route
+        path={ROUTES.LOGIN}
+        element={<Login />}
+      />
 
-      {/* Register */}
-      <Route path={ROUTES.REGISTER} element={<Register />} />
+      <Route
+        path={ROUTES.REGISTER}
+        element={<Register />}
+      />
 
-      {/* Forgot Password */}
-      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+      <Route
+        path={ROUTES.FORGOT_PASSWORD}
+        element={<ForgotPassword />}
+      />
 
-      {/* Reset Password */}
-      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+      <Route
+        path={ROUTES.RESET_PASSWORD}
+        element={<ResetPassword />}
+      />
 
       {/* ====================================================== */}
       {/* PROTECTED ROUTES                                       */}
@@ -130,6 +142,7 @@ const AppRoutes = () => {
         {/* ==================================================== */}
 
         <Route element={<MainLayout />}>
+
           {/* ================================================== */}
           {/* DASHBOARD                                          */}
           {/* ================================================== */}
@@ -210,7 +223,10 @@ const AppRoutes = () => {
       {/* FALLBACK ROUTE                                         */}
       {/* ====================================================== */}
 
-      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={ROUTES.LOGIN} replace />}
+      />
     </Routes>
   );
 };
