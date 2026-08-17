@@ -1,112 +1,186 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  MenuItem,
-  CircularProgress,
-  Alert
-} from '@mui/material';
-import { updateRepository } from '../../services/repository.service';
-import type { EditRepositoryModalProps } from '../../types/repository.types';
+import { useEffect, useState } from "react";
 
-const EditRepositoryModal: React.FC<EditRepositoryModalProps> = ({ open, onClose, onSuccess, repository }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState('private');
-  const [project, setProject] = useState(''); // Added Project ID state
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from "@mui/material";
+
+import toast from "react-hot-toast";
+
+import { updateRepository } from "../../services/repository.service";
+
+import type {
+  Repository,
+  UpdateRepositoryPayload,
+} from "../../types/repository.types";
+
+interface EditRepositoryModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void | Promise<void>;
+  repository: Repository;
+}
+
+const EditRepositoryModal = ({
+  open,
+  onClose,
+  onSuccess,
+  repository,
+}: EditRepositoryModalProps) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (repository) {
-      setName(repository.name || '');
-      setDescription(repository.description || '');
-      setVisibility(repository.visibility || 'private');
-      setProject(repository.project || ''); // Pre-fill project ID
-    }
-  }, [repository]);
+    if (!open || !repository) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !project.trim() || !repository) return;
-    
-    const repoId = repository.id || repository._id;
-    if (!repoId) return;
+    setName(repository.name || "");
+    setDescription(repository.description || "");
+    setGithubUrl(repository.githubUrl || "");
+    setError("");
+  }, [open, repository]);
+
+  const handleClose = () => {
+    if (loading) return;
+
+    setError("");
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    const trimmedGithubUrl = githubUrl.trim();
+
+    if (!trimmedName) {
+      setError("Repository name is required.");
+      return;
+    }
+
+    if (!repository?._id) {
+      setError("Repository ID is missing.");
+      return;
+    }
 
     try {
       setLoading(true);
-      setError(null);
-      // Included project in the payload
-      await updateRepository(repoId, { name, description, visibility, project });
-      onSuccess();
+      setError("");
+
+      const payload: UpdateRepositoryPayload = {
+        name: trimmedName,
+        description: trimmedDescription || undefined,
+        githubUrl: trimmedGithubUrl || undefined,
+      };
+
+      await updateRepository(repository._id, payload);
+
+      toast.success("Repository updated successfully.");
+
+      await onSuccess();
+
       onClose();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to update repository.');
+      console.error("Failed to update repository:", err);
+
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update repository.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle fontWeight="bold">Edit Repository</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <TextField
-            label="Project ID"
-            fullWidth
-            required
-            value={project}
-            onChange={(e) => setProject(e.target.value)}
-            margin="normal"
-            disabled={loading}
-          />
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 700 }}>Edit Repository</DialogTitle>
+
+      <DialogContent>
+        <Box
+          sx={{
+            pt: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {error && <Alert severity="error">{error}</Alert>}
+
           <TextField
             label="Repository Name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
             fullWidth
             required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            margin="normal"
+            autoFocus
             disabled={loading}
           />
+
           <TextField
             label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             fullWidth
             multiline
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            margin="normal"
+            minRows={3}
             disabled={loading}
           />
+
           <TextField
-            select
-            label="Visibility"
+            label="GitHub URL"
+            value={githubUrl}
+            onChange={(event) => setGithubUrl(event.target.value)}
             fullWidth
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value)}
-            margin="normal"
             disabled={loading}
-          >
-            <MenuItem value="private">Private</MenuItem>
-            <MenuItem value="public">Public</MenuItem>
-          </TextField>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={onClose} disabled={loading} color="inherit">
-            Cancel
-          </Button>
-          <Button type="submit" variant="contained" disabled={loading || !name.trim() || !project.trim()} sx={{ bgcolor: '#5e35b1' }}>
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </form>
+            type="url"
+            placeholder="https://github.com/username/repository"
+          />
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            textTransform: "none",
+          }}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading || !name.trim()}
+          sx={{
+            textTransform: "none",
+            fontWeight: 600,
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

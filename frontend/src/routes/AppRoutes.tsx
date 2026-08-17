@@ -113,25 +113,13 @@ const AppRoutes = () => {
         element={<Navigate to={ROUTES.LOGIN} replace />}
       />
 
-      <Route
-        path={ROUTES.LOGIN}
-        element={<Login />}
-      />
+      <Route path={ROUTES.LOGIN} element={<Login />} />
 
-      <Route
-        path={ROUTES.REGISTER}
-        element={<Register />}
-      />
+      <Route path={ROUTES.REGISTER} element={<Register />} />
 
-      <Route
-        path={ROUTES.FORGOT_PASSWORD}
-        element={<ForgotPassword />}
-      />
+      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
 
-      <Route
-        path={ROUTES.RESET_PASSWORD}
-        element={<ResetPassword />}
-      />
+      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
       {/* ====================================================== */}
       {/* PROTECTED ROUTES                                       */}
@@ -144,7 +132,6 @@ const AppRoutes = () => {
         {/* ==================================================== */}
 
         <Route element={<MainLayout />}>
-
           {/* ================================================== */}
           {/* DASHBOARD                                          */}
           {/* ================================================== */}
@@ -176,12 +163,7 @@ const AppRoutes = () => {
           {/* ================================================== */}
           {/* PROJECTS                                           */}
           {/* ================================================== */}
-
-          <Route
-            path={ROUTES.PROJECTS || "/projects"}
-            element={<Projects />}
-          />
-
+          <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
           <Route
             path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
             element={<ProjectDetails />}
@@ -205,6 +187,10 @@ const AppRoutes = () => {
             element={<Reports />}
           />
 
+          {/* ================================================== */}
+          {/* REPORTS                                            */}
+          {/* ================================================== */}
+          <Route path="/reports" element={<Reports />} />
           {/* ================================================== */}
           {/* MEETINGS                                           */}
           {/* ================================================== */}
@@ -236,12 +222,7 @@ const AppRoutes = () => {
           {/* ================================================== */}
           {/* NOTIFICATIONS                                      */}
           {/* ================================================== */}
-
-          <Route
-            path={ROUTES.NOTIFICATIONS}
-            element={<NotificationsPage />}
-          />
-
+          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
           {/* ================================================== */}
           {/* REPOSITORY                                         */}
           {/* ================================================== */}
@@ -315,11 +296,7 @@ const AppRoutes = () => {
       {/* FALLBACK ROUTE                                         */}
       {/* ====================================================== */}
 
-      <Route
-        path="*"
-        element={<Navigate to={ROUTES.LOGIN} replace />}
-      />
-
+      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
     </Routes>
   );
 };
