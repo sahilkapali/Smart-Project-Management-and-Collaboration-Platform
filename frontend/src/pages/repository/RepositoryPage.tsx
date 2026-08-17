@@ -1,449 +1,489 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
+  Alert,
   Box,
-  Typography,
   Button,
   Card,
+  CardActions,
   CardContent,
-  Stack,
-  Avatar,
-  AvatarGroup,
-  IconButton,
+  Chip,
   CircularProgress,
-  Alert,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Select,
-  FormControl,
-  InputLabel,
+  Grid,
+  IconButton,
+  Snackbar,
+  Stack,
+  Typography,
 } from "@mui/material";
-import type { SelectChangeEvent } from "@mui/material/Select";
 
-// Icons
 import AddIcon from "@mui/icons-material/Add";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import FolderIcon from "@mui/icons-material/Folder";
-import CodeIcon from "@mui/icons-material/Code";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageIcon from "@mui/icons-material/Image";
-import DescriptionIcon from "@mui/icons-material/Description";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import FolderIcon from "@mui/icons-material/Folder";
 
-// Services & Modals
 import {
-  getRepositoryItems,
   deleteRepository,
+  getRepositories,
 } from "../../services/repository.service";
-import projectService from "../../services/project.service";
+
+import type { Repository } from "../../types/repository.types";
+
 import CreateRepositoryModal from "./CreateRepositoryModal";
 import EditRepositoryModal from "./EditRepositoryModal";
 
-const getIconForType = (type?: string) => {
-  switch (type) {
-    case "folder":
-      return <FolderIcon sx={{ color: "#1e3a8a", fontSize: 32 }} />;
-    case "code":
-      return <CodeIcon sx={{ color: "#1e3a8a", fontSize: 32 }} />;
-    case "pdf":
-      return <PictureAsPdfIcon sx={{ color: "#d32f2f", fontSize: 32 }} />;
-    case "svg":
-      return <ImageIcon sx={{ color: "#1976d2", fontSize: 32 }} />;
-    case "docx":
-      return <DescriptionIcon sx={{ color: "#1976d2", fontSize: 32 }} />;
-    case "xlsx":
-      return <TableChartIcon sx={{ color: "#2e7d32", fontSize: 32 }} />;
-    default:
-      return <FolderIcon sx={{ color: "#757575", fontSize: 32 }} />;
-  }
-};
-
 const RepositoryPage: React.FC = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const navigate = useNavigate();
 
+  // =====================================================
+  // STATE
+  // =====================================================
+
+  const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modals & Menu State
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Create modal
+  const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedRepo, setSelectedRepo] = useState<any>(null);
+  // Edit modal
+  const [editRepo, setEditRepo] = useState<Repository | null>(null);
 
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Delete loading
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadPageData();
-  }, []);
+  // Snackbar
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-  const loadPageData = async () => {
+  // =====================================================
+  // FETCH REPOSITORIES
+  // =====================================================
+
+  const fetchRepositories = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Fetch repositories and active projects in parallel
-      const [repoRes, projectRes] = await Promise.all([
-        getRepositoryItems(),
-        projectService
-          .getProjects()
-          .catch(() => ({ success: false, data: [] })),
-      ]);
+      const data = await getRepositories();
 
-      if (repoRes.success) setItems(repoRes.data);
-
-      // Extract projects array based on project.service.ts structure
-      if ((projectRes as any).success || (projectRes as any).projects) {
-        setProjects(
-          (projectRes as any).data || (projectRes as any).projects || [],
-        );
-      }
+      setRepositories(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || "Failed to fetch repository data",
-      );
+      console.error("Failed to load repositories:", err);
+
+      setError(err?.response?.data?.message || "Failed to load repositories.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleProjectFilterChange = (event: SelectChangeEvent) => {
-    setSelectedProjectId(event.target.value as string);
-  };
+  useEffect(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
 
-  // Filter items based on selected project
-  const filteredItems =
-    selectedProjectId === "all"
-      ? items
-      : items.filter(
-          (item) => (item.project?._id || item.project) === selectedProjectId,
-        );
+  // =====================================================
+  // DELETE REPOSITORY
+  // =====================================================
 
-  // Selected project details
-  const activeProject = projects.find((p) => p._id === selectedProjectId);
+  const handleDelete = async (repositoryId?: string) => {
+    if (!repositoryId) {
+      setSnackbar({
+        open: true,
+        message: "Repository ID is missing.",
+        severity: "error",
+      });
 
-  // Menu Handlers
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, repo: any) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedRepo(repo);
-  };
+      return;
+    }
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleEditClick = () => {
-    handleMenuClose();
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteClick = () => {
-    handleMenuClose();
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!selectedRepo) return;
     try {
-      setIsDeleting(true);
-      await deleteRepository(selectedRepo._id);
-      setIsDeleteDialogOpen(false);
-      setSelectedRepo(null);
-      loadPageData();
+      setDeletingId(repositoryId);
+
+      await deleteRepository(repositoryId);
+
+      // Remove repository immediately from UI
+      setRepositories((currentRepositories) =>
+        currentRepositories.filter((repo) => repo._id !== repositoryId),
+      );
+
+      setSnackbar({
+        open: true,
+        message: "Repository deleted successfully.",
+        severity: "success",
+      });
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to delete repository");
-      setIsDeleteDialogOpen(false);
+      console.error("Failed to delete repository:", err);
+
+      setSnackbar({
+        open: true,
+        message: err?.response?.data?.message || "Failed to delete repository.",
+        severity: "error",
+      });
     } finally {
-      setIsDeleting(false);
+      setDeletingId(null);
     }
   };
 
-  if (loading)
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="50vh"
-      >
-        <CircularProgress />
-      </Box>
-    );
-  if (error)
-    return (
-      <Box p={4}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
+  // =====================================================
+  // CLOSE SNACKBAR
+  // =====================================================
+
+  const handleCloseSnackbar = (
+    _event?: React.SyntheticEvent | Event,
+    reason?: string,
+  ) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setSnackbar((previous) => ({
+      ...previous,
+      open: false,
+    }));
+  };
+
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
     <Box
       sx={{
         p: { xs: 2, md: 4 },
-        width: "100%",
-        maxWidth: "1200px",
+        maxWidth: 1200,
         mx: "auto",
-        boxSizing: "border-box",
       }}
     >
-      {/* Header Section */}
+      {/* =================================================
+          PAGE HEADER
+      ================================================= */}
+
       <Stack
-        direction="row"
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems="flex-start"
-        mb={3}
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        spacing={2}
+        mb={4}
       >
         <Box>
-          <Typography variant="h4" component="h1" fontWeight="bold">
-            Repository
+          <Typography variant="h4" fontWeight="bold" sx={{ mb: 0.5 }}>
+            Repositories
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>
-            {activeProject
-              ? activeProject.description ||
-                `Viewing repositories for ${activeProject.name}`
-              : "Manage project files, assets, and documentation"}
+
+          <Typography variant="body2" color="text.secondary">
+            Manage your project repositories.
           </Typography>
         </Box>
+
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => setIsCreateOpen(true)}
           sx={{
             bgcolor: "#5e35b1",
             textTransform: "none",
             borderRadius: 2,
-            px: 3,
-            "&:hover": { bgcolor: "#4527a0" },
+            px: 2.5,
+            "&:hover": {
+              bgcolor: "#4527a0",
+            },
           }}
         >
-          Create Repository
+          New Repository
         </Button>
       </Stack>
 
-      {/* Toolbar: Search Existing Projects Dropdown */}
-      <Stack direction="row" justifyContent="flex-end" mb={4}>
-        <FormControl
-          size="small"
-          sx={{ minWidth: 260, bgcolor: "background.paper", borderRadius: 2 }}
-        >
-          <InputLabel id="project-search-select-label">
-            Search / Select Project
-          </InputLabel>
-          <Select
-            labelId="project-search-select-label"
-            value={selectedProjectId}
-            label="Search / Select Project"
-            onChange={handleProjectFilterChange}
-            sx={{ borderRadius: 2 }}
-          >
-            <MenuItem value="all">
-              <em>All Projects</em>
-            </MenuItem>
-            {projects.map((proj) => (
-              <MenuItem key={proj._id} value={proj._id}>
-                {proj.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Stack>
+      {/* =================================================
+          ERROR
+      ================================================= */}
 
-      {/* Grid */}
-      {filteredItems.length === 0 ? (
-        <Card
-          variant="outlined"
-          sx={{ borderRadius: 3, p: 4, textAlign: "center" }}
-        >
-          <Typography color="text.secondary">No repositories found.</Typography>
-        </Card>
-      ) : (
-        <Box
+      {error && (
+        <Alert
+          severity="error"
           sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 3,
+            mb: 3,
+            borderRadius: 2,
           }}
+          onClose={() => setError(null)}
         >
-          {filteredItems.map((item) => (
-            <Card
-              key={item._id}
-              variant="outlined"
-              sx={{
-                borderRadius: 3,
-                display: "flex",
-                flexDirection: "column",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-              }}
-            >
-              <CardContent
-                sx={{ flexGrow: 1, p: 3, "&:last-child": { pb: 3 } }}
+          {error}
+        </Alert>
+      )}
+
+      {/* =================================================
+          LOADING
+      ================================================= */}
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" py={10}>
+          <CircularProgress />
+        </Box>
+      ) : repositories.length === 0 && !error ? (
+        /* =================================================
+           EMPTY STATE
+        ================================================= */
+
+        <Box
+          textAlign="center"
+          py={10}
+          px={3}
+          bgcolor="action.hover"
+          borderRadius={3}
+        >
+          <FolderIcon
+            sx={{
+              fontSize: 60,
+              color: "text.secondary",
+              mb: 2,
+            }}
+          />
+
+          <Typography variant="h6" color="text.secondary" fontWeight={600}>
+            No repositories found
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Create your first repository to get started.
+          </Typography>
+
+          <Button
+            variant="outlined"
+            onClick={() => setIsCreateOpen(true)}
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+            }}
+          >
+            Create Repository
+          </Button>
+        </Box>
+      ) : (
+        /* =================================================
+           REPOSITORY GRID
+        ================================================= */
+
+        <Grid container spacing={3}>
+          {repositories.map((repo) => {
+            const repositoryId = repo._id;
+
+            return (
+              <Grid
+                size={{
+                  xs: 12,
+                  sm: 6,
+                  md: 4,
+                }}
+                key={repositoryId || repo.name}
               >
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                  mb={2}
+                <Card
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 3,
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "box-shadow 0.2s, transform 0.2s",
+                    "&:hover": {
+                      boxShadow: 4,
+                      transform: "translateY(-2px)",
+                    },
+                  }}
                 >
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box
-                      sx={{
-                        p: 1,
-                        borderRadius: 2,
-                        bgcolor: "grey.50",
-                        display: "flex",
-                      }}
-                    >
-                      {getIconForType(item.type)}
-                    </Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      sx={{ fontSize: "1.1rem" }}
-                    >
-                      {item.name}
-                    </Typography>
-                  </Stack>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleMenuOpen(e, item)}
-                    sx={{ color: "text.secondary", mt: -0.5, mr: -1 }}
+                  {/* =================================================
+                      REPOSITORY INFORMATION
+                  ================================================= */}
+
+                  <CardContent
+                    sx={{
+                      flexGrow: 1,
+                      cursor: repositoryId ? "pointer" : "default",
+                    }}
+                    onClick={() => {
+                      if (repositoryId) {
+                        navigate(`/repository/${repositoryId}`);
+                      }
+                    }}
                   >
-                    <MoreVertIcon />
-                  </IconButton>
-                </Stack>
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  mb={3}
-                  sx={{ minHeight: "40px" }}
-                >
-                  {item.description || "No description provided."}
-                </Typography>
-
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <AvatarGroup
-                      max={4}
-                      sx={{
-                        "& .MuiAvatar-root": {
-                          width: 30,
-                          height: 30,
-                          fontSize: "0.8rem",
-                        },
-                      }}
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      spacing={1}
+                      mb={1}
                     >
-                      {item.createdBy && (
-                        <Avatar
-                          src={item.createdBy.avatar}
-                          alt={item.createdBy.name}
-                        >
-                          {item.createdBy.name?.charAt(0)}
-                        </Avatar>
-                      )}
-                    </AvatarGroup>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        noWrap
+                        title={repo.name}
+                        sx={{
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
+                        {repo.name}
+                      </Typography>
+
+                      {/* Backend repository model does not
+                          contain visibility, so don't use it here. */}
+                      <Chip
+                        size="small"
+                        label="Repository"
+                        variant="outlined"
+                      />
+                    </Stack>
+
                     <Typography
                       variant="body2"
                       color="text.secondary"
-                      sx={{ ml: 1 }}
+                      sx={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        mb: 2,
+                        minHeight: 40,
+                      }}
                     >
-                      / {new Date(item.createdAt).toLocaleDateString()}
+                      {repo.description || "No description provided."}
                     </Typography>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
+
+                    {repo.githubUrl && (
+                      <Chip
+                        size="small"
+                        label="GitHub"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                  </CardContent>
+
+                  {/* =================================================
+                      ACTIONS
+                  ================================================= */}
+
+                  <CardActions
+                    sx={{
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                      justifyContent: "flex-end",
+                      px: 2,
+                      py: 1,
+                    }}
+                  >
+                    {/* EDIT */}
+
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      disabled={!repositoryId}
+                      onClick={(event) => {
+                        event.stopPropagation();
+
+                        if (repositoryId) {
+                          setEditRepo(repo);
+                        }
+                      }}
+                      aria-label="Edit repository"
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+
+                    {/* DELETE */}
+
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={!repositoryId || deletingId === repositoryId}
+                      onClick={(event) => {
+                        event.stopPropagation();
+
+                        handleDelete(repositoryId);
+                      }}
+                      aria-label="Delete repository"
+                    >
+                      {deletingId === repositoryId ? (
+                        <CircularProgress size={18} color="inherit" />
+                      ) : (
+                        <DeleteIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </CardActions>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
       )}
 
-      {/* Options Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{ elevation: 3, sx: { borderRadius: 2, minWidth: 150 } }}
-      >
-        <MenuItem onClick={handleEditClick}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" color="primary" />
-          </ListItemIcon>
-          <ListItemText>Edit</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText sx={{ color: "error.main" }}>Delete</ListItemText>
-        </MenuItem>
-      </Menu>
+      {/* =================================================
+          CREATE REPOSITORY MODAL
+      ================================================= */}
 
-      {/* Create Modal (No dropdown selection inside) */}
       <CreateRepositoryModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={loadPageData}
-        defaultProjectId={selectedProjectId !== "all" ? selectedProjectId : ""}
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={async () => {
+          await fetchRepositories();
+          setIsCreateOpen(false);
+        }}
       />
 
-      {/* Edit Modal */}
-      {selectedRepo && (
+      {/* =================================================
+          EDIT REPOSITORY MODAL
+
+          IMPORTANT:
+          Only render this component when editRepo is
+          actually available. This fixes:
+
+          Type 'Repository | null' is not assignable
+          to type 'Repository'
+      ================================================= */}
+
+      {editRepo && (
         <EditRepositoryModal
-          open={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onSuccess={loadPageData}
-          repository={selectedRepo}
+          open={true}
+          onClose={() => setEditRepo(null)}
+          onSuccess={async () => {
+            await fetchRepositories();
+            setEditRepo(null);
+          }}
+          repository={editRepo}
         />
       )}
 
-      {/* Delete Dialog */}
-      <Dialog
-        open={isDeleteDialogOpen}
-        onClose={() => !isDeleting && setIsDeleteDialogOpen(false)}
+      {/* =================================================
+          DELETE / GENERAL NOTIFICATION
+      ================================================= */}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3500}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
       >
-        <DialogTitle>Delete Repository?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete{" "}
-            <strong>{selectedRepo?.name}</strong>? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={() => setIsDeleteDialogOpen(false)}
-            color="inherit"
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmDelete}
-            color="error"
-            variant="contained"
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Delete"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{
+            width: "100%",
+            borderRadius: 2,
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

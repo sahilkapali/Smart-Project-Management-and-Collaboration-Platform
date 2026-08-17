@@ -7,6 +7,11 @@ export interface UserReference {
   role?: string;
 }
 
+export interface ProjectReference {
+  _id: string;
+  name: string;
+}
+
 export interface MeetingNote {
   _id?: string;
   content: string;

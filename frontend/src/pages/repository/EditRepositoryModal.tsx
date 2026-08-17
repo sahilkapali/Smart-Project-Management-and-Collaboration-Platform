@@ -1,108 +1,186 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
+
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, Stack, CircularProgress, Alert
-} from '@mui/material';
-import { updateRepository } from '../../services/repository.service';
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from "@mui/material";
+
+import toast from "react-hot-toast";
+
+import { updateRepository } from "../../services/repository.service";
+
+import type {
+  Repository,
+  UpdateRepositoryPayload,
+} from "../../types/repository.types";
 
 interface EditRepositoryModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  repository: any; // The repository object being edited
+  onSuccess: () => void | Promise<void>;
+  repository: Repository;
 }
 
-const EditRepositoryModal: React.FC<EditRepositoryModalProps> = ({ open, onClose, onSuccess, repository }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    githubUrl: ''
-  });
+const EditRepositoryModal = ({
+  open,
+  onClose,
+  onSuccess,
+  repository,
+}: EditRepositoryModalProps) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-  // Pre-fill the form when the modal opens or the repository changes
   useEffect(() => {
-    if (repository && open) {
-      setFormData({
-        name: repository.name || '',
-        description: repository.description || '',
-        githubUrl: repository.githubUrl || ''
-      });
-    }
-  }, [repository, open]);
+    if (!open || !repository) return;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setName(repository.name || "");
+    setDescription(repository.description || "");
+    setGithubUrl(repository.githubUrl || "");
+    setError("");
+  }, [open, repository]);
+
+  const handleClose = () => {
+    if (loading) return;
+
+    setError("");
+    onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    const trimmedGithubUrl = githubUrl.trim();
 
-    if (!formData.name) {
-      setError('Repository Name is required.');
+    if (!trimmedName) {
+      setError("Repository name is required.");
+      return;
+    }
+
+    if (!repository?._id) {
+      setError("Repository ID is missing.");
       return;
     }
 
     try {
       setLoading(true);
-      await updateRepository(repository._id, formData);
-      onSuccess(); 
-      onClose(); 
+      setError("");
+
+      const payload: UpdateRepositoryPayload = {
+        name: trimmedName,
+        description: trimmedDescription || undefined,
+        githubUrl: trimmedGithubUrl || undefined,
+      };
+
+      await updateRepository(repository._id, payload);
+
+      toast.success("Repository updated successfully.");
+
+      await onSuccess();
+
+      onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update repository');
+      console.error("Failed to update repository:", err);
+
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update repository.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle fontWeight="bold">Edit Repository</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            {error && <Alert severity="error">{error}</Alert>}
-            
-            <TextField
-              label="Repository Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-            />
-            
-            <TextField
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-              variant="outlined"
-            />
-            
-            <TextField
-              label="GitHub URL (Optional)"
-              name="githubUrl"
-              value={formData.githubUrl}
-              onChange={handleChange}
-              fullWidth
-              variant="outlined"
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, px: 3 }}>
-          <Button onClick={onClose} color="inherit" disabled={loading}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={loading} sx={{ bgcolor: '#5e35b1', '&:hover': { bgcolor: '#4527a0' } }}>
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </form>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 700 }}>Edit Repository</DialogTitle>
+
+      <DialogContent>
+        <Box
+          sx={{
+            pt: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <TextField
+            label="Repository Name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            fullWidth
+            required
+            autoFocus
+            disabled={loading}
+          />
+
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            fullWidth
+            multiline
+            minRows={3}
+            disabled={loading}
+          />
+
+          <TextField
+            label="GitHub URL"
+            value={githubUrl}
+            onChange={(event) => setGithubUrl(event.target.value)}
+            fullWidth
+            disabled={loading}
+            type="url"
+            placeholder="https://github.com/username/repository"
+          />
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            textTransform: "none",
+          }}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading || !name.trim()}
+          sx={{
+            textTransform: "none",
+            fontWeight: 600,
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

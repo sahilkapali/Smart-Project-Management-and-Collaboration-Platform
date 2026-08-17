@@ -29,6 +29,11 @@ import type {
 import AIResponseCard from "../../components/ai/AIResponseCard";
 
 import AILoading from "../../components/ai/AILoading";
+import AIResponseCard from "../../components/ai/AIResponseCard";
+
+import type {
+  AIOutput,
+} from "../../types/ai.types";
 
 
 const AIPage = () => {
@@ -305,10 +310,10 @@ const AIPage = () => {
             <Stack spacing={1}>
 
               <Typography
-                variant="h3"
-                fontWeight={800}
+                variant="h5"
+                fontWeight={700}
               >
-                AI Assistant
+                Project AI Insight
               </Typography>
 
 

@@ -27,8 +27,6 @@ import Dashboard from "../pages/dashboard/Dashboard";
 
 /* =========================================================
    PROFILE
-========================================================= */
-
 import Profile from "../pages/profile/Profile";
 import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
@@ -49,7 +47,6 @@ import ProjectDetails from "../pages/projects/ProjectDetails";
 
 /* =========================================================
    TASKS
-========================================================= */
 
 import Tasks from "../pages/tasks/Tasks";
 

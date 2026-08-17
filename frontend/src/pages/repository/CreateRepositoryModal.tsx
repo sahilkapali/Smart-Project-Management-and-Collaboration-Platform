@@ -1,138 +1,197 @@
-import React, { useState } from 'react';
+import { useState } from "react";
+
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Alert,
+  Box,
   Button,
-  TextField,
-  Stack,
   CircularProgress,
-  Alert
-} from '@mui/material';
-import { createRepository } from '../../services/repository.service';
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from "@mui/material";
+
+import toast from "react-hot-toast";
+
+import { createRepository } from "../../services/repository.service";
+
+import type { CreateRepositoryPayload } from "../../types/repository.types";
 
 interface CreateRepositoryModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  defaultProjectId?: string;
+  onSuccess: () => void | Promise<void>;
 }
 
-const CreateRepositoryModal: React.FC<CreateRepositoryModalProps> = ({ 
-  open, 
-  onClose, 
+const CreateRepositoryModal = ({
+  open,
+  onClose,
   onSuccess,
-  defaultProjectId = '' 
-}) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    project: defaultProjectId,
-    description: '',
-    githubUrl: ''
-  });
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+}: CreateRepositoryModalProps) => {
+  const [project, setProject] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const resetForm = () => {
+    setProject("");
+    setName("");
+    setDescription("");
+    setGithubUrl("");
+    setError("");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleClose = () => {
+    if (loading) return;
 
-    if (!formData.name || !formData.project) {
-      setError('Name and Project ID are required.');
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    const trimmedProject = project.trim();
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    const trimmedGithubUrl = githubUrl.trim();
+
+    if (!trimmedProject) {
+      setError("Project ID is required.");
+      return;
+    }
+
+    if (!trimmedName) {
+      setError("Repository name is required.");
       return;
     }
 
     try {
       setLoading(true);
-      await createRepository(formData);
-      onSuccess(); 
-      handleClose(); 
+      setError("");
+
+      const payload: CreateRepositoryPayload = {
+        project: trimmedProject,
+        name: trimmedName,
+        description: trimmedDescription || undefined,
+        githubUrl: trimmedGithubUrl || undefined,
+      };
+
+      await createRepository(payload);
+
+      toast.success("Repository created successfully.");
+
+      resetForm();
+
+      await onSuccess();
+
+      onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create repository');
+      console.error("Failed to create repository:", err);
+
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to create repository.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setFormData({ name: '', project: defaultProjectId, description: '', githubUrl: '' });
-    setError(null);
-    onClose();
-  };
-
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle fontWeight="bold">Create New Repository</DialogTitle>
-      
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            {error && <Alert severity="error">{error}</Alert>}
-            
-            <TextField
-              label="Repository Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-            />
-            
-            <TextField
-              label="Project ID"
-              name="project"
-              value={formData.project}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-              helperText="Enter associated project ID."
-            />
-            
-            <TextField
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-              variant="outlined"
-            />
-            
-            <TextField
-              label="GitHub URL (Optional)"
-              name="githubUrl"
-              value={formData.githubUrl}
-              onChange={handleChange}
-              fullWidth
-              variant="outlined"
-              placeholder="https://github.com/username/repo"
-            />
-          </Stack>
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 2, px: 3 }}>
-          <Button onClick={handleClose} color="inherit" disabled={loading}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 700 }}>Create Repository</DialogTitle>
+
+      <DialogContent>
+        <Box
+          sx={{
+            pt: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <TextField
+            label="Project ID"
+            value={project}
+            onChange={(event) => setProject(event.target.value)}
+            fullWidth
+            required
             disabled={loading}
-            sx={{ bgcolor: '#5e35b1', '&:hover': { bgcolor: '#4527a0' } }}
-          >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Create'}
-          </Button>
-        </DialogActions>
-      </form>
+            placeholder="Enter project ID"
+          />
+
+          <TextField
+            label="Repository Name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            fullWidth
+            required
+            autoFocus
+            disabled={loading}
+            placeholder="e.g. frontend"
+          />
+
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            fullWidth
+            multiline
+            minRows={3}
+            disabled={loading}
+            placeholder="Describe this repository"
+          />
+
+          <TextField
+            label="GitHub URL"
+            value={githubUrl}
+            onChange={(event) => setGithubUrl(event.target.value)}
+            fullWidth
+            disabled={loading}
+            type="url"
+            placeholder="https://github.com/username/repository"
+          />
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            textTransform: "none",
+          }}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading || !name.trim() || !project.trim()}
+          sx={{
+            textTransform: "none",
+            fontWeight: 600,
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+              Creating...
+            </>
+          ) : (
+            "Create Repository"
+          )}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

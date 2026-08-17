@@ -11,14 +11,14 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 interface AISummaryCardProps {
   summary?: string;
-  onGenerate?: () => void;
-  loading?: boolean;
+  onGenerate: () => void;
+  loading: boolean;
 }
 
 const AISummaryCard = ({
   summary,
   onGenerate,
-  loading = false,
+  loading,
 }: AISummaryCardProps) => {
   return (
     <Card
@@ -32,6 +32,7 @@ const AISummaryCard = ({
     >
       <CardContent>
         <Stack spacing={2}>
+
           <Typography
             variant="h6"
             fontWeight={700}
@@ -48,7 +49,9 @@ const AISummaryCard = ({
           {summary ? (
             <Typography
               variant="body1"
-              sx={{ whiteSpace: "pre-wrap" }}
+              sx={{
+                whiteSpace: "pre-wrap",
+              }}
             >
               {summary}
             </Typography>
@@ -59,27 +62,32 @@ const AISummaryCard = ({
             </Typography>
           )}
 
-          {onGenerate && (
-            <Button
-              variant="contained"
-              startIcon={
-                loading ? (
-                  <CircularProgress
-                    size={18}
-                    color="inherit"
-                  />
-                ) : (
-                  <AutoAwesomeIcon />
-                )
-              }
-              onClick={onGenerate}
-              disabled={loading}
-            >
-              {loading
-                ? "Generating..."
-                : "Generate Summary"}
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            startIcon={
+              loading ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <AutoAwesomeIcon />
+              )
+            }
+            onClick={() => {
+              console.log(
+                "AISummaryCard button clicked",
+              );
+
+              onGenerate();
+            }}
+            disabled={loading}
+          >
+            {loading
+              ? "Generating..."
+              : "Generate Summary"}
+          </Button>
+
         </Stack>
       </CardContent>
     </Card>
