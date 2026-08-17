@@ -210,7 +210,7 @@ const AppRoutes = () => {
           {/* ================================================== */}
 
           <Route
-            path="/ai"
+            path="/projects/:projectId/ai"
             element={<AIPage />}
           />
 
