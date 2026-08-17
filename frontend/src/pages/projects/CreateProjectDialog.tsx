@@ -1,59 +1,113 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
 import {
   Alert,
-  Box,
   Button,
   Dialog,
+  DialogActions,
   DialogContent,
-  IconButton,
+  DialogTitle,
   MenuItem,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
-
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
 import projectService from "../../services/project.service";
 
-import type { CreateProjectPayload } from "../../types/project.types";
+import type {
+  ProjectStatus,
+  BackendProjectStatus,
+} from "../../types/project.types";
 
 interface CreateProjectDialogProps {
   open: boolean;
+
   onClose: () => void;
-  onCreated?: () => void;
+
+  onCreated: () => void;
 }
+
+const STATUS_OPTIONS: {
+  value: ProjectStatus;
+  label: string;
+}[] = [
+  {
+    value: "PENDING",
+    label: "Pending",
+  },
+  {
+    value: "IN_PROGRESS",
+    label: "In Progress",
+  },
+  {
+    value: "ACTIVE",
+    label: "Active",
+  },
+  {
+    value: "COMPLETED",
+    label: "Completed",
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancelled",
+  },
+];
+
+const UI_TO_BACKEND_STATUS: Record<
+  ProjectStatus,
+  BackendProjectStatus
+> = {
+  PENDING: "PLANNING",
+
+  IN_PROGRESS: "ACTIVE",
+
+  ACTIVE: "ACTIVE",
+
+  COMPLETED: "COMPLETED",
+
+  CANCELLED: "ARCHIVED",
+};
 
 const CreateProjectDialog = ({
   open,
   onClose,
   onCreated,
 }: CreateProjectDialogProps) => {
-  const [projectName, setProjectName] = useState("");
+  const [name, setName] =
+    useState("");
 
-  const [description, setDescription] = useState("");
+  const [description, setDescription] =
+    useState("");
 
-  const [status, setStatus] = useState("PENDING");
+  const [status, setStatus] =
+    useState<ProjectStatus>(
+      "PENDING",
+    );
 
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] =
+    useState("");
 
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] =
+    useState("");
 
-  const [endDate, setEndDate] = useState("");
+  const [dueDate, setDueDate] =
+    useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   const resetForm = () => {
-    setProjectName("");
+    setName("");
     setDescription("");
     setStatus("PENDING");
     setTeamId("");
     setStartDate("");
-    setEndDate("");
+    setDueDate("");
     setError("");
   };
 
@@ -63,68 +117,93 @@ const CreateProjectDialog = ({
     }
 
     resetForm();
+
     onClose();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (
+    event: React.FormEvent,
+  ) => {
+    event.preventDefault();
+
     setError("");
 
-    if (!projectName.trim()) {
-      setError("Project name is required.");
+    if (!name.trim()) {
+      setError(
+        "Project name is required.",
+      );
+
       return;
     }
 
     if (!teamId.trim()) {
-      setError("Team ID is required.");
+      setError(
+        "Team ID is required.",
+      );
+
       return;
     }
 
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      setError("End date cannot be before start date.");
+    if (
+      startDate &&
+      dueDate &&
+      new Date(startDate) >
+        new Date(dueDate)
+    ) {
+      setError(
+        "Due date cannot be earlier than start date.",
+      );
+
       return;
     }
 
-    const payload: CreateProjectPayload = {
-      name: projectName.trim(),
+    const payload: any = {
+      name: name.trim(),
 
-      description: description.trim(),
+      description:
+        description.trim(),
 
-      status,
+      status:
+        UI_TO_BACKEND_STATUS[
+          status
+        ],
 
-      teamId: teamId.trim(),
-
-      ...(startDate
-        ? {
-            startDate,
-          }
-        : {}),
-
-      ...(endDate
-        ? {
-            endDate,
-          }
-        : {}),
+      teamId:
+        teamId.trim(),
     };
+
+    if (startDate) {
+      payload.startDate =
+        startDate;
+    }
+
+    if (dueDate) {
+      payload.dueDate =
+        dueDate;
+    }
 
     try {
       setLoading(true);
 
-      await projectService.createProject(payload);
+      await projectService.createProject(
+        payload,
+      );
 
       resetForm();
 
-      onCreated?.();
+      onCreated();
 
       onClose();
     } catch (err: any) {
-      console.error("Create project failed:", err);
-
-      const backendMessage =
-        err?.response?.data?.message || err?.response?.data?.error;
+      console.error(
+        "Create project failed:",
+        err,
+      );
 
       setError(
-        backendMessage ||
-          "Unable to create project. Please check the Team ID and try again.",
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Failed to create project.",
       );
     } finally {
       setLoading(false);
@@ -140,193 +219,173 @@ const CreateProjectDialog = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
-          p: {
-            xs: 1,
-            sm: 2,
-          },
         },
       }}
     >
-      <DialogContent>
-        <Stack spacing={2.25}>
-          {/* Header */}
+      <form
+        onSubmit={
+          handleSubmit
+        }
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+          }}
+        >
+          New Project
+        </DialogTitle>
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: {
-                  xs: "1.7rem",
-                  sm: "2rem",
-                },
-                fontWeight: 700,
-              }}
-            >
-              Create Project
-            </Typography>
-
-            <IconButton
-              onClick={handleClose}
-              disabled={loading}
-              sx={{
-                color: "text.secondary",
-              }}
-            >
-              <CloseRoundedIcon />
-            </IconButton>
-          </Box>
-
-          {/* Error */}
-
+        <DialogContent>
           {error && (
             <Alert
               severity="error"
               sx={{
-                borderRadius: 2,
+                mb: 2,
               }}
             >
               {error}
             </Alert>
           )}
 
-          {/* Project Name */}
-
-          <TextField
-            label="Project Name"
-            required
-            fullWidth
-            value={projectName}
-            onChange={(event) => setProjectName(event.target.value)}
-            disabled={loading}
-          />
-
-          {/* Description */}
-
-          <TextField
-            label="Description"
-            fullWidth
-            multiline
-            minRows={4}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            disabled={loading}
-          />
-
-          {/* Team ID */}
-
-          <TextField
-            label="Team ID"
-            required
-            fullWidth
-            value={teamId}
-            onChange={(event) => setTeamId(event.target.value)}
-            disabled={loading}
-            placeholder="Enter an existing team ID"
-            helperText="Enter the ID of an existing team that you belong to."
-          />
-
-          {/* Status */}
-
-          <TextField
-            select
-            label="Status"
-            fullWidth
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            disabled={loading}
-          >
-            <MenuItem value="PENDING">Pending</MenuItem>
-
-            <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-
-            <MenuItem value="COMPLETED">Completed</MenuItem>
-
-            <MenuItem value="CANCELLED">Cancelled</MenuItem>
-          </TextField>
-
-          {/* Dates */}
-
-          <Box
+          <Stack
+            spacing={2.5}
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "1fr 1fr",
-              },
-              gap: 2,
+              mt: 1,
             }}
           >
+            <TextField
+              label="Project Name"
+              required
+              fullWidth
+              value={name}
+              onChange={(event) =>
+                setName(
+                  event.target.value,
+                )
+              }
+            />
+
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              rows={4}
+              value={description}
+              onChange={(event) =>
+                setDescription(
+                  event.target.value,
+                )
+              }
+            />
+
+            <TextField
+              select
+              label="Status"
+              fullWidth
+              value={status}
+              onChange={(event) =>
+                setStatus(
+                  event.target
+                    .value as ProjectStatus,
+                )
+              }
+            >
+              {STATUS_OPTIONS.map(
+                (option) => (
+                  <MenuItem
+                    key={
+                      option.value
+                    }
+                    value={
+                      option.value
+                    }
+                  >
+                    {option.label}
+                  </MenuItem>
+                ),
+              )}
+            </TextField>
+
+            <TextField
+              label="Team ID"
+              required
+              fullWidth
+              value={teamId}
+              onChange={(event) =>
+                setTeamId(
+                  event.target.value,
+                )
+              }
+            />
+
             <TextField
               label="Start Date"
               type="date"
               fullWidth
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              disabled={loading}
+              onChange={(event) =>
+                setStartDate(
+                  event.target.value,
+                )
+              }
               InputLabelProps={{
                 shrink: true,
               }}
             />
 
             <TextField
-              label="End Date"
+              label="Due Date"
               type="date"
               fullWidth
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              disabled={loading}
+              value={dueDate}
+              onChange={(event) =>
+                setDueDate(
+                  event.target.value,
+                )
+              }
               InputLabelProps={{
                 shrink: true,
               }}
             />
-          </Box>
+          </Stack>
+        </DialogContent>
 
-          {/* Buttons */}
-
-          <Stack
-            direction="row"
-            justifyContent="flex-end"
-            spacing={1.5}
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+          }}
+        >
+          <Button
+            onClick={
+              handleClose
+            }
+            disabled={loading}
+            color="inherit"
             sx={{
-              pt: 1,
+              textTransform:
+                "none",
             }}
           >
-            <Button
-              variant="outlined"
-              onClick={handleClose}
-              disabled={loading}
-              sx={{
-                minWidth: 120,
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-              }}
-            >
-              Cancel
-            </Button>
+            Cancel
+          </Button>
 
-            <Button
-              variant="contained"
-              startIcon={<SaveRoundedIcon />}
-              onClick={handleSubmit}
-              disabled={loading}
-              sx={{
-                minWidth: 170,
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-              }}
-            >
-              {loading ? "Creating..." : "Create Project"}
-            </Button>
-          </Stack>
-        </Stack>
-      </DialogContent>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+            sx={{
+              textTransform:
+                "none",
+              fontWeight: 700,
+            }}
+          >
+            {loading
+              ? "Creating..."
+              : "Create Project"}
+          </Button>
+        </DialogActions>
+      </form>
     </Dialog>
   );
 };
