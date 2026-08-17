@@ -12,36 +12,41 @@ const MainLayout = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const userName = user ? `${user.firstName} ${user.lastName}`.trim() : "User";
+  const userName = user
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User"
+    : "User";
+
+  const handleOpenSidebar = () => {
+    setSidebarOpen(true);
+  };
+
+  const handleCloseSidebar = () => {
+    setSidebarOpen(false);
+  };
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
+        width: "100%",
         bgcolor: "background.default",
       }}
     >
-      {/* ===================================================== */}
-      {/* SIDEBAR                                                */}
-      {/* ===================================================== */}
+      {/* =====================================================
+          SIDEBAR
+      ====================================================== */}
 
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <DashboardSidebar open={sidebarOpen} onClose={handleCloseSidebar} />
 
-      {/* ===================================================== */}
-      {/* NAVBAR                                                 */}
-      {/* ===================================================== */}
+      {/* =====================================================
+          NAVBAR
+      ====================================================== */}
 
-      <DashboardNavbar
-        onMenuClick={() => setSidebarOpen(true)}
-        userName={userName}
-      />
+      <DashboardNavbar onMenuClick={handleOpenSidebar} userName={userName} />
 
-      {/* ===================================================== */}
-      {/* MAIN CONTENT                                           */}
-      {/* ===================================================== */}
+      {/* =====================================================
+          MAIN CONTENT
+      ====================================================== */}
 
       <Box
         component="main"
@@ -57,6 +62,12 @@ const MainLayout = () => {
           },
 
           minHeight: "100vh",
+          width: {
+            xs: "100%",
+            md: "calc(100% - 250px)",
+          },
+
+          boxSizing: "border-box",
 
           px: {
             xs: 2,
@@ -67,7 +78,6 @@ const MainLayout = () => {
           py: 3,
         }}
       >
-        {/* Current route/page will be rendered here */}
         <Outlet />
       </Box>
     </Box>

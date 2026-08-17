@@ -5,32 +5,40 @@ import {
   getUserProfile,
   updateUserProfile,
   changeUserPassword,
+  updateUserRoleController,
 } from "../controllers/user.controller";
 
 import { authenticateUser } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validation.middleware";
+import { ROLE } from "../types/enum.types";
 
 const router = express.Router();
 
+// =====================================================
 // Get all users
+// =====================================================
 // Used by Meeting Participant Selector
+//
+// Any authenticated user can access this endpoint.
+
 router.get("/", authenticateUser(), getUsers);
 
+// =====================================================
 // Get logged-in user's profile
-router.get(
-  "/profile",
-  authenticateUser(),
-  getUserProfile,
-);
+// =====================================================
 
+router.get("/profile", authenticateUser(), getUserProfile);
+
+// =====================================================
 // Update logged-in user's profile
-router.put(
-  "/profile",
-  authenticateUser(),
-  updateUserProfile,
-);
+// =====================================================
 
+router.put("/profile", authenticateUser(), updateUserProfile);
+
+// =====================================================
 // Change password
+// =====================================================
+
 router.put(
   "/change-password",
   authenticateUser(),
@@ -49,6 +57,34 @@ router.put(
     },
   ]),
   changeUserPassword,
+);
+
+// =====================================================
+// Update User Role
+// =====================================================
+//
+// PATCH /api/users/:userId/role
+//
+// ADMIN ONLY
+//
+// Request:
+//
+// {
+//   "role": "PROJECT_MANAGER"
+// }
+//
+// Allowed:
+//
+// ADMIN
+// PROJECT_MANAGER
+// TEAM_MEMBER
+//
+// =====================================================
+
+router.patch(
+  "/:userId/role",
+  authenticateUser([ROLE.ADMIN]),
+  updateUserRoleController,
 );
 
 export default router;

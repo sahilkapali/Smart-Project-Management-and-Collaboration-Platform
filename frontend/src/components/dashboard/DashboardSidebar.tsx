@@ -1,5 +1,4 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   Box,
@@ -28,6 +27,7 @@ import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
@@ -46,6 +46,7 @@ interface NavigationItem {
   label: string;
   path: string;
   icon: ReactNode;
+  adminOnly?: boolean;
 }
 
 const navigationItems: NavigationItem[] = [
@@ -105,6 +106,12 @@ const navigationItems: NavigationItem[] = [
     icon: <NotificationsRoundedIcon />,
   },
   {
+    label: "User Management",
+    path: "/admin/users",
+    icon: <ManageAccountsRoundedIcon />,
+    adminOnly: true,
+  },
+  {
     label: "Settings",
     path: "/settings",
     icon: <SettingsRoundedIcon />,
@@ -116,23 +123,11 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-
   const [loggingOut, setLoggingOut] = useState(false);
 
-  /*
-   * Detect current theme.
-   *
-   * In dark mode:
-   *   sidebar = #1e293b
-   *   text = white
-   *
-   * In light mode:
-   *   sidebar = white
-   *   text = dark
-   */
   const isDarkMode = theme.palette.mode === "dark";
 
   const sidebarTextColor = isDarkMode
@@ -167,9 +162,16 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
     ? "rgba(255,255,255,0.18)"
     : "rgba(37,99,235,0.20)";
 
-  // =========================================================
-  // NAVIGATION
-  // =========================================================
+  /*
+   * Keep this flexible because different backends may return
+   * role values using different casing.
+   */
+  const userRole = String(user?.role ?? "").toUpperCase();
+
+  const isAdmin =
+    userRole === "ADMIN" ||
+    userRole === "SUPER_ADMIN" ||
+    userRole === "SUPERADMIN";
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -178,10 +180,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
       onClose?.();
     }
   };
-
-  // =========================================================
-  // ACTIVE ITEM
-  // =========================================================
 
   const isActive = (path: string) => {
     if (path === ROUTES.DASHBOARD) {
@@ -192,10 +190,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
       location.pathname === path || location.pathname.startsWith(`${path}/`)
     );
   };
-
-  // =========================================================
-  // LOGOUT
-  // =========================================================
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -218,30 +212,26 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
       });
     } catch (error) {
       console.error("Logout error:", error);
-
       toast.error("Logout failed. Please try again.");
     } finally {
       setLoggingOut(false);
     }
   };
 
-  // =========================================================
-  // MOBILE CLOSED
-  // =========================================================
-
   if (isMobile && !open) {
     return null;
   }
 
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !item.adminOnly || isAdmin,
+  );
+
   return (
     <>
-      {/* ===================================================== */}
-      {/* MOBILE OVERLAY                                        */}
-      {/* ===================================================== */}
-
       {isMobile && open && (
         <Box
           onClick={onClose}
+          aria-hidden="true"
           sx={{
             position: "fixed",
             inset: 0,
@@ -251,13 +241,11 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         />
       )}
 
-      {/* ===================================================== */}
-      {/* SIDEBAR                                               */}
-      {/* ===================================================== */}
-
       <Paper
         elevation={0}
         square
+        component="aside"
+        aria-label="Main navigation"
         sx={{
           position: "fixed",
           top: 0,
@@ -274,11 +262,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           display: "flex",
           flexDirection: "column",
 
-          /*
-           * IMPORTANT:
-           * Use MUI theme colors so the sidebar automatically
-           * changes between light and dark mode.
-           */
           bgcolor: "background.paper",
           color: sidebarTextColor,
 
@@ -302,9 +285,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           overflow: "hidden",
         }}
       >
-        {/* ================================================= */}
-        {/* BRAND                                             */}
-        {/* ================================================= */}
+        {/* BRAND */}
 
         <Box
           sx={{
@@ -315,19 +296,13 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           }}
         >
           <Stack direction="row" alignItems="center" spacing={1.5}>
-            {/* Logo */}
-
             <Box
               sx={{
                 width: 42,
                 height: 42,
-
                 flexShrink: 0,
-
                 borderRadius: 2,
-
                 bgcolor: logoBackground,
-
                 border: "1px solid",
                 borderColor: logoBorder,
 
@@ -346,12 +321,11 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               S
             </Box>
 
-            {/* Brand name */}
-
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
                 fontWeight={800}
                 lineHeight={1.15}
+                noWrap
                 sx={{
                   fontSize: 16,
                   color: sidebarTextColor,
@@ -363,6 +337,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               <Typography
                 fontWeight={500}
                 lineHeight={1.15}
+                noWrap
                 sx={{
                   fontSize: 14,
                   color: sidebarSecondaryTextColor,
@@ -372,8 +347,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               </Typography>
             </Box>
 
-            {/* Mobile close */}
-
             {isMobile && (
               <ButtonBase
                 onClick={onClose}
@@ -381,11 +354,8 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                 sx={{
                   width: 36,
                   height: 36,
-
                   flexShrink: 0,
-
                   borderRadius: 2,
-
                   color: sidebarTextColor,
 
                   "&:hover": {
@@ -399,10 +369,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           </Stack>
         </Box>
 
-        {/* ================================================= */}
-        {/* DIVIDER                                           */}
-        {/* ================================================= */}
-
         <Divider
           sx={{
             flexShrink: 0,
@@ -410,19 +376,14 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           }}
         />
 
-        {/* ================================================= */}
-        {/* NAVIGATION                                        */}
-        {/* ================================================= */}
+        {/* NAVIGATION */}
 
         <Box
           sx={{
             flex: 1,
-
             minHeight: 0,
-
             overflowY: "auto",
             overflowX: "hidden",
-
             py: 2,
 
             "&::-webkit-scrollbar": {
@@ -437,7 +398,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               background: isDarkMode
                 ? "rgba(255,255,255,0.20)"
                 : "rgba(0,0,0,0.15)",
-
               borderRadius: 10,
             },
           }}
@@ -448,7 +408,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               px: 1.5,
             }}
           >
-            {navigationItems.map((item) => {
+            {visibleNavigationItems.map((item) => {
               const active = isActive(item.path);
 
               return (
@@ -458,18 +418,10 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                   onClick={() => handleNavigation(item.path)}
                   sx={{
                     minHeight: 48,
-
                     mb: 0.5,
-
                     px: 1.5,
-
                     borderRadius: 2,
 
-                    /*
-                     * IMPORTANT:
-                     * Do NOT use primary.contrastText here.
-                     * That caused white text in light mode.
-                     */
                     color: active
                       ? theme.palette.primary.main
                       : sidebarTextColor,
@@ -478,17 +430,12 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
 
                     "& .MuiListItemIcon-root": {
                       minWidth: 38,
-
                       color: "inherit",
                     },
 
                     "& .MuiListItemText-primary": {
                       color: "inherit",
                     },
-
-                    /*
-                     * ACTIVE ITEM
-                     */
 
                     "&.Mui-selected": {
                       bgcolor: sidebarActiveBackground,
@@ -497,10 +444,6 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                     "&.Mui-selected:hover": {
                       bgcolor: sidebarActiveHoverBackground,
                     },
-
-                    /*
-                     * NORMAL HOVER
-                     */
 
                     "&:hover": {
                       bgcolor: sidebarHoverBackground,
@@ -513,9 +456,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                     primary={item.label}
                     primaryTypographyProps={{
                       fontSize: 14,
-
                       fontWeight: active ? 700 : 500,
-
                       color: "inherit",
                     }}
                   />
@@ -525,33 +466,25 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           </List>
         </Box>
 
-        {/* ================================================= */}
-        {/* LOGOUT                                            */}
-        {/* ================================================= */}
+        {/* LOGOUT */}
 
         <Box
           sx={{
             flexShrink: 0,
-
             px: 1.5,
             py: 2,
-
             borderTop: "1px solid",
             borderColor: sidebarBorderColor,
           }}
         >
           <ListItemButton
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             disabled={loggingOut}
             sx={{
               minHeight: 46,
-
               borderRadius: 2,
-
               justifyContent: "center",
-
               color: sidebarTextColor,
-
               opacity: loggingOut ? 0.7 : 1,
 
               "&:hover": {

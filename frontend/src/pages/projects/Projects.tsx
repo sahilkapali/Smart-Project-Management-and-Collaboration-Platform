@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { MouseEvent } from "react";
 
 import {
   Alert,
@@ -44,26 +45,27 @@ const Projects = () => {
 
   const [projects, setProjects] = useState<Project[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState<string>("");
 
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const [createOpen, setCreateOpen] = useState(false);
+  // Create dialog
+  const [createOpen, setCreateOpen] = useState<boolean>(false);
 
-  // Menu
+  // Project menu
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Delete dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
 
   // Edit dialog
-  const [editOpen, setEditOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState<boolean>(false);
 
   // ============================================================
   // LOAD PROJECTS
@@ -74,19 +76,53 @@ const Projects = () => {
       setLoading(true);
       setError("");
 
-      const data: any = await projectService.getProjects();
+      const response = await projectService.getProjects();
 
-      const projectsData = Array.isArray(data)
-        ? data
-        : data?.projects || data?.data || [];
+      /*
+       * The service may return:
+       *
+       * 1. Project[]
+       * 2. { data: Project[] }
+       * 3. { projects: Project[] }
+       */
 
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
-    } catch (err: any) {
+      const responseData = response as unknown;
+
+      let projectsData: Project[] = [];
+
+      if (Array.isArray(responseData)) {
+        projectsData = responseData;
+      } else if (responseData && typeof responseData === "object") {
+        const data = responseData as {
+          data?: unknown;
+          projects?: unknown;
+        };
+
+        if (Array.isArray(data.data)) {
+          projectsData = data.data as Project[];
+        } else if (Array.isArray(data.projects)) {
+          projectsData = data.projects as Project[];
+        }
+      }
+
+      setProjects(projectsData);
+    } catch (err: unknown) {
       console.error("Loading projects failed:", err);
 
+      const axiosError = err as {
+        response?: {
+          data?: {
+            message?: string;
+            error?: string;
+          };
+        };
+        message?: string;
+      };
+
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        axiosError.response?.data?.message ||
+          axiosError.response?.data?.error ||
+          axiosError.message ||
           "Unable to load projects.",
       );
     } finally {
@@ -94,9 +130,21 @@ const Projects = () => {
     }
   }, []);
 
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
+
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  // ============================================================
+  // PROJECT ID HELPER
+  // ============================================================
+
+  const getProjectId = (project: Project): string => {
+    return project.id || "";
+  };
 
   // ============================================================
   // FILTER PROJECTS
@@ -123,20 +171,25 @@ const Projects = () => {
   });
 
   // ============================================================
-  // STATUS HELPERS
+  // STATUS LABEL
   // ============================================================
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status?: string | null): string => {
     if (!status) {
       return "Unknown";
     }
 
     return status
       .replaceAll("_", " ")
+      .toLowerCase()
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   };
 
-  const getProgress = (status: string) => {
+  // ============================================================
+  // PROGRESS
+  // ============================================================
+
+  const getProgress = (status?: string | null): number => {
     switch (status) {
       case "COMPLETED":
         return 100;
@@ -157,16 +210,20 @@ const Projects = () => {
   };
 
   // ============================================================
-  // PROJECT MENU
+  // OPEN PROJECT MENU
   // ============================================================
 
-  const handleMenuOpen = (
-    event: React.MouseEvent<HTMLElement>,
-    project: Project,
-  ) => {
+  const handleMenuOpen = (event: MouseEvent<HTMLElement>, project: Project) => {
+    event.stopPropagation();
+
     setAnchorEl(event.currentTarget);
+
     setSelectedProject(project);
   };
+
+  // ============================================================
+  // CLOSE PROJECT MENU
+  // ============================================================
 
   const handleMenuClose = () => {
     setAnchorEl(null);
@@ -180,6 +237,13 @@ const Projects = () => {
     handleMenuClose();
 
     if (!selectedProject) {
+      return;
+    }
+
+    const projectId = getProjectId(selectedProject);
+
+    if (!projectId) {
+      setError("Project ID is missing.");
       return;
     }
 
@@ -197,41 +261,66 @@ const Projects = () => {
       return;
     }
 
+    const projectId = getProjectId(selectedProject);
+
+    if (!projectId) {
+      setError("Project ID is missing.");
+      return;
+    }
+
     setDeleteDialogOpen(true);
   };
+
+  // ============================================================
+  // CONFIRM DELETE
+  // ============================================================
 
   const handleDeleteConfirm = async () => {
     if (!selectedProject) {
       return;
     }
 
-    const projectId = selectedProject.id || (selectedProject as any)._id;
+    const projectId = getProjectId(selectedProject);
 
     if (!projectId) {
       setError("Project ID is missing.");
+
       setDeleteDialogOpen(false);
+
       return;
     }
 
     try {
+      setError("");
+
       await projectService.deleteProject(projectId);
 
       setProjects((previousProjects) =>
-        previousProjects.filter((project) => {
-          const currentId = project.id || (project as any)._id;
-
-          return currentId !== projectId;
-        }),
+        previousProjects.filter(
+          (project) => getProjectId(project) !== projectId,
+        ),
       );
 
       setDeleteDialogOpen(false);
+
       setSelectedProject(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to delete project:", err);
 
+      const axiosError = err as {
+        response?: {
+          data?: {
+            message?: string;
+            error?: string;
+          };
+        };
+        message?: string;
+      };
+
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        axiosError.response?.data?.message ||
+          axiosError.response?.data?.error ||
+          axiosError.message ||
           "Failed to delete project.",
       );
 
@@ -240,12 +329,20 @@ const Projects = () => {
   };
 
   // ============================================================
-  // CLOSE EDIT
+  // CLOSE EDIT DIALOG
   // ============================================================
 
   const handleEditClose = () => {
     setEditOpen(false);
     setSelectedProject(null);
+  };
+
+  // ============================================================
+  // CLOSE CREATE DIALOG
+  // ============================================================
+
+  const handleCreateClose = () => {
+    setCreateOpen(false);
   };
 
   // ============================================================
@@ -492,21 +589,18 @@ const Projects = () => {
         <Box
           sx={{
             display: "grid",
-
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
               lg: "repeat(3, 1fr)",
             },
-
             gap: 2.5,
           }}
         >
           {filteredProjects.map((project, index) => {
             const progress = getProgress(project.status);
 
-            const uniqueKey =
-              project.id || (project as any)._id || `project-${index}`;
+            const uniqueKey = getProjectId(project) || `project-${index}`;
 
             return (
               <Card
@@ -516,11 +610,8 @@ const Projects = () => {
                   border: "1px solid",
                   borderColor: "divider",
                   borderRadius: 3,
-
                   height: "100%",
-
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 3,
@@ -528,9 +619,7 @@ const Projects = () => {
                 }}
               >
                 <CardContent>
-                  {/* =====================================
-                        CARD HEADER
-                    ====================================== */}
+                  {/* CARD HEADER */}
 
                   <Stack
                     direction="row"
@@ -553,15 +642,10 @@ const Projects = () => {
                         color="text.secondary"
                         sx={{
                           mt: 0.5,
-
                           display: "-webkit-box",
-
                           WebkitLineClamp: 2,
-
                           WebkitBoxOrient: "vertical",
-
                           overflow: "hidden",
-
                           minHeight: 40,
                         }}
                       >
@@ -569,19 +653,18 @@ const Projects = () => {
                       </Typography>
                     </Box>
 
-                    {/* MENU */}
+                    {/* MENU BUTTON */}
 
                     <IconButton
                       size="small"
                       onClick={(event) => handleMenuOpen(event, project)}
+                      aria-label={`Project actions for ${project.name}`}
                     >
                       <MoreVertRoundedIcon />
                     </IconButton>
                   </Stack>
 
-                  {/* =====================================
-                        PROGRESS
-                    ====================================== */}
+                  {/* PROGRESS */}
 
                   <Box
                     sx={{
@@ -614,9 +697,7 @@ const Projects = () => {
                     />
                   </Box>
 
-                  {/* =====================================
-                        STATUS
-                    ====================================== */}
+                  {/* STATUS */}
 
                   <Stack
                     direction="row"
@@ -635,9 +716,7 @@ const Projects = () => {
                     </Typography>
                   </Stack>
 
-                  {/* =====================================
-                        TEAM
-                    ====================================== */}
+                  {/* TEAM */}
 
                   {project.teamId && (
                     <Typography
@@ -655,9 +734,7 @@ const Projects = () => {
                     </Typography>
                   )}
 
-                  {/* =====================================
-                        AVATARS
-                    ====================================== */}
+                  {/* AVATARS */}
 
                   <Stack
                     direction="row"
@@ -710,7 +787,7 @@ const Projects = () => {
       )}
 
       {/* ======================================================
-          PROJECT MENU
+          PROJECT ACTION MENU
       ======================================================= */}
 
       <Menu
@@ -734,6 +811,8 @@ const Projects = () => {
           },
         }}
       >
+        {/* EDIT */}
+
         <MenuItem
           onClick={handleEditClick}
           sx={{
@@ -752,6 +831,8 @@ const Projects = () => {
             Edit
           </Typography>
         </MenuItem>
+
+        {/* DELETE */}
 
         <MenuItem
           onClick={handleDeleteClick}
@@ -774,7 +855,7 @@ const Projects = () => {
       </Menu>
 
       {/* ======================================================
-          DELETE DIALOG
+          DELETE CONFIRMATION DIALOG
       ======================================================= */}
 
       <Dialog
@@ -836,7 +917,7 @@ const Projects = () => {
 
       <CreateProjectDialog
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={handleCreateClose}
         onCreated={loadProjects}
       />
 

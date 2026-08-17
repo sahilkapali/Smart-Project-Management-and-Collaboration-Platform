@@ -8,37 +8,32 @@ import { ROLE } from "../types/enum.types";
 import { ERROR_CODES } from "../types/error.types";
 
 /**
- * ----------------------------------------------------
  * Authentication + Role Authorization Middleware
- * ----------------------------------------------------
  *
  * Usage:
  *
  * authenticateUser()
- *      → Any authenticated user
+ *     → Any authenticated user
  *
  * authenticateUser([ROLE.ADMIN])
- *      → Admin only
+ *     → Admin only
  *
  * authenticateUser([
  *   ROLE.ADMIN,
- *   ROLE.PROJECT_MANAGER
+ *   ROLE.PROJECT_MANAGER,
  * ])
- *      → Admin OR Project Manager
- *
+ *     → Admin OR Team Lead
  */
 export const authenticateUser = (roles?: ROLE[]) => {
   return async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> => {
     try {
-      /**
-       * ------------------------------------------------
-       * 1. Get Authorization Header
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 1. Read Authorization Header
+      // ==========================================
 
       const authHeader = req.headers.authorization;
 
@@ -46,29 +41,25 @@ export const authenticateUser = (roles?: ROLE[]) => {
         throw new AppError(
           "Access denied. No authorization token provided.",
           ERROR_CODES.UNAUTHORIZED,
-          401
+          401,
         );
       }
 
-      /**
-       * ------------------------------------------------
-       * 2. Check Bearer Format
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 2. Validate Bearer Format
+      // ==========================================
 
       if (!authHeader.startsWith("Bearer ")) {
         throw new AppError(
           "Invalid authorization format. Use Bearer <token>.",
           ERROR_CODES.UNAUTHORIZED,
-          401
+          401,
         );
       }
 
-      /**
-       * ------------------------------------------------
-       * 3. Extract Token
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 3. Extract JWT
+      // ==========================================
 
       const token = authHeader.substring(7).trim();
 
@@ -76,86 +67,97 @@ export const authenticateUser = (roles?: ROLE[]) => {
         throw new AppError(
           "Access denied. No token provided.",
           ERROR_CODES.UNAUTHORIZED,
-          401
+          401,
         );
       }
 
-      /**
-       * ------------------------------------------------
-       * 4. Verify JWT
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 4. Verify JWT
+      // ==========================================
 
       const decoded = verifyToken(token);
 
-      /**
-       * ------------------------------------------------
-       * 5. Find User
-       * ------------------------------------------------
-       */
+      if (!decoded?.id) {
+        throw new AppError(
+          "Invalid authentication token.",
+          ERROR_CODES.UNAUTHORIZED,
+          401,
+        );
+      }
+
+      // ==========================================
+      // 5. Get CURRENT User From Database
+      // ==========================================
+      //
+      // IMPORTANT:
+      // We intentionally do NOT trust the role
+      // stored inside the JWT.
+      //
+      // The database is the source of truth for
+      // the user's current role and account status.
+      // ==========================================
 
       const user = await User.findById(decoded.id);
 
       if (!user) {
-        throw new AppError(
-          "User not found.",
-          ERROR_CODES.NOT_FOUND,
-          404
-        );
+        throw new AppError("User not found.", ERROR_CODES.NOT_FOUND, 404);
       }
 
-      /**
-       * ------------------------------------------------
-       * 6. Check Account Status
-       * ------------------------------------------------
-       *
-       * Prevent deactivated users from accessing
-       * protected resources.
-       */
+      // ==========================================
+      // 6. Check Account Status
+      // ==========================================
 
       if (user.active === false) {
         throw new AppError(
           "Your account has been deactivated.",
           ERROR_CODES.FORBIDDEN,
-          403
+          403,
         );
       }
 
-      /**
-       * ------------------------------------------------
-       * 7. Role-Based Authorization
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 7. Validate Stored Role
+      // ==========================================
 
-      if (
-        roles &&
-        roles.length > 0 &&
-        !roles.includes(user.role as ROLE)
-      ) {
+      const currentRole = user.role as ROLE;
+
+      if (!Object.values(ROLE).includes(currentRole)) {
+        throw new AppError(
+          "Invalid user role configuration.",
+          ERROR_CODES.FORBIDDEN,
+          403,
+        );
+      }
+
+      // ==========================================
+      // 8. Role Authorization
+      // ==========================================
+      //
+      // If roles were supplied, the current user
+      // must have one of those roles.
+      // ==========================================
+
+      if (roles && roles.length > 0 && !roles.includes(currentRole)) {
         throw new AppError(
           "Access forbidden. You do not have permission to perform this action.",
           ERROR_CODES.FORBIDDEN,
-          403
+          403,
         );
       }
 
-      /**
-       * ------------------------------------------------
-       * 8. Attach Authenticated User to Request
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 9. Attach Authenticated User To Request
+      // ==========================================
 
       req.user = {
         id: user._id.toString(),
         email: user.email,
-        role: user.role as ROLE,
+        role: currentRole,
       };
 
-      /**
-       * ------------------------------------------------
-       * 9. Continue
-       * ------------------------------------------------
-       */
+      // ==========================================
+      // 10. Continue Request
+      // ==========================================
 
       next();
     } catch (error) {

@@ -1,6 +1,10 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   Box,
   IconButton,
+  LinearProgress,
   Menu,
   MenuItem,
   Paper,
@@ -13,33 +17,114 @@ import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import type { Project, ProjectStatus } from "../../types/project.types";
 
-import type { Project } from "../../types/project.types";
+// ============================================================
+// PROPS
+// ============================================================
 
 interface ProjectCardProps {
   project: Project;
 
-  onDelete?: (
-    project: Project,
-  ) => void;
+  /**
+   * Called when the user selects Edit.
+   *
+   * The parent page can open EditProjectDialog.
+   */
+  onEdit?: (project: Project) => void;
+
+  /**
+   * Called when the user selects Delete.
+   */
+  onDelete?: (project: Project) => void;
 }
 
-const ProjectCard = ({
-  project,
-  onDelete,
-}: ProjectCardProps) => {
+// ============================================================
+// STATUS LABEL
+// ============================================================
+
+const formatStatus = (status?: ProjectStatus | string | null): string => {
+  if (!status) {
+    return "Not specified";
+  }
+
+  return status
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+// ============================================================
+// STATUS COLOR
+// ============================================================
+
+const getStatusColor = (status?: ProjectStatus | string | null) => {
+  switch (status) {
+    case "ACTIVE":
+      return "success.main";
+
+    case "COMPLETED":
+      return "info.main";
+
+    case "ARCHIVED":
+      return "text.secondary";
+
+    case "PLANNING":
+      return "warning.main";
+
+    default:
+      return "primary.main";
+  }
+};
+
+// ============================================================
+// DATE FORMATTER
+// ============================================================
+
+const formatDate = (value?: string | null): string => {
+  if (!value) {
+    return "Not specified";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString();
+};
+
+// ============================================================
+// PROGRESS NORMALIZER
+// ============================================================
+
+const normalizeProgress = (progress?: number | null): number => {
+  if (typeof progress !== "number" || Number.isNaN(progress)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, progress));
+};
+
+// ============================================================
+// PROJECT CARD
+// ============================================================
+
+const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
   const navigate = useNavigate();
 
-  const [anchorEl, setAnchorEl] =
-    useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const menuOpen = Boolean(anchorEl);
 
-  const handleOpenMenu = (
-    event: React.MouseEvent<HTMLElement>,
-  ) => {
+  const progress = normalizeProgress(project.progress);
+
+  // ==========================================================
+  // MENU
+  // ==========================================================
+
+  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
 
     setAnchorEl(event.currentTarget);
@@ -49,140 +134,140 @@ const ProjectCard = ({
     setAnchorEl(null);
   };
 
+  // ==========================================================
+  // OPEN PROJECT
+  // ==========================================================
+
   const handleOpenProject = () => {
-    navigate(
-      `/projects/${project.id}`,
-    );
+    navigate(`/projects/${project.id}`);
   };
 
-  const handleEdit = () => {
+  // ==========================================================
+  // EDIT PROJECT
+  // ==========================================================
+
+  const handleEdit = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+
     handleCloseMenu();
 
-    navigate(
-      `/projects/${project.id}/edit`,
-    );
+    onEdit?.(project);
   };
 
-  const handleDelete = () => {
+  // ==========================================================
+  // DELETE PROJECT
+  // ==========================================================
+
+  const handleDelete = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+
     handleCloseMenu();
 
     onDelete?.(project);
   };
 
-  const formatDate = (
-    value?: string | null,
-  ) => {
-    if (!value) {
-      return "No available data";
-    }
-
-    const date = new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime(),
-      )
-    ) {
-      return value;
-    }
-
-    return date.toLocaleDateString();
-  };
-
-  const formatStatus = (
-    value?: string | null,
-  ) => {
-    if (!value) {
-      return "No available data";
-    }
-
-    return value
-      .replaceAll("_", " ")
-      .toLowerCase()
-      .replace(
-        /\b\w/g,
-        (letter) =>
-          letter.toUpperCase(),
-      );
-  };
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <Paper
       elevation={0}
       onClick={handleOpenProject}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+
+          handleOpenProject();
+        }
+      }}
       sx={{
-        p: 2,
+        p: 2.5,
         borderRadius: 2.5,
         border: "1px solid",
         borderColor: "divider",
         cursor: "pointer",
 
-        transition:
-          "transform 0.18s ease, box-shadow 0.18s ease",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
 
         "&:hover": {
-          transform:
-            "translateY(-2px)",
+          transform: "translateY(-2px)",
 
-          boxShadow:
-            "0 10px 28px rgba(0,0,0,0.08)",
+          boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
+        },
+
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
         },
       }}
     >
-      <Stack spacing={2}>
-        {/* Header */}
+      <Stack spacing={2.25}>
+        {/* ==================================================
+            HEADER
+        ================================================== */}
 
         <Stack
           direction="row"
           alignItems="center"
           justifyContent="space-between"
+          spacing={1}
         >
           <Stack
             direction="row"
-            spacing={1}
+            spacing={1.25}
             alignItems="center"
             sx={{
               minWidth: 0,
+              flex: 1,
             }}
           >
+            {/* Project Icon */}
+
             <Box
               sx={{
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 flexShrink: 0,
                 borderRadius: 2,
-                bgcolor:
-                  "action.hover",
-                color:
-                  "primary.main",
+                bgcolor: "action.hover",
+                color: "primary.main",
                 display: "flex",
-                alignItems:
-                  "center",
-                justifyContent:
-                  "center",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <FolderRoundedIcon
-                fontSize="small"
-              />
+              <FolderRoundedIcon fontSize="small" />
             </Box>
 
+            {/* Project Name */}
+
             <Typography
+              variant="subtitle1"
               fontWeight={700}
               noWrap
               sx={{
-                maxWidth: "100%",
+                minWidth: 0,
               }}
             >
-              {project.name}
+              {project.name || "Untitled Project"}
             </Typography>
           </Stack>
 
+          {/* ==================================================
+              ACTION MENU
+          ================================================== */}
+
           <IconButton
             size="small"
-            onClick={
-              handleOpenMenu
-            }
+            aria-label="Project actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen ? "true" : undefined}
+            onClick={handleOpenMenu}
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <MoreVertRoundedIcon fontSize="small" />
           </IconButton>
@@ -190,47 +275,44 @@ const ProjectCard = ({
           <Menu
             anchorEl={anchorEl}
             open={menuOpen}
-            onClose={
-              handleCloseMenu
-            }
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClose={handleCloseMenu}
+            onClick={(event) => event.stopPropagation()}
           >
-            <MenuItem
-              onClick={handleEdit}
-            >
-              Edit
-            </MenuItem>
+            <MenuItem onClick={handleEdit}>Edit Project</MenuItem>
 
             <MenuItem
               onClick={handleDelete}
+              sx={{
+                color: "error.main",
+              }}
             >
-              Delete
+              Delete Project
             </MenuItem>
           </Menu>
         </Stack>
 
-        {/* Description */}
+        {/* ==================================================
+            DESCRIPTION
+        ================================================== */}
 
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{
-            display:
-              "-webkit-box",
+            display: "-webkit-box",
             WebkitLineClamp: 2,
-            WebkitBoxOrient:
-              "vertical",
+            WebkitBoxOrient: "vertical",
             overflow: "hidden",
             minHeight: 40,
+            lineHeight: 1.5,
           }}
         >
-          {project.description ||
-            "No description available."}
+          {project.description?.trim() || "No description available."}
         </Typography>
 
-        {/* Status */}
+        {/* ==================================================
+            STATUS
+        ================================================== */}
 
         <Box>
           <Typography
@@ -238,83 +320,114 @@ const ProjectCard = ({
             color="text.secondary"
             sx={{
               display: "block",
-              mb: 0.6,
+              mb: 0.75,
             }}
           >
             Status
           </Typography>
 
           <Typography
+            component="span"
             variant="body2"
             fontWeight={700}
             sx={{
-              display:
-                "inline-flex",
-              px: 1.2,
-              py: 0.5,
+              display: "inline-flex",
+              alignItems: "center",
+              px: 1.25,
+              py: 0.6,
               borderRadius: 1.5,
-              bgcolor:
-                "action.hover",
-              color:
-                "primary.main",
+              bgcolor: "action.hover",
+              color: getStatusColor(project.status),
             }}
           >
-            {formatStatus(
-              project.status,
-            )}
+            {formatStatus(project.status)}
           </Typography>
         </Box>
 
-        {/* Team */}
+        {/* ==================================================
+            PROGRESS
+        ================================================== */}
 
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-        >
+        <Box>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            sx={{
+              mb: 0.75,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Project Progress
+            </Typography>
+
+            <Typography variant="caption" fontWeight={700} color="text.primary">
+              {progress}%
+            </Typography>
+          </Stack>
+
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{
+              height: 7,
+              borderRadius: 10,
+              bgcolor: "action.hover",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 10,
+              },
+            }}
+          />
+        </Box>
+
+        {/* ==================================================
+            TEAM
+        ================================================== */}
+
+        <Stack direction="row" spacing={1} alignItems="center">
           <GroupsRoundedIcon
             sx={{
-              fontSize: 18,
-              color:
-                "text.secondary",
+              fontSize: 19,
+              color: "text.secondary",
+              flexShrink: 0,
             }}
           />
 
-          <Box>
+          <Box
+            sx={{
+              minWidth: 0,
+            }}
+          >
             <Typography
               variant="caption"
               color="text.secondary"
               display="block"
             >
-              Team ID
+              Team
             </Typography>
 
             <Typography
               variant="body2"
               fontWeight={600}
-              sx={{
-                wordBreak:
-                  "break-all",
-              }}
+              noWrap
+              title={project.teamId || undefined}
             >
-              {project.teamId ||
-                "No available data"}
+              {project.teamId || "No team assigned"}
             </Typography>
           </Box>
         </Stack>
 
-        {/* Dates */}
+        {/* ==================================================
+            DATES
+        ================================================== */}
 
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-        >
+        <Stack direction="row" spacing={1} alignItems="flex-start">
           <CalendarMonthRoundedIcon
             sx={{
-              fontSize: 18,
-              color:
-                "text.secondary",
+              fontSize: 19,
+              color: "text.secondary",
+              flexShrink: 0,
+              mt: 0.2,
             }}
           />
 
@@ -324,38 +437,29 @@ const ProjectCard = ({
               color="text.secondary"
               display="block"
             >
-              Project Dates
+              Project Timeline
             </Typography>
 
-            <Typography
-              variant="body2"
-              fontWeight={600}
-            >
-              {formatDate(
-                project.startDate,
-              )}
+            <Typography variant="body2" fontWeight={600}>
+              {formatDate(project.startDate)}
               {" — "}
-              {formatDate(
-                project.endDate,
-              )}
+              {formatDate(project.endDate)}
             </Typography>
           </Box>
         </Stack>
 
-        {/* Project ID */}
+        {/* ==================================================
+            PROJECT ID
+        ================================================== */}
 
         <Box
           sx={{
-            pt: 0.5,
+            pt: 1.25,
             borderTop: "1px solid",
-            borderColor:
-              "divider",
+            borderColor: "divider",
           }}
         >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-          >
+          <Typography variant="caption" color="text.secondary">
             Project ID
           </Typography>
 
@@ -364,8 +468,8 @@ const ProjectCard = ({
             display="block"
             sx={{
               mt: 0.3,
-              wordBreak:
-                "break-all",
+              wordBreak: "break-all",
+              color: "text.secondary",
             }}
           >
             {project.id}

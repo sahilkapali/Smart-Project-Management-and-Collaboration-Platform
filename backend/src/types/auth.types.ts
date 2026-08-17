@@ -1,12 +1,9 @@
-import { ROLE } from "./enum.types";
-
 export interface RegisterUserInput {
   firstName: string;
   lastName: string;
   email: string;
   password: string;
   phone?: string;
-  role?:ROLE
 }
 
 export interface LoginUserInput {
