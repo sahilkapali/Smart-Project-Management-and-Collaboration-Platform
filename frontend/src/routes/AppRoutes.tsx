@@ -1,4 +1,8 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
 // ============================================================
 // AUTH PAGES
@@ -10,16 +14,37 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
 // ============================================================
-// MAIN PAGES
+// MAIN LAYOUT
+// ============================================================
+
+import MainLayout from "../layouts/MainLayout";
+
+// ============================================================
+// DASHBOARD
 // ============================================================
 
 import Dashboard from "../pages/dashboard/Dashboard";
+
+// ============================================================
+// PROFILE
+// ============================================================
+
 import Profile from "../pages/profile/Profile";
 import EditProfile from "../pages/profile/EditProfile";
 import ChangePassword from "../pages/profile/ChangePassword";
 
+// ============================================================
+// PROJECTS
+// ============================================================
+
 import Projects from "../pages/projects/Projects";
 import ProjectDetails from "../pages/projects/ProjectDetails";
+
+// ============================================================
+// TASKS
+// ============================================================
+
+import Tasks from "../pages/tasks/Tasks";
 
 // ============================================================
 // TEAMS
@@ -32,35 +57,6 @@ import Teams from "../pages/teams/Teams";
 // ============================================================
 
 import Reports from "../pages/reports/Reports";
-
-// ============================================================
-// NOTIFICATIONS
-// ============================================================
-
-import NotificationsPage from "../pages/notification/NotificationsPage";
-
-// ============================================================
-// REPOSITORY
-// ============================================================
-
-import RepositoryPage from "../pages/repository/RepositoryPage";
-import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
-import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
-
-// ============================================================
-// ISSUES
-// ============================================================
-
-import IssuesPage from "../pages/issues/Issues";
-import CreateIssuePage from "../pages/issues/CreateIssuePage";
-import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
-import EditIssuePage from "../pages/issues/EditIssuePage";
-
-// ============================================================
-// ACTIVITIES
-// ============================================================
-
-import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
 
 // ============================================================
 // MEETINGS
@@ -77,6 +73,18 @@ import MeetingDetailsPage from "../pages/meetings/MeetingDetailsPage";
 import AIPage from "../pages/ai/AIPage";
 
 // ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+import NotificationsPage from "../pages/notification/NotificationsPage";
+
+// ============================================================
+// REPOSITORY
+// ============================================================
+
+import RepositoryPage from "../pages/repository/RepositoryPage";
+
+// ============================================================
 // SETTINGS
 // ============================================================
 
@@ -89,12 +97,6 @@ import SettingsPage from "../pages/settings/SettingsPage";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 
 // ============================================================
-// MAIN LAYOUT
-// ============================================================
-
-import MainLayout from "../layouts/MainLayout";
-
-// ============================================================
 // ROUTE CONSTANTS
 // ============================================================
 
@@ -104,13 +106,18 @@ const AppRoutes = () => {
   return (
     <Routes>
 
-      {/* ====================================================== */}
-      {/* PUBLIC ROUTES                                          */}
-      {/* ====================================================== */}
+      {/* ======================================================
+          PUBLIC ROUTES
+      ====================================================== */}
 
       <Route
         path={ROUTES.HOME}
-        element={<Navigate to={ROUTES.LOGIN} replace />}
+        element={
+          <Navigate
+            to={ROUTES.LOGIN}
+            replace
+          />
+        }
       />
 
       <Route
@@ -133,26 +140,26 @@ const AppRoutes = () => {
         element={<ResetPassword />}
       />
 
-      {/* ====================================================== */}
-      {/* EVERYTHING BELOW IS PROTECTED                          */}
-      {/* ====================================================== */}
+      {/* ======================================================
+          PROTECTED ROUTES
+      ====================================================== */}
 
       <Route element={<ProtectedRoute />}>
 
         <Route element={<MainLayout />}>
 
-          {/* ================================================== */}
-          {/* DASHBOARD                                          */}
-          {/* ================================================== */}
+          {/* ==================================================
+              DASHBOARD
+          ================================================== */}
 
           <Route
             path={ROUTES.DASHBOARD}
             element={<Dashboard />}
           />
 
-          {/* ================================================== */}
-          {/* PROFILE                                            */}
-          {/* ================================================== */}
+          {/* ==================================================
+              PROFILE
+          ================================================== */}
 
           <Route
             path={ROUTES.PROFILE}
@@ -169,141 +176,142 @@ const AppRoutes = () => {
             element={<ChangePassword />}
           />
 
-          {/* ================================================== */}
-          {/* PROJECTS                                           */}
-          {/* ================================================== */}
+          {/* ==================================================
+              PROJECTS
+          ================================================== */}
 
           <Route
-            path={ROUTES.PROJECTS || "/projects"}
+            path="/projects"
             element={<Projects />}
           />
 
           <Route
-            path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
+            path="/projects/:projectId"
             element={<ProjectDetails />}
           />
 
-          {/* ================================================== */}
-          {/* MEETINGS                                           */}
-          {/* ================================================== */}
+          {/* ==================================================
+              ALL MEETINGS
+              
+              Shows meetings from all accessible projects.
+          ================================================== */}
 
           <Route
-            path="/projects/:projectId/meetings"
+            path="/meetings"
             element={<MeetingListPage />}
-        
           />
 
+          {/* ==================================================
+              CREATE MEETING - GLOBAL
+              
+              IMPORTANT:
+              This route is required because MeetingListPage
+              navigates to /meetings/create.
+              
+              The project can be selected inside MeetingForm.
+          ================================================== */}
+
           <Route
-             path="/meetings"
-            element={<MeetingListPage />}
+            path="/meetings/create"
+            element={<CreateMeetingPage />}
           />
+
+          {/* ==================================================
+              CREATE MEETING - PROJECT SPECIFIC
+              
+              Existing project-specific links continue to work.
+          ================================================== */}
 
           <Route
             path="/projects/:projectId/meetings/create"
             element={<CreateMeetingPage />}
           />
 
+          {/* ==================================================
+              OLD PROJECT MEETINGS URL
+              
+              Redirect to the global meetings page.
+          ================================================== */}
+
+          <Route
+            path="/projects/:projectId/meetings"
+            element={
+              <Navigate
+                to="/meetings"
+                replace
+              />
+            }
+          />
+
+          {/* ==================================================
+              MEETING DETAILS
+              
+              IMPORTANT:
+              /meetings/create is defined ABOVE this route.
+          ================================================== */}
+
           <Route
             path="/meetings/:id"
             element={<MeetingDetailsPage />}
           />
 
-          {/* ================================================== */}
-          {/* TEAMS                                              */}
-          {/* ================================================== */}
+          {/* ==================================================
+              TASKS
+          ================================================== */}
+
+          <Route
+            path="/tasks"
+            element={<Tasks />}
+          />
+
+          {/* ==================================================
+              TEAMS
+          ================================================== */}
 
           <Route
             path="/teams"
             element={<Teams />}
           />
 
-          {/* ================================================== */}
-          {/* REPORTS                                            */}
-          {/* ================================================== */}
+          {/* ==================================================
+              REPORTS
+          ================================================== */}
 
           <Route
             path="/reports"
             element={<Reports />}
           />
 
-          {/* ================================================== */}
-          {/* AI                                                 */}
-          {/* ================================================== */}
+          {/* ==================================================
+              AI
+          ================================================== */}
 
           <Route
-            path="/projects/:projectId/ai"
+            path="/ai"
             element={<AIPage />}
           />
 
-          {/* ================================================== */}
-          {/* NOTIFICATIONS                                      */}
-          {/* ================================================== */}
+          {/* ==================================================
+              NOTIFICATIONS
+          ================================================== */}
 
           <Route
             path={ROUTES.NOTIFICATIONS}
             element={<NotificationsPage />}
           />
 
-          {/* ================================================== */}
-          {/* REPOSITORY                                         */}
-          {/* ================================================== */}
+          {/* ==================================================
+              REPOSITORY
+          ================================================== */}
 
           <Route
             path={ROUTES.REPOSITORY}
             element={<RepositoryPage />}
           />
 
-          <Route
-            path="/repository/:id"
-            element={<RepositoryDetailPage />}
-          />
-
-          <Route
-            path="/repository/:id/history"
-            element={<RepositoryVersionHistoryPage />}
-          />
-
-          {/* ================================================== */}
-          {/* ISSUES                                             */}
-          {/* ================================================== */}
-
-          <Route
-            path="/issues"
-            element={<IssuesPage />}
-          />
-
-          <Route
-            path="/issues/create"
-            element={<CreateIssuePage />}
-          />
-
-          <Route
-            path="/issues/new"
-            element={<CreateIssuePage />}
-          />
-
-          <Route
-            path="/issues/:id"
-            element={<IssueDetailsPage />}
-          />
-
-          <Route
-            path="/issues/:id/edit"
-            element={<EditIssuePage />}
-          />
-
-          {/* ================================================== */}
-          {/* ACTIVITIES                                         */}
-          {/* ================================================== */}
-
-          <Route
-            path="/activity"
-            element={<ActivityFeedPage />}
-          />
-
-          {/* ================================================== */}
-          {/* SETTINGS                                           */}
-          {/* ================================================== */}
+          {/* ==================================================
+              SETTINGS
+          ================================================== */}
 
           <Route
             path="/settings"
@@ -314,13 +322,18 @@ const AppRoutes = () => {
 
       </Route>
 
-      {/* ====================================================== */}
-      {/* FALLBACK                                               */}
-      {/* ====================================================== */}
+      {/* ======================================================
+          FALLBACK
+      ====================================================== */}
 
       <Route
         path="*"
-        element={<Navigate to={ROUTES.LOGIN} replace />}
+        element={
+          <Navigate
+            to={ROUTES.LOGIN}
+            replace
+          />
+        }
       />
 
     </Routes>

@@ -15,15 +15,25 @@ const AILoading = ({
     <Box
       sx={{
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+
+        alignItems:
+          "center",
+
+        justifyContent:
+          "center",
+
         gap: 2,
+
         py: 4,
       }}
     >
-      <CircularProgress size={28} />
+      <CircularProgress
+        size={28}
+      />
 
-      <Typography color="text.secondary">
+      <Typography
+        color="text.secondary"
+      >
         {message}
       </Typography>
     </Box>

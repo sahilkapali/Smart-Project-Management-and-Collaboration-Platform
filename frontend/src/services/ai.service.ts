@@ -1,155 +1,215 @@
 import api from "./api";
 
 import type {
-  AIResponse,
   AIHistoryResponse,
-  AIQuestionRequest,
+  AIResponse,
   AITaskPriorityResponse,
 } from "../types/ai.types";
 
-import type { Meeting } from "../types/meeting.types";
+import type {
+  MeetingResponse,
+} from "../types/meeting.types";
+
+/**
+ * ============================================================
+ * AI SERVICE
+ * ============================================================
+ *
+ * IMPORTANT:
+ * This service ONLY communicates with the existing backend.
+ *
+ * It does NOT call Gemini directly from the browser.
+ *
+ * Backend endpoints:
+ *
+ * POST  /api/ai/insight
+ * GET   /api/ai/project/:projectId
+ * GET   /api/ai/task/:taskId
+ * GET   /api/ai/meeting/:meetingId
+ *
+ * PATCH /api/tasks/:id/ai-prioritize
+ *
+ * PATCH /api/meetings/:id/ai-summary
+ * PATCH /api/meetings/:id/action-items
+ * ============================================================
+ */
 
 const aiService = {
-  // =====================================================
+  // ==========================================================
   // PROJECT AI INSIGHT
-  // POST /api/ai/insight
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * POST /api/ai/insight
+   *
+   * Backend expects:
+   *
+   * {
+   *   projectId: string
+   * }
+   */
   generateProjectInsight: async (
     projectId: string,
-  ): Promise<AIResponse> => {
-    const data: AIQuestionRequest = {
-      projectId,
-    };
+  ) => {
+    if (!projectId) {
+      throw new Error(
+        "Project ID is required.",
+      );
+    }
 
-    const response = await api.post<AIResponse>(
+    return api.post<AIResponse>(
       "/ai/insight",
-      data,
+      {
+        projectId,
+      },
     );
-
-    return response.data;
   },
 
-  // =====================================================
+  // ==========================================================
   // PROJECT AI HISTORY
-  // GET /api/ai/project/:projectId
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * GET /api/ai/project/:projectId
+   */
   getProjectAIOutputs: async (
     projectId: string,
-  ): Promise<AIHistoryResponse> => {
-    const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/project/${projectId}`,
+  ) => {
+    if (!projectId) {
+      throw new Error(
+        "Project ID is required.",
       );
+    }
 
-    return response.data;
+    return api.get<AIHistoryResponse>(
+      `/ai/project/${projectId}`,
+    );
   },
 
-  // =====================================================
+  // ==========================================================
   // TASK AI PRIORITIZATION
-  // PATCH /api/tasks/:id/ai-prioritize
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * PATCH /api/tasks/:id/ai-prioritize
+   *
+   * Backend returns the updated Task.
+   */
   prioritizeTask: async (
     taskId: string,
-  ): Promise<AITaskPriorityResponse> => {
-    const response =
-      await api.patch<AITaskPriorityResponse>(
-        `/tasks/${taskId}/ai-prioritize`,
+  ) => {
+    if (!taskId) {
+      throw new Error(
+        "Task ID is required.",
       );
+    }
 
-    return response.data;
+    return api.patch<AITaskPriorityResponse>(
+      `/tasks/${taskId}/ai-prioritize`,
+    );
   },
 
-  // =====================================================
+  // ==========================================================
   // TASK AI HISTORY
-  // GET /api/ai/task/:taskId
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * GET /api/ai/task/:taskId
+   */
   getTaskAIOutputs: async (
     taskId: string,
-  ): Promise<AIHistoryResponse> => {
-    const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/task/${taskId}`,
+  ) => {
+    if (!taskId) {
+      throw new Error(
+        "Task ID is required.",
       );
+    }
 
-    return response.data;
+    return api.get<AIHistoryResponse>(
+      `/ai/task/${taskId}`,
+    );
   },
 
-  // =====================================================
-  // MEETING SUMMARY
-  // PATCH /api/meetings/:id/ai-summary
-  //
-  // Backend response:
-  // {
-  //   success: true,
-  //   message: string,
-  //   data: Meeting
-  // }
-  // =====================================================
+  // ==========================================================
+  // MEETING AI SUMMARY
+  // ==========================================================
 
+  /**
+   * PATCH /api/meetings/:id/ai-summary
+   *
+   * The backend accepts an optional noteId.
+   *
+   * When noteId is supplied, the backend summarizes
+   * that specific meeting note.
+   *
+   * When noteId is omitted, the backend summarizes
+   * the latest meeting note.
+   */
   summarizeMeeting: async (
     meetingId: string,
     noteId?: string,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    data: Meeting;
-  }> => {
-    const response = await api.patch<{
-      success: boolean;
-      message: string;
-      data: Meeting;
-    }>(
-      `/meetings/${meetingId}/ai-summary`,
-      noteId ? { noteId } : {},
-    );
+  ) => {
+    if (!meetingId) {
+      throw new Error(
+        "Meeting ID is required.",
+      );
+    }
 
-    return response.data;
+    const body = noteId
+      ? {
+          noteId,
+        }
+      : {};
+
+    return api.patch<MeetingResponse>(
+      `/meetings/${meetingId}/ai-summary`,
+      body,
+    );
   },
 
-  // =====================================================
+  // ==========================================================
   // MEETING ACTION ITEMS
-  // PATCH /api/meetings/:id/action-items
-  //
-  // Backend returns the updated Meeting.
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * PATCH /api/meetings/:id/action-items
+   *
+   * Backend analyzes ALL meeting notes.
+   */
   extractActionItems: async (
     meetingId: string,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    data: Meeting;
-  }> => {
-    const response = await api.patch<{
-      success: boolean;
-      message: string;
-      data: Meeting;
-    }>(
+  ) => {
+    if (!meetingId) {
+      throw new Error(
+        "Meeting ID is required.",
+      );
+    }
+
+    return api.patch<MeetingResponse>(
       `/meetings/${meetingId}/action-items`,
       {},
     );
-
-    return response.data;
   },
 
-  // =====================================================
+  // ==========================================================
   // MEETING AI HISTORY
-  // GET /api/ai/meeting/:meetingId
-  // =====================================================
+  // ==========================================================
 
+  /**
+   * GET /api/ai/meeting/:meetingId
+   */
   getMeetingAIOutputs: async (
     meetingId: string,
-  ): Promise<AIHistoryResponse> => {
-    const response =
-      await api.get<AIHistoryResponse>(
-        `/ai/meeting/${meetingId}`,
+  ) => {
+    if (!meetingId) {
+      throw new Error(
+        "Meeting ID is required.",
       );
+    }
 
-    return response.data;
+    return api.get<AIHistoryResponse>(
+      `/ai/meeting/${meetingId}`,
+    );
   },
 };
 

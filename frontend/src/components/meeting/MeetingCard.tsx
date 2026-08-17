@@ -1,20 +1,23 @@
 import type { FC } from "react";
+
 import {
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Button,
-  Chip,
-  Stack,
   Avatar,
   Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  Chip,
+  Stack,
+  Typography,
 } from "@mui/material";
+
 import {
-  CalendarMonth,
   AccessTime,
-  VideoCall,
+  CalendarMonth,
+  EditOutlined,
   Person,
+  VideoCall,
   Visibility,
 } from "@mui/icons-material";
 
@@ -22,37 +25,52 @@ import type { Meeting } from "../../types/meeting.types";
 
 interface MeetingCardProps {
   meeting: Meeting;
-  onView: (meeting: Meeting) => void;
+
+  onView: (
+    meeting: Meeting,
+  ) => void;
+
+  onEdit: (
+    meeting: Meeting,
+  ) => void;
 }
 
-const MeetingCard: FC<MeetingCardProps> = ({
+const MeetingCard: FC<
+  MeetingCardProps
+> = ({
   meeting,
   onView,
+  onEdit,
 }) => {
-  const startDate = new Date(meeting.startTime);
+  const startDate =
+    new Date(meeting.startTime);
 
-  const formattedDate = startDate.toLocaleDateString(
-    undefined,
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }
-  );
+  const formattedDate =
+    startDate.toLocaleDateString(
+      undefined,
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      },
+    );
 
-  const formattedTime = startDate.toLocaleTimeString(
-    undefined,
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  const formattedTime =
+    startDate.toLocaleTimeString(
+      undefined,
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    );
 
   const participantCount =
-    meeting.participants?.length ?? 0;
+    meeting.participants?.length ??
+    0;
 
   const creatorName =
-    typeof meeting.createdBy === "object" &&
+    typeof meeting.createdBy ===
+      "object" &&
     meeting.createdBy
       ? `${meeting.createdBy.firstName ?? ""} ${
           meeting.createdBy.lastName ?? ""
@@ -71,28 +89,45 @@ const MeetingCard: FC<MeetingCardProps> = ({
         borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
-        transition: "all 0.2s ease",
+        transition:
+          "all 0.2s ease",
+
         "&:hover": {
-          transform: "translateY(-3px)",
+          transform:
+            "translateY(-3px)",
           boxShadow: 4,
-          borderColor: "primary.main",
+          borderColor:
+            "primary.main",
         },
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        {/* Header */}
+      <CardContent
+        sx={{
+          flexGrow: 1,
+          p: 3,
+        }}
+      >
+        {/* ================================================== */}
+        {/* HEADER                                             */}
+        {/* ================================================== */}
+
         <Stack
           direction="row"
           justifyContent="space-between"
           alignItems="flex-start"
           spacing={2}
         >
-          <Box>
+          <Box
+            sx={{
+              minWidth: 0,
+            }}
+          >
             <Typography
               variant="h6"
               fontWeight={700}
               sx={{
-                wordBreak: "break-word",
+                wordBreak:
+                  "break-word",
               }}
             >
               {meeting.title}
@@ -101,9 +136,12 @@ const MeetingCard: FC<MeetingCardProps> = ({
             <Typography
               variant="body2"
               color="text.secondary"
-              sx={{ mt: 0.5 }}
+              sx={{
+                mt: 0.5,
+              }}
             >
-              Created by {creatorName}
+              Created by{" "}
+              {creatorName}
             </Typography>
           </Box>
 
@@ -115,16 +153,21 @@ const MeetingCard: FC<MeetingCardProps> = ({
           />
         </Stack>
 
-        {/* Description */}
+        {/* ================================================== */}
+        {/* DESCRIPTION                                        */}
+        {/* ================================================== */}
+
         {meeting.description && (
           <Typography
             variant="body2"
             color="text.secondary"
             sx={{
               mt: 2,
-              display: "-webkit-box",
+              display:
+                "-webkit-box",
               WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
+              WebkitBoxOrient:
+                "vertical",
               overflow: "hidden",
             }}
           >
@@ -132,9 +175,21 @@ const MeetingCard: FC<MeetingCardProps> = ({
           </Typography>
         )}
 
-        {/* Meeting information */}
-        <Stack spacing={1.5} sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+        {/* ================================================== */}
+        {/* MEETING INFORMATION                                */}
+        {/* ================================================== */}
+
+        <Stack
+          spacing={1.5}
+          sx={{
+            mt: 3,
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+          >
             <CalendarMonth
               fontSize="small"
               color="primary"
@@ -145,7 +200,11 @@ const MeetingCard: FC<MeetingCardProps> = ({
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+          >
             <AccessTime
               fontSize="small"
               color="primary"
@@ -156,15 +215,23 @@ const MeetingCard: FC<MeetingCardProps> = ({
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+          >
             <Person
               fontSize="small"
               color="primary"
             />
 
             <Typography variant="body2">
-              {participantCount} participant
-              {participantCount !== 1 ? "s" : ""}
+              {participantCount}{" "}
+              participant
+              {participantCount !==
+              1
+                ? "s"
+                : ""}
             </Typography>
           </Stack>
 
@@ -183,9 +250,12 @@ const MeetingCard: FC<MeetingCardProps> = ({
                 variant="body2"
                 color="primary"
                 sx={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  overflow:
+                    "hidden",
+                  textOverflow:
+                    "ellipsis",
+                  whiteSpace:
+                    "nowrap",
                 }}
               >
                 Online meeting
@@ -194,81 +264,149 @@ const MeetingCard: FC<MeetingCardProps> = ({
           )}
         </Stack>
 
-        {/* Participant avatars */}
+        {/* ================================================== */}
+        {/* PARTICIPANT AVATARS                                */}
+        {/* ================================================== */}
+
         {meeting.participants &&
-          meeting.participants.length > 0 && (
+          meeting.participants
+            .length > 0 && (
             <Stack
               direction="row"
               alignItems="center"
               spacing={1}
-              sx={{ mt: 3 }}
+              sx={{
+                mt: 3,
+              }}
             >
-              <Stack direction="row">
+              <Stack
+                direction="row"
+              >
                 {meeting.participants
                   .slice(0, 4)
-                  .map((participant, index) => {
-                    const name =
-                      typeof participant === "object"
-                        ? `${participant.firstName ?? ""} ${
-                            participant.lastName ?? ""
-                          }`.trim()
-                        : "User";
+                  .map(
+                    (
+                      participant,
+                      index,
+                    ) => {
+                      const name =
+                        typeof participant ===
+                        "object"
+                          ? `${participant.firstName ?? ""} ${
+                              participant.lastName ?? ""
+                            }`.trim()
+                          : "User";
 
-                    return (
-                      <Avatar
-                        key={
-                          typeof participant === "string"
-                            ? participant
-                            : participant._id ?? index
-                        }
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          fontSize: 13,
-                          ml: index === 0 ? 0 : -1,
-                          border: "2px solid white",
-                          bgcolor:
-                            "primary.main",
-                        }}
-                      >
-                        {name
-                          ? name.charAt(0).toUpperCase()
-                          : "U"}
-                      </Avatar>
-                    );
-                  })}
+                      const key =
+                        typeof participant ===
+                        "string"
+                          ? participant
+                          : participant._id ??
+                            index;
+
+                      return (
+                        <Avatar
+                          key={key}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            fontSize: 13,
+                            ml:
+                              index ===
+                              0
+                                ? 0
+                                : -1,
+                            border:
+                              "2px solid",
+                            borderColor:
+                              "background.paper",
+                            bgcolor:
+                              "primary.main",
+                          }}
+                        >
+                          {name
+                            ? name
+                                .charAt(
+                                  0,
+                                )
+                                .toUpperCase()
+                            : "U"}
+                        </Avatar>
+                      );
+                    },
+                  )}
               </Stack>
 
-              {meeting.participants.length > 4 && (
+              {meeting
+                .participants
+                .length > 4 && (
                 <Typography
                   variant="caption"
                   color="text.secondary"
                 >
-                  +{meeting.participants.length - 4} more
+                  +
+                  {meeting
+                    .participants
+                    .length -
+                    4}{" "}
+                  more
                 </Typography>
               )}
             </Stack>
           )}
       </CardContent>
 
+      {/* ==================================================== */}
+      {/* ACTIONS                                              */}
+      {/* ==================================================== */}
+
       <CardActions
         sx={{
           px: 3,
           pb: 3,
+          gap: 1,
+          flexDirection: {
+            xs: "column",
+            sm: "row",
+          },
         }}
       >
         <Button
           fullWidth
           variant="contained"
-          startIcon={<Visibility />}
-          onClick={() => onView(meeting)}
+          startIcon={
+            <Visibility />
+          }
+          onClick={() =>
+            onView(meeting)
+          }
           sx={{
             borderRadius: 2,
-            textTransform: "none",
+            textTransform:
+              "none",
             fontWeight: 600,
           }}
         >
           View Meeting
+        </Button>
+
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={
+            <EditOutlined />
+          }
+          onClick={() =>
+            onEdit(meeting)
+          }
+          sx={{
+            borderRadius: 2,
+            textTransform:
+              "none",
+            fontWeight: 600,
+          }}
+        >
+          Edit
         </Button>
       </CardActions>
     </Card>

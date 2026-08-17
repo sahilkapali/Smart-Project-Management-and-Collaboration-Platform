@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
+  Alert,
   Box,
   Button,
-  TextField,
-  Stack,
-  Typography,
-  Alert,
   MenuItem,
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
 
 import ParticipantSelector from "./ParticipantSelector";
@@ -39,23 +42,24 @@ const MeetingForm = ({
   onSubmit,
   loading = false,
 }: MeetingFormProps) => {
-  const [title, setTitle] = useState("");
+  // ============================================================
+  // FORM STATE
+  // ============================================================
+
+  const [title, setTitle] =
+    useState("");
+
   const [description, setDescription] =
     useState("");
+
   const [meetingLink, setMeetingLink] =
     useState("");
 
   const [participants, setParticipants] =
     useState<string[]>([]);
 
-  /*
-   * Selected project.
-   *
-   * Initially this is the projectId from
-   * the URL.
-   */
   const [selectedProjectId, setSelectedProjectId] =
-    useState(projectId);
+    useState(projectId || "");
 
   const [startTime, setStartTime] =
     useState("");
@@ -66,15 +70,29 @@ const MeetingForm = ({
   const [error, setError] =
     useState("");
 
-  /*
-   * If the projectId from the URL changes,
-   * update the initially selected project.
-   */
+  // ============================================================
+  // INITIAL PROJECT
+  // ============================================================
+
   useEffect(() => {
+    /*
+     * If the page was opened from:
+     *
+     * /projects/:projectId/meetings/create
+     *
+     * automatically select that project.
+     */
+
     if (projectId) {
-      setSelectedProjectId(projectId);
+      setSelectedProjectId(
+        projectId,
+      );
     }
   }, [projectId]);
+
+  // ============================================================
+  // SUBMIT
+  // ============================================================
 
   const handleSubmit = async (
     event: React.FormEvent,
@@ -83,87 +101,148 @@ const MeetingForm = ({
 
     setError("");
 
-    /*
-     * Validate title
-     */
+    // ----------------------------------------------------------
+    // TITLE
+    // ----------------------------------------------------------
+
     if (!title.trim()) {
       setError(
         "Meeting title is required.",
       );
+
       return;
     }
 
-    /*
-     * Validate project
-     */
+    if (title.trim().length < 3) {
+      setError(
+        "Meeting title must contain at least 3 characters.",
+      );
+
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // PROJECT
+    // ----------------------------------------------------------
+
     if (!selectedProjectId) {
       setError(
         "Please select a project.",
       );
+
       return;
     }
 
-    /*
-     * Validate time
-     */
-    if (!startTime || !endTime) {
+    // ----------------------------------------------------------
+    // START / END
+    // ----------------------------------------------------------
+
+    if (
+      !startTime ||
+      !endTime
+    ) {
       setError(
         "Start and end time are required.",
       );
+
       return;
     }
 
-    /*
-     * Make sure end time is after start time
-     */
+    const start =
+      new Date(startTime);
+
+    const end =
+      new Date(endTime);
+
     if (
-      new Date(startTime) >=
-      new Date(endTime)
+      Number.isNaN(
+        start.getTime(),
+      ) ||
+      Number.isNaN(
+        end.getTime(),
+      )
     ) {
+      setError(
+        "Please enter valid meeting dates.",
+      );
+
+      return;
+    }
+
+    if (start >= end) {
       setError(
         "End time must be later than start time.",
       );
+
       return;
     }
 
-    try {
-      const meetingData: CreateMeetingData = {
-        title: title.trim(),
+    // ----------------------------------------------------------
+    // MEETING LINK
+    // ----------------------------------------------------------
+
+    if (meetingLink.trim()) {
+      try {
+        new URL(
+          meetingLink.trim(),
+        );
+      } catch {
+        setError(
+          "Please enter a valid meeting URL.",
+        );
+
+        return;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // DATA
+    // ----------------------------------------------------------
+
+    const meetingData:
+      CreateMeetingData = {
+        title:
+          title.trim(),
 
         description:
-          description.trim() || undefined,
+          description.trim() ||
+          undefined,
 
         meetingLink:
-          meetingLink.trim() || undefined,
+          meetingLink.trim() ||
+          undefined,
 
         /*
-         * IMPORTANT:
-         * This is the project selected
-         * from the dropdown.
+         * THIS is the selected project.
          */
-        projectId: selectedProjectId,
+        projectId:
+          selectedProjectId,
 
         participants,
 
         startTime:
-          new Date(
-            startTime,
-          ).toISOString(),
+          start.toISOString(),
 
         endTime:
-          new Date(
-            endTime,
-          ).toISOString(),
+          end.toISOString(),
       };
 
-      await onSubmit(meetingData);
+    try {
+      await onSubmit(
+        meetingData,
+      );
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
+          err?.message ||
           "Failed to create meeting.",
       );
     }
   };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <Box
@@ -174,7 +253,11 @@ const MeetingForm = ({
       }}
     >
       <Stack spacing={3}>
-        {/* Page title */}
+
+        {/* ====================================================
+            TITLE
+        ==================================================== */}
+
         <Typography
           variant="h5"
           fontWeight={700}
@@ -182,36 +265,77 @@ const MeetingForm = ({
           Create Meeting
         </Typography>
 
-        {/* Error */}
+        {/* ====================================================
+            ERROR
+        ==================================================== */}
+
         {error && (
-          <Alert severity="error">
+          <Alert
+            severity="error"
+            onClose={() =>
+              setError("")
+            }
+          >
             {error}
           </Alert>
         )}
 
-        {/* Meeting Title */}
+        {/* ====================================================
+            MEETING TITLE
+        ==================================================== */}
+
         <TextField
           label="Meeting Title"
           value={title}
-          onChange={(e) =>
-            setTitle(e.target.value)
-          }
-          required
-          fullWidth
-        />
-
-        {/* Project */}
-        <TextField
-          label="Project"
-          value={selectedProjectId}
-          onChange={(e) =>
-            setSelectedProjectId(
-              e.target.value,
+          onChange={(event) =>
+            setTitle(
+              event.target.value,
             )
           }
-          select
           required
           fullWidth
+          disabled={loading}
+        />
+
+        {/* ====================================================
+            PROJECT
+        ==================================================== */}
+
+        <TextField
+          select
+          label="Project"
+          value={
+            selectedProjectId
+          }
+          onChange={(event) =>
+            setSelectedProjectId(
+              event.target.value,
+            )
+          }
+          required
+          fullWidth
+          disabled={
+            loading ||
+            projects.length === 0
+          }
+
+          /*
+           * Scrollable dropdown.
+           *
+           * Once there are many projects,
+           * the menu will scroll instead of
+           * making the entire page huge.
+           */
+
+          SelectProps={{
+            MenuProps: {
+              PaperProps: {
+                sx: {
+                  maxHeight: 300,
+                },
+              },
+            },
+          }}
         >
           {projects.length === 0 ? (
             <MenuItem
@@ -221,70 +345,96 @@ const MeetingForm = ({
               No projects available
             </MenuItem>
           ) : (
-            projects.map((project) => (
-              <MenuItem
-                key={project._id}
-                value={project._id}
-              >
-                {project.name}
-              </MenuItem>
-            ))
+            projects.map(
+              (project) => (
+                <MenuItem
+                  key={
+                    project._id
+                  }
+                  value={
+                    project._id
+                  }
+                >
+                  {project.name}
+                </MenuItem>
+              ),
+            )
           )}
         </TextField>
 
-        {/* Description */}
+        {/* ====================================================
+            DESCRIPTION
+        ==================================================== */}
+
         <TextField
           label="Description"
           value={description}
-          onChange={(e) =>
+          onChange={(event) =>
             setDescription(
-              e.target.value,
+              event.target.value,
             )
           }
           multiline
           minRows={3}
           fullWidth
+          disabled={loading}
         />
 
-        {/* Meeting Link */}
+        {/* ====================================================
+            MEETING LINK
+        ==================================================== */}
+
         <TextField
           label="Meeting Link"
           value={meetingLink}
-          onChange={(e) =>
+          onChange={(event) =>
             setMeetingLink(
-              e.target.value,
+              event.target.value,
             )
           }
           placeholder="https://meet.google.com/..."
           fullWidth
+          disabled={loading}
         />
 
-        {/* Participants */}
+        {/* ====================================================
+            PARTICIPANTS
+        ==================================================== */}
+
         <ParticipantSelector
           users={users}
-          selectedParticipants={users.filter(
-            (user) =>
-              participants.includes(
-                user._id,
-              ),
-          )}
-          onChange={(selectedUsers) => {
+          selectedParticipants={
+            users.filter(
+              (user) =>
+                participants.includes(
+                  user._id,
+                ),
+            )
+          }
+          onChange={(
+            selectedUsers,
+          ) => {
             setParticipants(
               selectedUsers.map(
-                (user) => user._id,
+                (user) =>
+                  user._id,
               ),
             );
           }}
+          disabled={loading}
         />
 
-        {/* Start Time */}
+        {/* ====================================================
+            START TIME
+        ==================================================== */}
+
         <TextField
           label="Start Time"
           type="datetime-local"
           value={startTime}
-          onChange={(e) =>
+          onChange={(event) =>
             setStartTime(
-              e.target.value,
+              event.target.value,
             )
           }
           InputLabelProps={{
@@ -292,16 +442,20 @@ const MeetingForm = ({
           }}
           fullWidth
           required
+          disabled={loading}
         />
 
-        {/* End Time */}
+        {/* ====================================================
+            END TIME
+        ==================================================== */}
+
         <TextField
           label="End Time"
           type="datetime-local"
           value={endTime}
-          onChange={(e) =>
+          onChange={(event) =>
             setEndTime(
-              e.target.value,
+              event.target.value,
             )
           }
           InputLabelProps={{
@@ -309,19 +463,32 @@ const MeetingForm = ({
           }}
           fullWidth
           required
+          disabled={loading}
         />
 
-        {/* Submit */}
+        {/* ====================================================
+            SUBMIT
+        ==================================================== */}
+
         <Button
           type="submit"
           variant="contained"
           size="large"
-          disabled={loading}
+          disabled={
+            loading ||
+            projects.length === 0
+          }
+          sx={{
+            textTransform:
+              "none",
+            fontWeight: 700,
+          }}
         >
           {loading
             ? "Creating..."
             : "Create Meeting"}
         </Button>
+
       </Stack>
     </Box>
   );

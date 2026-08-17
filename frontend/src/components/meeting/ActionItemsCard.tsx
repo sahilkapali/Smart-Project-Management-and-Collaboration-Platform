@@ -1,64 +1,152 @@
 import {
+  Alert,
+  Button,
   Card,
   CardContent,
-  Typography,
+  CircularProgress,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Button,
-  CircularProgress,
   Stack,
+  Typography,
 } from "@mui/material";
 
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 interface ActionItemsCardProps {
   actionItems?: string[];
+
   onGenerate?: () => void;
+
   loading?: boolean;
+
+  error?: string;
+
+  onClearError?: () => void;
 }
 
 const ActionItemsCard = ({
   actionItems = [],
   onGenerate,
   loading = false,
+  error = "",
+  onClearError,
 }: ActionItemsCardProps) => {
   return (
     <Card
+      elevation={0}
       sx={{
         borderRadius: 3,
+
         border: "1px solid",
+
         borderColor: "divider",
       }}
     >
       <CardContent>
-        <Stack spacing={2}>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-          >
-            Action Items
-          </Typography>
+        <Stack spacing={2.5}>
 
-          {actionItems.length === 0 ? (
-            <Typography color="text.secondary">
-              No action items have been extracted.
+          {/* ================================================= */}
+          {/* HEADER                                            */}
+          {/* ================================================= */}
+
+          <Stack spacing={0.5}>
+            <Typography
+              variant="h5"
+              fontWeight={700}
+            >
+              AI Action Items
             </Typography>
-          ) : (
-            <List>
-              {actionItems.map((item, index) => (
-                <ListItem key={index}>
-                  <ListItemIcon>
-                    <CheckCircleOutlineIcon color="primary" />
-                  </ListItemIcon>
 
-                  <ListItemText primary={item} />
-                </ListItem>
-              ))}
-            </List>
+            <Typography
+              color="text.secondary"
+            >
+              Extract follow-up actions from
+              all meeting notes.
+            </Typography>
+          </Stack>
+
+          {/* ================================================= */}
+          {/* ERROR                                             */}
+          {/* ================================================= */}
+
+          {error && (
+            <Alert
+              severity="error"
+              onClose={onClearError}
+            >
+              {error}
+            </Alert>
           )}
+
+          {/* ================================================= */}
+          {/* LOADING                                           */}
+          {/* ================================================= */}
+
+          {loading && (
+            <Alert severity="info">
+              AI is extracting action items
+              from the meeting notes.
+            </Alert>
+          )}
+
+          {/* ================================================= */}
+          {/* ACTION ITEMS                                      */}
+          {/* ================================================= */}
+
+          {!loading &&
+            actionItems.length === 0 && (
+              <Alert severity="info">
+                No action items have been
+                extracted yet.
+              </Alert>
+            )}
+
+          {!loading &&
+            actionItems.length > 0 && (
+              <List disablePadding>
+                {actionItems.map(
+                  (item, index) => (
+                    <ListItem
+                      key={`${item}-${index}`}
+                      disableGutters
+                      sx={{
+                        alignItems:
+                          "flex-start",
+
+                        py: 0.75,
+                      }}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 36,
+                        }}
+                      >
+                        <CheckCircleOutlineIcon
+                          color="primary"
+                        />
+                      </ListItemIcon>
+
+                      <ListItemText
+                        primary={item}
+                        primaryTypographyProps={{
+                          sx: {
+                            lineHeight: 1.6,
+                          },
+                        }}
+                      />
+                    </ListItem>
+                  ),
+                )}
+              </List>
+            )}
+
+          {/* ================================================= */}
+          {/* BUTTON                                            */}
+          {/* ================================================= */}
 
           {onGenerate && (
             <Button
@@ -74,12 +162,24 @@ const ActionItemsCard = ({
               }
               onClick={onGenerate}
               disabled={loading}
+              sx={{
+                alignSelf:
+                  "flex-start",
+
+                textTransform:
+                  "none",
+
+                fontWeight: 700,
+              }}
             >
               {loading
-                ? "Analyzing..."
-                : "Extract Action Items"}
+                ? "Extracting..."
+                : actionItems.length > 0
+                  ? "Regenerate Action Items"
+                  : "Extract Action Items"}
             </Button>
           )}
+
         </Stack>
       </CardContent>
     </Card>

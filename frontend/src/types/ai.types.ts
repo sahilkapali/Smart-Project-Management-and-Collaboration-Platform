@@ -1,21 +1,13 @@
-export interface AIQuestionRequest {
-  projectId: string;
-}
-
-export interface AIResponse {
-  success: boolean;
-  message?: string;
-  data?: AIOutput;
-}
+export type AIOutputType =
+  | "TASK_PRIORITY"
+  | "MEETING_SUMMARY"
+  | "ACTION_ITEMS"
+  | "INSIGHT";
 
 export interface AIOutput {
   _id?: string;
 
-  type:
-    | "INSIGHT"
-    | "TASK_PRIORITY"
-    | "MEETING_SUMMARY"
-    | "ACTION_ITEMS";
+  type: AIOutputType;
 
   user?: string;
 
@@ -32,84 +24,55 @@ export interface AIOutput {
   createdAt?: string;
 
   updatedAt?: string;
+}
 
-  [key: string]: unknown;
+export interface AIResponse {
+  success?: boolean;
+
+  message?: string;
+
+  output?: string;
+
+  priority?: string;
+
+  data?:
+    | AIOutput
+    | {
+        output?: string;
+        priority?: string;
+        [key: string]: unknown;
+      }
+    | Record<string, unknown>;
 }
 
 export interface AIHistoryResponse {
-  success: boolean;
+  success?: boolean;
+
   message?: string;
-  data?: AIOutput[];
+
+  data: AIOutput[];
 }
 
-/**
- * Backend response from:
- * PATCH /api/tasks/:id/ai-prioritize
- */
+export interface AIQuestionRequest {
+  question: string;
+
+  projectId?: string;
+
+  taskId?: string;
+
+  meetingId?: string;
+}
+
 export interface AITaskPriorityResponse {
-  success: boolean;
+  success?: boolean;
+
   message?: string;
-  data?: TaskPriorityData;
-}
 
-export interface TaskPriorityData {
-  _id?: string;
-  title?: string;
-  description?: string;
+  data?: {
+    _id?: string;
 
-  priority?:
-    | "Low"
-    | "Medium"
-    | "High"
-    | "Critical";
+    priority?: string;
 
-  status?: string;
-
-  dueDate?: string;
-
-  [key: string]: unknown;
-}
-
-/**
- * Backend response from:
- * PATCH /api/meetings/:id/ai-summary
- */
-export interface AIMeetingSummaryResponse {
-  success: boolean;
-  message?: string;
-  data?: MeetingAIData;
-}
-
-/**
- * Backend response from:
- * PATCH /api/meetings/:id/action-items
- */
-export interface AIActionItemsResponse {
-  success: boolean;
-  message?: string;
-  data?: MeetingAIData;
-}
-
-export interface MeetingAIData {
-  _id?: string;
-
-  title?: string;
-
-  notes?: MeetingNote[];
-
-  actionItems?: string[];
-
-  [key: string]: unknown;
-}
-
-export interface MeetingNote {
-  _id?: string;
-
-  content: string;
-
-  aiGeneratedSummary?: string;
-
-  createdAt?: string;
-
-  updatedAt?: string;
+    [key: string]: unknown;
+  };
 }
