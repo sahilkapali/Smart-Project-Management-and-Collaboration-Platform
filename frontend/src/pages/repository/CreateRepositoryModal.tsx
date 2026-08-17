@@ -6,129 +6,101 @@ import {
   DialogActions,
   Button,
   TextField,
-  Stack,
+  MenuItem,
   CircularProgress,
   Alert
 } from '@mui/material';
 import { createRepository } from '../../services/repository.service';
+import type { CreateRepositoryModalProps } from '../../types/repository.types';
 
-interface CreateRepositoryModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  defaultProjectId?: string;
-}
-
-const CreateRepositoryModal: React.FC<CreateRepositoryModalProps> = ({ 
-  open, 
-  onClose, 
-  onSuccess,
-  defaultProjectId = '' 
-}) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    project: defaultProjectId,
-    description: '',
-    githubUrl: ''
-  });
-  
+const CreateRepositoryModal: React.FC<CreateRepositoryModalProps> = ({ open, onClose, onSuccess }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState('private');
+  const [project, setProject] = useState(''); // Added Project ID state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!formData.name || !formData.project) {
-      setError('Name and Project ID are required.');
-      return;
-    }
+    if (!name.trim() || !project.trim()) return;
 
     try {
       setLoading(true);
-      await createRepository(formData);
-      onSuccess(); 
-      handleClose(); 
+      setError(null);
+      // Included project in the payload
+      await createRepository({ name, description, visibility, project });
+      onSuccess();
+      handleClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create repository');
+      setError(err?.response?.data?.message || 'Failed to create repository.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setFormData({ name: '', project: defaultProjectId, description: '', githubUrl: '' });
+    setName('');
+    setDescription('');
+    setVisibility('private');
+    setProject('');
     setError(null);
     onClose();
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle fontWeight="bold">Create New Repository</DialogTitle>
-      
       <form onSubmit={handleSubmit}>
         <DialogContent dividers>
-          <Stack spacing={3}>
-            {error && <Alert severity="error">{error}</Alert>}
-            
-            <TextField
-              label="Repository Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-            />
-            
-            <TextField
-              label="Project ID"
-              name="project"
-              value={formData.project}
-              onChange={handleChange}
-              fullWidth
-              required
-              variant="outlined"
-              helperText="Enter associated project ID."
-            />
-            
-            <TextField
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-              variant="outlined"
-            />
-            
-            <TextField
-              label="GitHub URL (Optional)"
-              name="githubUrl"
-              value={formData.githubUrl}
-              onChange={handleChange}
-              fullWidth
-              variant="outlined"
-              placeholder="https://github.com/username/repo"
-            />
-          </Stack>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <TextField
+            label="Project ID"
+            fullWidth
+            required
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            margin="normal"
+            disabled={loading}
+            helperText="Enter the ID of the project this repository belongs to"
+          />
+          <TextField
+            label="Repository Name"
+            fullWidth
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          />
+          <TextField
+            select
+            label="Visibility"
+            fullWidth
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+            margin="normal"
+            disabled={loading}
+          >
+            <MenuItem value="private">Private</MenuItem>
+            <MenuItem value="public">Public</MenuItem>
+          </TextField>
         </DialogContent>
-        
-        <DialogActions sx={{ p: 2, px: 3 }}>
-          <Button onClick={handleClose} color="inherit" disabled={loading}>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleClose} disabled={loading} color="inherit">
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            disabled={loading}
-            sx={{ bgcolor: '#5e35b1', '&:hover': { bgcolor: '#4527a0' } }}
-          >
+          <Button type="submit" variant="contained" disabled={loading || !name.trim() || !project.trim()} sx={{ bgcolor: '#5e35b1' }}>
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Create'}
           </Button>
         </DialogActions>
