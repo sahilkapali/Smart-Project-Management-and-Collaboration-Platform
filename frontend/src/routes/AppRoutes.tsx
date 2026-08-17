@@ -44,6 +44,23 @@ import NotificationsPage from "../pages/notification/NotificationsPage";
 // ============================================================
 
 import RepositoryPage from "../pages/repository/RepositoryPage";
+import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
+import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
+
+// ============================================================
+// ISSUES
+// ============================================================
+
+import IssuesPage from "../pages/issues/Issues";
+import CreateIssuePage from "../pages/issues/CreateIssuePage";
+import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
+import EditIssuePage from "../pages/issues/EditIssuePage";
+
+// ============================================================
+// ACTIVITIES
+// ============================================================
+
+import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
 
 // ============================================================
 // MEETINGS
@@ -86,6 +103,7 @@ import { ROUTES } from "../utils/routes";
 const AppRoutes = () => {
   return (
     <Routes>
+
       {/* ====================================================== */}
       {/* PUBLIC ROUTES                                          */}
       {/* ====================================================== */}
@@ -120,8 +138,9 @@ const AppRoutes = () => {
       {/* ====================================================== */}
 
       <Route element={<ProtectedRoute />}>
+
         {/* ==================================================== */}
-        {/* MAIN APPLICATION LAYOUT                             */}
+        {/* MAIN APPLICATION LAYOUT                              */}
         {/* ==================================================== */}
 
         <Route element={<MainLayout />}>
@@ -232,6 +251,54 @@ const AppRoutes = () => {
             element={<RepositoryPage />}
           />
 
+          <Route
+            path="/repository/:id"
+            element={<RepositoryDetailPage />}
+          />
+
+          <Route
+            path="/repository/:id/history"
+            element={<RepositoryVersionHistoryPage />}
+          />
+
+          {/* ================================================== */}
+          {/* ISSUES                                             */}
+          {/* ================================================== */}
+
+          <Route
+            path="/issues"
+            element={<IssuesPage />}
+          />
+
+          <Route
+            path="/issues/create"
+            element={<CreateIssuePage />}
+          />
+
+          <Route
+            path="/issues/new"
+            element={<CreateIssuePage />}
+          />
+
+          <Route
+            path="/issues/:id"
+            element={<IssueDetailsPage />}
+          />
+
+          <Route
+            path="/issues/:id/edit"
+            element={<EditIssuePage />}
+          />
+
+          {/* ================================================== */}
+          {/* ACTIVITIES                                         */}
+          {/* ================================================== */}
+
+          <Route
+            path="/activity"
+            element={<ActivityFeedPage />}
+          />
+
           {/* ================================================== */}
           {/* SETTINGS                                           */}
           {/* ================================================== */}
@@ -240,6 +307,7 @@ const AppRoutes = () => {
             path="/settings"
             element={<SettingsPage />}
           />
+
         </Route>
       </Route>
 
@@ -251,6 +319,7 @@ const AppRoutes = () => {
         path="*"
         element={<Navigate to={ROUTES.LOGIN} replace />}
       />
+
     </Routes>
   );
 };

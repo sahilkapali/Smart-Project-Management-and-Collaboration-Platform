@@ -1,5 +1,4 @@
-import { useEffect, type ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   Alert,
@@ -21,6 +20,7 @@ import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
 import ProjectActivityChart from "../../components/dashboard/ProjectActivityChart";
 import TaskList from "../../components/dashboard/TaskList";
 import ProjectTimeline from "../../components/dashboard/ProjectTimeline";
+import DashboardSidebar from "../../components/dashboard/DashboardSidebar"; // Added missing import
 
 import dashboardService, {
   type DashboardMetrics,
@@ -32,10 +32,9 @@ const Dashboard = () => {
   // ============================================================
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Added missing state
 
   // ============================================================
   // LOAD DASHBOARD DATA
@@ -83,7 +82,6 @@ const Dashboard = () => {
         sx={{
           width: "100%",
           minHeight: "70vh",
-
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -91,7 +89,6 @@ const Dashboard = () => {
       >
         <Stack alignItems="center" spacing={2}>
           <CircularProgress />
-
           <Typography color="text.secondary">Loading dashboard...</Typography>
         </Stack>
       </Box>
@@ -150,6 +147,11 @@ const Dashboard = () => {
           WELCOME HEADER
       ======================================================= */}
 
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      
       <Box sx={{ mb: 3 }}>
         <Typography
           sx={{
@@ -197,20 +199,16 @@ const Dashboard = () => {
       <Box
         sx={{
           display: "grid",
-
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
             lg: "repeat(3, 1fr)",
           },
-
           gap: 2,
-
           mb: 2,
         }}
       >
         {/* ACTIVE PROJECTS */}
-
         <DashboardStatCard
           title="Active Projects"
           value={metrics.totalProjects}
@@ -224,7 +222,6 @@ const Dashboard = () => {
         />
 
         {/* TASKS DUE */}
-
         <DashboardStatCard
           title="Tasks Due Today"
           value={metrics.overdueTasks}
@@ -233,7 +230,6 @@ const Dashboard = () => {
         />
 
         {/* TEAM */}
-
         <DashboardStatCard
           title="Team Availability"
           value={metrics.repositoriesCount}
@@ -249,15 +245,12 @@ const Dashboard = () => {
       <Box
         sx={{
           display: "grid",
-
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
             lg: "repeat(3, 1fr)",
           },
-
           gap: 2,
-
           mb: 2,
         }}
       >
@@ -287,19 +280,15 @@ const Dashboard = () => {
       <Box
         sx={{
           display: "grid",
-
           gridTemplateColumns: {
             xs: "1fr",
             lg: "minmax(0, 1.55fr) minmax(320px, 0.85fr)",
           },
-
           gap: 2,
-
           mb: 2,
         }}
       >
         <TaskList tasks={[]} />
-
         <ProjectTimeline />
       </Box>
 
@@ -310,18 +299,15 @@ const Dashboard = () => {
       <Box
         sx={{
           display: "grid",
-
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
             lg: "repeat(4, 1fr)",
           },
-
           gap: 2,
         }}
       >
         {/* REPOSITORIES */}
-
         <SmallMetric
           icon={<FolderRoundedIcon fontSize="small" />}
           title="Repositories"
@@ -329,7 +315,6 @@ const Dashboard = () => {
         />
 
         {/* TOTAL ISSUES */}
-
         <SmallMetric
           icon={<BugReportRoundedIcon fontSize="small" />}
           title="Total Issues"
@@ -337,7 +322,6 @@ const Dashboard = () => {
         />
 
         {/* RESOLVED ISSUES */}
-
         <SmallMetric
           icon={<BugReportRoundedIcon fontSize="small" />}
           title="Resolved Issues"
@@ -345,7 +329,6 @@ const Dashboard = () => {
         />
 
         {/* UPCOMING MEETINGS */}
-
         <SmallMetric
           icon={<EventRoundedIcon fontSize="small" />}
           title="Upcoming Meetings"
@@ -372,18 +355,12 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       elevation={0}
       sx={{
         p: 2,
-
         minHeight: 105,
-
         borderRadius: 3,
-
         border: "1px solid",
         borderColor: "divider",
-
         bgcolor: "background.paper",
-
         transition: "box-shadow 0.2s ease, transform 0.2s ease",
-
         "&:hover": {
           boxShadow: 2,
           transform: "translateY(-1px)",
@@ -391,21 +368,15 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       }}
     >
       {/* HEADER */}
-
       <Stack direction="row" alignItems="center" spacing={1}>
         <Box
           sx={{
             width: 34,
             height: 34,
-
             flexShrink: 0,
-
             borderRadius: 2,
-
             bgcolor: "action.hover",
-
             color: "primary.main",
-
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -426,7 +397,6 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       </Stack>
 
       {/* VALUE */}
-
       <Typography
         variant="h5"
         fontWeight={700}
