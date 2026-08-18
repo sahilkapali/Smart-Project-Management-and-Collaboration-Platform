@@ -1,288 +1,178 @@
+import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 /* =========================================================
-   AUTH
+   AUTH PAGES
 ========================================================= */
-
+import ForgotPassword from "../pages/auth/ForgotPassword";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
-import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
 /* =========================================================
-   MAIN LAYOUT
+   MAIN LAYOUT & PROTECTED ROUTE
 ========================================================= */
-
+import ProtectedRoute from "../components/ProtectedRoute";
 import MainLayout from "../layouts/MainLayout";
 
 /* =========================================================
-   DASHBOARD
+   FEATURE PAGES
 ========================================================= */
-
+import AIPage from "../pages/ai/AIPage";
+import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
+import CalendarPage from "../pages/calendar/CalendarPage";
 import Dashboard from "../pages/dashboard/Dashboard";
-
-/* =========================================================
-   PROFILE
-========================================================= */
-
-import Profile from "../pages/profile/Profile";
-import EditProfile from "../pages/profile/EditProfile";
+import CreateIssuePage from "../pages/issues/CreateIssuePage";
+import EditIssuePage from "../pages/issues/EditIssuePage";
+import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
+import IssuesPage from "../pages/issues/Issues";
+import CreateMeetingPage from "../pages/meetings/CreateMeetingPage";
+import MeetingDetailsPage from "../pages/meetings/MeetingDetailsPage";
+import MeetingListPage from "../pages/meetings/MeetingListPage";
+import NotificationsPage from "../pages/notification/NotificationsPage";
 import ChangePassword from "../pages/profile/ChangePassword";
-
-/* =========================================================
-   PROJECTS
-========================================================= */
-
-import Projects from "../pages/projects/Projects";
+import EditProfile from "../pages/profile/EditProfile";
+import Profile from "../pages/profile/Profile";
 import ProjectDetails from "../pages/projects/ProjectDetails";
-
-/* =========================================================
-   TEAMS
-========================================================= */
-
+import Projects from "../pages/projects/Projects";
+import Reports from "../pages/reports/Reports";
+import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
+import RepositoryPage from "../pages/repository/RepositoryPage";
+import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
+import SettingsPage from "../pages/settings/SettingsPage";
+import Tasks from "../pages/tasks/Tasks";
 import Teams from "../pages/teams/Teams";
 
 /* =========================================================
-   TASKS
+   ROUTES CONSTANTS
 ========================================================= */
-
-import Tasks from "../pages/tasks/Tasks";
-
-/* =========================================================
-   REPORTS
-========================================================= */
-
-import Reports from "../pages/reports/Reports";
-
-/* =========================================================
-   NOTIFICATIONS
-========================================================= */
-
-import NotificationsPage from "../pages/notification/NotificationsPage";
-
-/* =========================================================
-   REPOSITORY
-========================================================= */
-
-import RepositoryPage from "../pages/repository/RepositoryPage";
-import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
-import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
-
-/* =========================================================
-   ISSUES
-========================================================= */
-
-import IssuesPage from "../pages/issues/Issues";
-import CreateIssuePage from "../pages/issues/CreateIssuePage";
-import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
-import EditIssuePage from "../pages/issues/EditIssuePage";
-
-/* =========================================================
-   ACTIVITY
-========================================================= */
-
-import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
-
-/* =========================================================
-   MEETINGS
-========================================================= */
-
-import MeetingListPage from "../pages/meetings/MeetingListPage";
-import CreateMeetingPage from "../pages/meetings/CreateMeetingPage";
-import MeetingDetailsPage from "../pages/meetings/MeetingDetailsPage";
-
-/* =========================================================
-   CALENDAR
-========================================================= */
-
-import CalendarPage from "../pages/calendar/CalendarPage";
-
-/* =========================================================
-   AI
-========================================================= */
-
-import AIPage from "../pages/ai/AIPage";
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-import SettingsPage from "../pages/settings/SettingsPage";
-
-/* =========================================================
-   AUTH GUARD
-========================================================= */
-
-import ProtectedRoute from "../components/ProtectedRoute";
-
-/* =========================================================
-   ROUTES
-========================================================= */
-
 import { ROUTES } from "../utils/routes";
 
-const AppRoutes = () => {
+const AppRoutes: React.FC = () => {
   return (
     <Routes>
       {/* ======================================================
-          PUBLIC
+          PUBLIC ROUTES
       ====================================================== */}
-
       <Route
-        path={ROUTES.HOME}
-        element={<Navigate to={ROUTES.LOGIN} replace />}
+        path={ROUTES.HOME || "/"}
+        element={<Navigate to={ROUTES.LOGIN || "/login"} replace />}
+      />
+      <Route path={ROUTES.LOGIN || "/login"} element={<Login />} />
+      <Route path={ROUTES.REGISTER || "/register"} element={<Register />} />
+      <Route
+        path={ROUTES.FORGOT_PASSWORD || "/forgot-password"}
+        element={<ForgotPassword />}
+      />
+      <Route
+        path={ROUTES.RESET_PASSWORD || "/reset-password"}
+        element={<ResetPassword />}
       />
 
-      <Route path={ROUTES.LOGIN} element={<Login />} />
-
-      <Route path={ROUTES.REGISTER} element={<Register />} />
-
-      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
-
-      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
-
       {/* ======================================================
-          PROTECTED APPLICATION
+          PROTECTED APPLICATION ROUTES
       ====================================================== */}
-
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
-          {/* ==================================================
-              DASHBOARD
-          ================================================== */}
-
+          {/* Dashboard */}
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
 
-          {/* ==================================================
-              CALENDAR
-          ================================================== */}
+          {/* Calendar */}
+          <Route
+            path={ROUTES.CALENDAR || "/calendar"}
+            element={<CalendarPage />}
+          />
 
-          <Route path="/calendar" element={<CalendarPage />} />
-
-          {/* ==================================================
-              PROFILE
-          ================================================== */}
-
+          {/* User Profile */}
           <Route path={ROUTES.PROFILE} element={<Profile />} />
-
           <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
-
           <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
 
-          {/* ==================================================
-              PROJECTS
-          ================================================== */}
-
+          {/* Projects */}
           <Route path={ROUTES.PROJECTS} element={<Projects />} />
-
           <Route path={ROUTES.PROJECT_DETAILS} element={<ProjectDetails />} />
 
-          {/* ==================================================
-              TASKS
-          ================================================== */}
-
+          {/* Tasks */}
           <Route path={ROUTES.TASKS} element={<Tasks />} />
+          {ROUTES.PROJECT_TASKS && (
+            <Route path={ROUTES.PROJECT_TASKS} element={<Tasks />} />
+          )}
 
-          <Route path={ROUTES.PROJECT_TASKS} element={<Tasks />} />
-
-          {/* ==================================================
-              TEAMS
-          ================================================== */}
-
+          {/* Teams */}
           <Route path={ROUTES.TEAMS} element={<Teams />} />
 
-          {/* ==================================================
-              REPORTS
-          ================================================== */}
-
+          {/* Reports */}
           <Route path={ROUTES.REPORTS} element={<Reports />} />
 
-          {/* ==================================================
-              NOTIFICATIONS
-          ================================================== */}
-
+          {/* Notifications */}
           <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
 
-          {/* ==================================================
-              REPOSITORY
-          ================================================== */}
-
+          {/* Repositories */}
           <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
-
           <Route
             path={ROUTES.REPOSITORY_DETAILS}
             element={<RepositoryDetailPage />}
           />
-
           <Route
             path={ROUTES.REPOSITORY_HISTORY}
             element={<RepositoryVersionHistoryPage />}
           />
 
-          {/* ==================================================
-              ISSUES
-          ================================================== */}
-
+          {/* Issues */}
           <Route path={ROUTES.ISSUES} element={<IssuesPage />} />
-
           <Route path={ROUTES.CREATE_ISSUE} element={<CreateIssuePage />} />
-
-          <Route path={ROUTES.CREATE_ISSUE_NEW} element={<CreateIssuePage />} />
-
+          {ROUTES.CREATE_ISSUE_NEW && (
+            <Route
+              path={ROUTES.CREATE_ISSUE_NEW}
+              element={<CreateIssuePage />}
+            />
+          )}
           <Route path={ROUTES.ISSUE_DETAILS} element={<IssueDetailsPage />} />
-
           <Route path={ROUTES.EDIT_ISSUE} element={<EditIssuePage />} />
 
-          {/* ==================================================
-              ACTIVITY
-          ================================================== */}
-
+          {/* Activity */}
           <Route path={ROUTES.ACTIVITY} element={<ActivityFeedPage />} />
 
-          {/* ==================================================
-              MEETINGS
-          ================================================== */}
-
-          {/* Global meeting list */}
+          {/* Meetings */}
           <Route path={ROUTES.MEETINGS} element={<MeetingListPage />} />
-
-          {/* Global meeting creation */}
           <Route
-            path={ROUTES.CREATE_MEETING_GLOBAL}
+            path={ROUTES.CREATE_MEETING_GLOBAL || "/meetings/create"}
             element={<CreateMeetingPage />}
           />
-
-          {/* Project meeting list */}
-          <Route path={ROUTES.PROJECT_MEETINGS} element={<MeetingListPage />} />
-
-          {/* Project meeting creation */}
-          <Route path={ROUTES.CREATE_MEETING} element={<CreateMeetingPage />} />
-
-          {/* Meeting details */}
+          {ROUTES.PROJECT_MEETINGS && (
+            <Route
+              path={ROUTES.PROJECT_MEETINGS}
+              element={<MeetingListPage />}
+            />
+          )}
+          {ROUTES.CREATE_MEETING && (
+            <Route
+              path={ROUTES.CREATE_MEETING}
+              element={<CreateMeetingPage />}
+            />
+          )}
           <Route
             path={ROUTES.MEETING_DETAILS}
             element={<MeetingDetailsPage />}
           />
 
-          {/* ==================================================
-              PROJECT AI
-          ================================================== */}
+          {/* AI */}
+          {ROUTES.PROJECT_AI && (
+            <Route path={ROUTES.PROJECT_AI} element={<AIPage />} />
+          )}
 
-          <Route path={ROUTES.PROJECT_AI} element={<AIPage />} />
-
-          {/* ==================================================
-              SETTINGS
-          ================================================== */}
-
+          {/* Settings */}
           <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
         </Route>
       </Route>
 
       {/* ======================================================
-          FALLBACK
+          FALLBACK ROUTE
       ====================================================== */}
-
-      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={ROUTES.LOGIN || "/login"} replace />}
+      />
     </Routes>
   );
 };

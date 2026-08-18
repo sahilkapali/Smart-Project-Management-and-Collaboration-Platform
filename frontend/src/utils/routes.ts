@@ -2,7 +2,6 @@ export const ROUTES = {
   // ============================================================
   // PUBLIC / AUTHENTICATION
   // ============================================================
-
   HOME: "/",
   LOGIN: "/login",
   REGISTER: "/register",
@@ -12,49 +11,44 @@ export const ROUTES = {
   // ============================================================
   // USER / PROFILE
   // ============================================================
-
   PROFILE: "/profile",
   EDIT_PROFILE: "/profile/edit",
   CHANGE_PASSWORD: "/profile/change-password",
 
   // ============================================================
-  // DASHBOARD
+  // DASHBOARD & CALENDAR
   // ============================================================
-
   DASHBOARD: "/dashboard",
+  CALENDAR: "/calendar",
 
   // ============================================================
   // PROJECTS
   // ============================================================
-
   PROJECTS: "/projects",
   PROJECT_DETAILS: "/projects/:projectId",
 
   // ============================================================
   // TASKS
   // ============================================================
-
   TASKS: "/tasks",
   PROJECT_TASKS: "/projects/:projectId/tasks",
 
   // ============================================================
   // TEAMS
   // ============================================================
-
   TEAMS: "/teams",
 
   // ============================================================
   // REPOSITORY
   // ============================================================
-
   REPOSITORY: "/repository",
   REPOSITORY_DETAILS: "/repository/:id",
-  REPOSITORY_HISTORY: "/repository/:id/history",
+  REPOSITORY_HISTORY: "/repository/:id/versions",
+  REPOSITORY_VERSIONS: "/repository/:id/versions",
 
   // ============================================================
   // ISSUES
   // ============================================================
-
   ISSUES: "/issues",
   CREATE_ISSUE: "/issues/create",
   CREATE_ISSUE_NEW: "/issues/new",
@@ -64,49 +58,23 @@ export const ROUTES = {
   // ============================================================
   // MEETINGS
   // ============================================================
-
-  // Global meetings page
   MEETINGS: "/meetings",
-
-  // Global create meeting
   CREATE_MEETING_GLOBAL: "/meetings/create",
-
-  // Meetings belonging to a project
   PROJECT_MEETINGS: "/projects/:projectId/meetings",
-
-  // Create meeting for a specific project
   CREATE_MEETING: "/projects/:projectId/meetings/create",
-
-  // Meeting details
   MEETING_DETAILS: "/meetings/:id",
 
   // ============================================================
-  // AI
+  // AI, NOTIFICATIONS, ACTIVITY, REPORTS
   // ============================================================
-
   PROJECT_AI: "/projects/:projectId/ai",
-
-  // ============================================================
-  // NOTIFICATIONS
-  // ============================================================
-
   NOTIFICATIONS: "/notifications",
-
-  // ============================================================
-  // ACTIVITY
-  // ============================================================
-
   ACTIVITY: "/activity",
-
-  // ============================================================
-  // REPORTS
-  // ============================================================
-
   REPORTS: "/reports",
 
   // ============================================================
-  // SETTINGS
+  // ADMIN & SETTINGS
   // ============================================================
-
+  ADMIN_USERS: "/admin/users",
   SETTINGS: "/settings",
 } as const;

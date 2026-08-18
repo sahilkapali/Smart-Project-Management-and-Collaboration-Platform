@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
 import {
   Alert,
   Box,
@@ -9,7 +11,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
+  Stack,
   TextField,
+  Typography,
 } from "@mui/material";
 
 import toast from "react-hot-toast";
@@ -25,7 +30,7 @@ interface EditRepositoryModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void | Promise<void>;
-  repository: Repository;
+  repository: Repository | null;
 }
 
 const EditRepositoryModal = ({
@@ -34,13 +39,25 @@ const EditRepositoryModal = ({
   onSuccess,
   repository,
 }: EditRepositoryModalProps) => {
+  // ============================================================
+  // FORM STATE
+  // ============================================================
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
 
+  // ============================================================
+  // GENERAL STATE
+  // ============================================================
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Safely resolve ID across standard and transformed interfaces
+  const repoId = repository?._id || (repository as any)?.id || "";
+
+  // ============================================================
+  // PREFILL FORM DATA
+  // ============================================================
   useEffect(() => {
     if (!open || !repository) return;
 
@@ -50,6 +67,9 @@ const EditRepositoryModal = ({
     setError("");
   }, [open, repository]);
 
+  // ============================================================
+  // CLOSE MODAL
+  // ============================================================
   const handleClose = () => {
     if (loading) return;
 
@@ -57,6 +77,9 @@ const EditRepositoryModal = ({
     onClose();
   };
 
+  // ============================================================
+  // SUBMIT HANDLER
+  // ============================================================
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     const trimmedDescription = description.trim();
@@ -67,7 +90,7 @@ const EditRepositoryModal = ({
       return;
     }
 
-    if (!repository?._id) {
+    if (!repoId) {
       setError("Repository ID is missing.");
       return;
     }
@@ -82,12 +105,10 @@ const EditRepositoryModal = ({
         githubUrl: trimmedGithubUrl || undefined,
       };
 
-      await updateRepository(repository._id, payload);
+      await updateRepository(repoId, payload);
 
       toast.success("Repository updated successfully.");
-
       await onSuccess();
-
       onClose();
     } catch (err: any) {
       console.error("Failed to update repository:", err);
@@ -105,58 +126,100 @@ const EditRepositoryModal = ({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontWeight: 700 }}>Edit Repository</DialogTitle>
-
-      <DialogContent>
-        <Box
-          sx={{
-            pt: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: { borderRadius: 3 },
+      }}
+    >
+      {/* DIALOG HEADER */}
+      <DialogTitle sx={{ m: 0, p: 2, px: 3 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
         >
-          {error && <Alert severity="error">{error}</Alert>}
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <EditIcon sx={{ color: "#5e35b1" }} />
+            <Typography variant="h6" fontWeight={700}>
+              Edit Repository
+            </Typography>
+          </Stack>
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            disabled={loading}
+            sx={{ color: (theme) => theme.palette.grey[500] }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
 
+      {/* DIALOG CONTENT */}
+      <DialogContent dividers sx={{ p: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+          {error && (
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* REPOSITORY NAME */}
           <TextField
             label="Repository Name"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError("");
+            }}
             fullWidth
             required
             autoFocus
             disabled={loading}
+            placeholder="e.g. backend-api"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
 
+          {/* DESCRIPTION */}
           <TextField
             label="Description"
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(e) => setDescription(e.target.value)}
             fullWidth
             multiline
             minRows={3}
             disabled={loading}
+            placeholder="Brief description of this repository"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
 
+          {/* GITHUB URL */}
           <TextField
             label="GitHub URL"
             value={githubUrl}
-            onChange={(event) => setGithubUrl(event.target.value)}
+            onChange={(e) => setGithubUrl(e.target.value)}
             fullWidth
             disabled={loading}
             type="url"
-            placeholder="https://github.com/username/repository"
+            placeholder="https://github.com/organization/repository"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      {/* DIALOG ACTIONS */}
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button
           onClick={handleClose}
           disabled={loading}
           sx={{
             textTransform: "none",
+            color: "text.secondary",
+            borderRadius: 2,
           }}
         >
           Cancel
@@ -167,15 +230,19 @@ const EditRepositoryModal = ({
           onClick={handleSubmit}
           disabled={loading || !name.trim()}
           sx={{
+            bgcolor: "#5e35b1",
             textTransform: "none",
             fontWeight: 600,
+            borderRadius: 2,
+            px: 3,
+            "&:hover": { bgcolor: "#4527a0" },
           }}
         >
           {loading ? (
-            <>
-              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-              Saving...
-            </>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <CircularProgress size={18} color="inherit" />
+              <span>Saving...</span>
+            </Stack>
           ) : (
             "Save Changes"
           )}

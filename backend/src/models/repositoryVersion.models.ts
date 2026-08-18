@@ -1,16 +1,5 @@
-import mongoose, { Schema, Document } from "mongoose";
-
-export interface IRepositoryVersion extends Document {
-  repository: mongoose.Types.ObjectId;
-  versionNumber: string;
-  title: string;
-  changelog?: string;
-  commitHash?: string;
-  file?: string;
-  uploadedBy: mongoose.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Schema, model } from "mongoose";
+import { IRepositoryVersion } from "../types/repository.types";
 
 const repositoryVersionSchema = new Schema<IRepositoryVersion>(
   {
@@ -49,7 +38,7 @@ const repositoryVersionSchema = new Schema<IRepositoryVersion>(
       maxlength: 100,
     },
 
-    file: {
+    archiveUrl: {
       type: String,
       default: "",
     },
@@ -75,9 +64,6 @@ repositoryVersionSchema.index(
   },
 );
 
-const RepositoryVersion = mongoose.model<IRepositoryVersion>(
-  "RepositoryVersion",
-  repositoryVersionSchema,
-);
+const RepositoryVersion = model("RepositoryVersion", repositoryVersionSchema);
 
 export default RepositoryVersion;

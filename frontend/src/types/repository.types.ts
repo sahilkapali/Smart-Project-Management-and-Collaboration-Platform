@@ -6,11 +6,13 @@ import type { User } from "./user.types";
 
 export interface Repository {
   _id: string;
+  id?: string;
 
   project:
     | string
     | {
         _id: string;
+        id?: string;
         name: string;
         description?: string;
       };
@@ -26,6 +28,7 @@ export interface Repository {
     | User
     | {
         _id: string;
+        id?: string;
         name: string;
         email: string;
         avatar?: string;
@@ -37,7 +40,7 @@ export interface Repository {
 }
 
 // ============================================================
-// CREATE REPOSITORY
+// CREATE & UPDATE REPOSITORY REQUESTS
 // ============================================================
 
 export interface CreateRepositoryRequest {
@@ -47,15 +50,7 @@ export interface CreateRepositoryRequest {
   githubUrl?: string;
 }
 
-/*
- * Backward-compatible name used by
- * CreateRepositoryModal.tsx
- */
 export type CreateRepositoryPayload = CreateRepositoryRequest;
-
-// ============================================================
-// UPDATE REPOSITORY
-// ============================================================
 
 export interface UpdateRepositoryRequest {
   name?: string;
@@ -63,10 +58,6 @@ export interface UpdateRepositoryRequest {
   githubUrl?: string;
 }
 
-/*
- * Backward-compatible name used by
- * EditRepositoryModal.tsx
- */
 export type UpdateRepositoryPayload = UpdateRepositoryRequest;
 
 // ============================================================
@@ -75,6 +66,7 @@ export type UpdateRepositoryPayload = UpdateRepositoryRequest;
 
 export interface RepositoryVersion {
   _id: string;
+  id?: string;
 
   repository: string | Repository;
 
@@ -86,13 +78,16 @@ export interface RepositoryVersion {
 
   commitHash?: string;
 
+  archiveUrl?: string;
+
   file?: string;
 
-  uploadedBy:
+  uploadedBy?:
     | string
     | User
     | {
         _id: string;
+        id?: string;
         name: string;
         email: string;
         avatar?: string;
@@ -102,10 +97,6 @@ export interface RepositoryVersion {
 
   updatedAt: string;
 }
-
-// ============================================================
-// CREATE VERSION REQUEST
-// ============================================================
 
 export interface CreateRepositoryVersionRequest {
   repositoryId: string;
@@ -119,11 +110,19 @@ export interface CreateRepositoryVersionRequest {
   commitHash?: string;
 
   file?: File;
+
+  archiveUrl?: string;
 }
 
-// ============================================================
-// UPLOAD VERSION MODAL PROPS
-// ============================================================
+export interface UpdateRepositoryVersionRequest {
+  title?: string;
+
+  changelog?: string;
+
+  commitHash?: string;
+
+  archiveUrl?: string;
+}
 
 export interface UploadVersionModalProps {
   open: boolean;
@@ -132,11 +131,91 @@ export interface UploadVersionModalProps {
 
   repositoryId: string;
 
-  onSuccess?: (version: RepositoryVersion) => void;
+  onSuccess?: (version: RepositoryVersion) => void | Promise<void>;
 }
 
 // ============================================================
-// REPOSITORY STATISTICS
+// REPOSITORY FILE & FOLDER
+// ============================================================
+
+export interface RepositoryFile {
+  _id: string;
+  id?: string;
+
+  repository: string;
+
+  version?: string;
+
+  uploadedBy?:
+    | string
+    | User
+    | {
+        _id: string;
+        id?: string;
+        name: string;
+        email: string;
+        avatar?: string;
+      };
+
+  name: string;
+
+  path: string;
+
+  type: "file" | "folder";
+
+  size: number;
+
+  mimeType?: string;
+
+  url?: string;
+
+  content?: string;
+
+  isBinary?: boolean;
+
+  createdAt: string;
+
+  updatedAt: string;
+}
+
+export interface CreateRepositoryFileRequest {
+  repository: string;
+
+  version?: string;
+
+  name: string;
+
+  path: string;
+
+  type?: "file" | "folder";
+
+  size?: number;
+
+  mimeType?: string;
+
+  url?: string;
+
+  content?: string;
+
+  isBinary?: boolean;
+}
+
+export interface UpdateRepositoryFileRequest {
+  name?: string;
+
+  path?: string;
+
+  content?: string;
+
+  url?: string;
+
+  size?: number;
+
+  isBinary?: boolean;
+}
+
+// ============================================================
+// REPOSITORY STATISTICS & ISSUES
 // ============================================================
 
 export interface RepositoryStatistics {
@@ -155,36 +234,9 @@ export interface RepositoryStatistics {
   lastUpdated?: string;
 }
 
-// ============================================================
-// REPOSITORY FILE
-// ============================================================
-
-export interface RepositoryFile {
-  _id: string;
-
-  repository: string;
-
-  name: string;
-
-  path: string;
-
-  size: number;
-
-  url?: string;
-
-  mimeType?: string;
-
-  createdAt: string;
-
-  updatedAt: string;
-}
-
-// ============================================================
-// REPOSITORY ISSUE
-// ============================================================
-
 export interface RepositoryIssue {
   _id: string;
+  id?: string;
 
   repository: string;
 
