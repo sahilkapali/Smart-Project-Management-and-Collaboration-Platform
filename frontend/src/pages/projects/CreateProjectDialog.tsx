@@ -2,21 +2,17 @@ import { useEffect, useState } from "react";
 
 import {
   Alert,
-  Box,
   Button,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
-  IconButton,
+  DialogTitle,
   MenuItem,
   Slider,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
-
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
 import projectService from "../../services/project.service";
 
@@ -87,15 +83,19 @@ const CreateProjectDialog = ({
 
   const [projectName, setProjectName] = useState("");
 
-  const [description, setDescription] = useState("");
+  const [description, setDescription] =
+    useState("");
 
   const [status, setStatus] = useState<ProjectStatus>("PLANNING");
 
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] =
+    useState("");
 
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] =
+    useState("");
 
-  const [endDate, setEndDate] = useState("");
+  const [dueDate, setDueDate] =
+    useState("");
 
   const [progress, setProgress] = useState(0);
 
@@ -105,7 +105,8 @@ const CreateProjectDialog = ({
 
   const [loading, setLoading] = useState(false);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   // ==========================================================
   // RESET FORM
@@ -207,11 +208,17 @@ const CreateProjectDialog = ({
     const payload: CreateProjectPayload = {
       name: projectName.trim(),
 
-      description: description.trim(),
+      description:
+        description.trim(),
 
-      status,
+      status:
+        UI_TO_BACKEND_STATUS[
+          status
+        ],
 
-      teamId: teamId.trim(),
+      teamId:
+        teamId.trim(),
+    };
 
       progress,
 
@@ -221,12 +228,10 @@ const CreateProjectDialog = ({
           }
         : {}),
 
-      ...(endDate
-        ? {
-            endDate,
-          }
-        : {}),
-    };
+    if (dueDate) {
+      payload.dueDate =
+        dueDate;
+    }
 
     try {
       setLoading(true);
@@ -243,7 +248,7 @@ const CreateProjectDialog = ({
 
       resetForm();
 
-      onCreated?.();
+      onCreated();
 
       onClose();
     } catch (error: unknown) {
@@ -341,7 +346,7 @@ const CreateProjectDialog = ({
               severity="error"
               onClose={() => setError("")}
               sx={{
-                borderRadius: 2,
+                mb: 2,
               }}
             >
               {error}
@@ -440,8 +445,11 @@ const CreateProjectDialog = ({
               type="date"
               fullWidth
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              disabled={loading}
+              onChange={(event) =>
+                setStartDate(
+                  event.target.value,
+                )
+              }
               InputLabelProps={{
                 shrink: true,
               }}
@@ -453,9 +461,12 @@ const CreateProjectDialog = ({
               label="Project Deadline"
               type="date"
               fullWidth
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              disabled={loading}
+              value={dueDate}
+              onChange={(event) =>
+                setDueDate(
+                  event.target.value,
+                )
+              }
               InputLabelProps={{
                 shrink: true,
               }}
@@ -504,12 +515,14 @@ const CreateProjectDialog = ({
               BUTTONS
           ================================================== */}
 
-          <Stack
-            direction="row"
-            justifyContent="flex-end"
-            spacing={1.5}
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
             sx={{
-              pt: 1,
+              textTransform:
+                "none",
+              fontWeight: 700,
             }}
           >
             <Button

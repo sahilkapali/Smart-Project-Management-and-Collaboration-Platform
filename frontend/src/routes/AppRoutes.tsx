@@ -1,17 +1,23 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-// ============================================================
-// AUTH PAGES
-// ============================================================
+/* =========================================================
+   AUTH
+========================================================= */
 
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
-// ============================================================
-// MAIN PAGES
-// ============================================================
+/* =========================================================
+   MAIN LAYOUT
+========================================================= */
+
+import MainLayout from "../layouts/MainLayout";
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 import Dashboard from "../pages/dashboard/Dashboard";
 
@@ -62,56 +68,58 @@ import RepositoryPage from "../pages/repository/RepositoryPage";
 import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
 import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
 
-// ============================================================
-// ISSUES
-// ============================================================
+/* =========================================================
+   TASKS
 
-import IssuesPage from "../pages/issues/Issues";
-import CreateIssuePage from "../pages/issues/CreateIssuePage";
-import IssueDetailsPage from "../pages/issues/IssueDetailsPage";
-import EditIssuePage from "../pages/issues/EditIssuePage";
+import Tasks from "../pages/tasks/Tasks";
 
 // ============================================================
 // ACTIVITY
 // ============================================================
 
-import ActivityFeedPage from "../pages/activity/ActivityFeedPage";
+import Teams from "../pages/teams/Teams";
 
-// ============================================================
-// MEETINGS
-// ============================================================
+/* =========================================================
+   MEETINGS
+========================================================= */
 
 import MeetingListPage from "../pages/meetings/MeetingListPage";
 import CreateMeetingPage from "../pages/meetings/CreateMeetingPage";
 import MeetingDetailsPage from "../pages/meetings/MeetingDetailsPage";
 
-// ============================================================
-// AI
-// ============================================================
+/* =========================================================
+   AI
+========================================================= */
 
 import AIPage from "../pages/ai/AIPage";
 
-// ============================================================
-// SETTINGS
-// ============================================================
+/* =========================================================
+   NOTIFICATIONS
+========================================================= */
 
-import SettingsPage from "../pages/settings/SettingsPage";
+import NotificationsPage from "../pages/notification/NotificationsPage";
 
-// ============================================================
-// AUTH GUARD
-// ============================================================
+/* =========================================================
+   REPOSITORY
+========================================================= */
 
 import ProtectedRoute from "../components/ProtectedRoute";
 
-// ============================================================
-// MAIN LAYOUT
-// ============================================================
+/* =========================================================
+   SETTINGS
+========================================================= */
 
-import MainLayout from "../layouts/MainLayout";
+import SettingsPage from "../pages/settings/SettingsPage";
 
-// ============================================================
-// ROUTE CONSTANTS
-// ============================================================
+/* =========================================================
+   AUTH GUARD
+========================================================= */
+
+import ProtectedRoute from "../components/auth/ProtectedRoute";
+
+/* =========================================================
+   ROUTES CONSTANTS
+========================================================= */
 
 import { ROUTES } from "../utils/routes";
 
@@ -128,16 +136,34 @@ const AppRoutes = () => {
 
       <Route
         path={ROUTES.HOME}
-        element={<Navigate to={ROUTES.LOGIN} replace />}
+        element={
+          <Navigate
+            to={ROUTES.LOGIN}
+            replace
+          />
+        }
       />
 
-      <Route path={ROUTES.LOGIN} element={<Login />} />
+      <Route
+        path={ROUTES.LOGIN}
+        element={<Login />}
+      />
 
-      <Route path={ROUTES.REGISTER} element={<Register />} />
+      <Route
+        path={ROUTES.REGISTER}
+        element={<Register />}
+      />
 
-      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+      <Route
+        path={ROUTES.FORGOT_PASSWORD}
+        element={<ForgotPassword />}
+      />
 
-      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+      <Route
+        path={ROUTES.RESET_PASSWORD}
+        element={<ResetPassword />}
+      />
+
 
       {/* ======================================================
           PROTECTED APPLICATION
@@ -171,17 +197,6 @@ const AppRoutes = () => {
 
           {/* ==================================================
     PROJECTS
-================================================== */}
-
-          <Route path={ROUTES.PROJECTS} element={<Projects />} />
-
-          <Route path={ROUTES.PROJECT_DETAILS} element={<ProjectDetails />} />
-
-          {/* ==================================================
-    TASKS
-================================================== */}
-
-          <Route path={ROUTES.TASKS} element={<Tasks />} />
 
           {/* ==================================================
               TEAMS
@@ -271,9 +286,23 @@ const AppRoutes = () => {
           FALLBACK
       ====================================================== */}
 
-      <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
+      {/* =====================================================
+          FALLBACK
+      ===================================================== */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={ROUTES.LOGIN}
+            replace
+          />
+        }
+      />
+
     </Routes>
   );
 };
+
 
 export default AppRoutes;

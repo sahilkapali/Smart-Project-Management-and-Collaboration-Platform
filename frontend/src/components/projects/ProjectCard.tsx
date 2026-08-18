@@ -170,6 +170,12 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
   // RENDER
   // ==========================================================
 
+  /*
+   * ============================================================
+   * PROJECT CARD
+   * ============================================================
+   */
+
   return (
     <Paper
       elevation={0}
@@ -196,6 +202,12 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
           transform: "translateY(-2px)",
 
           boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
+        },
+
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
         },
 
         "&:focus-visible": {
@@ -272,7 +284,12 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
             <MoreVertRoundedIcon fontSize="small" />
           </IconButton>
 
+          {/* =================================================
+              MENU
+          ================================================= */}
+
           <Menu
+            id={`project-menu-${project.id}`}
             anchorEl={anchorEl}
             open={menuOpen}
             onClose={handleCloseMenu}
@@ -472,9 +489,10 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
               color: "text.secondary",
             }}
           >
-            {project.id}
+            {project.id || "No available data"}
           </Typography>
         </Box>
+
       </Stack>
     </Paper>
   );

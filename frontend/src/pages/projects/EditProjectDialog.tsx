@@ -313,8 +313,8 @@ const EditProjectDialog = ({
 
             <TextField
               label="Project Name"
-              fullWidth
               required
+              fullWidth
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={loading}
@@ -491,7 +491,9 @@ const EditProjectDialog = ({
               borderRadius: 2,
             }}
           >
-            {loading ? "Saving..." : "Save Changes"}
+            {loading
+              ? "Saving..."
+              : "Save Changes"}
           </Button>
         </DialogActions>
       </Box>

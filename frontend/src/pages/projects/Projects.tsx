@@ -26,11 +26,13 @@ import {
 } from "@mui/material";
 
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+
+import { useNavigate } from "react-router-dom";
 
 import projectService from "../../services/project.service";
 import type { Project } from "../../types/project.types";
@@ -135,7 +137,7 @@ const Projects = () => {
   // ============================================================
 
   useEffect(() => {
-    void loadProjects();
+    loadProjects();
   }, [loadProjects]);
 
   // ============================================================
@@ -195,8 +197,10 @@ const Projects = () => {
         return 100;
 
       case "IN_PROGRESS":
-      case "ACTIVE":
         return 50;
+
+      case "ACTIVE":
+        return 75;
 
       case "PENDING":
         return 0;
@@ -229,10 +233,9 @@ const Projects = () => {
     setAnchorEl(null);
   };
 
-  // ============================================================
-  // EDIT PROJECT
-  // ============================================================
-
+  /*
+   * EDIT
+   */
   const handleEditClick = () => {
     handleMenuClose();
 
@@ -250,10 +253,9 @@ const Projects = () => {
     setEditOpen(true);
   };
 
-  // ============================================================
-  // DELETE PROJECT
-  // ============================================================
-
+  /*
+   * DELETE
+   */
   const handleDeleteClick = () => {
     handleMenuClose();
 
@@ -352,14 +354,17 @@ const Projects = () => {
   return (
     <Box
       sx={{
-        width: "100%",
-        maxWidth: 1400,
-        mx: "auto",
+        minHeight: "100vh",
+        bgcolor:
+          "background.default",
+        p: {
+          xs: 2,
+          sm: 3,
+          md: 4,
+        },
       }}
     >
-      {/* ======================================================
-          HEADER
-      ======================================================= */}
+      {/* HEADER */}
 
       <Stack
         direction={{
@@ -382,10 +387,8 @@ const Projects = () => {
               fontSize: {
                 xs: "1.8rem",
                 sm: "2.2rem",
-                md: "2.4rem",
               },
               fontWeight: 700,
-              lineHeight: 1.2,
             }}
           >
             Projects
@@ -393,23 +396,24 @@ const Projects = () => {
 
           <Typography
             color="text.secondary"
-            sx={{
-              mt: 0.5,
-            }}
           >
-            Manage and track all your projects
+            Manage and track all
+            your projects
           </Typography>
         </Box>
 
-        {/* NEW PROJECT */}
-
         <Button
           variant="contained"
-          startIcon={<AddRoundedIcon />}
-          onClick={() => setCreateOpen(true)}
+          startIcon={
+            <AddRoundedIcon />
+          }
+          onClick={() =>
+            setCreateOpen(true)
+          }
           sx={{
             borderRadius: 2,
-            textTransform: "none",
+            textTransform:
+              "none",
             fontWeight: 700,
             px: 2.5,
           }}
@@ -418,9 +422,7 @@ const Projects = () => {
         </Button>
       </Stack>
 
-      {/* ======================================================
-          SEARCH + FILTER
-      ======================================================= */}
+      {/* SEARCH + FILTER */}
 
       <Stack
         direction={{
@@ -433,21 +435,24 @@ const Projects = () => {
         }}
       >
         <TextField
-          fullWidth
           placeholder="Search projects..."
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) =>
+            setSearch(
+              event.target.value,
+            )
+          }
           size="small"
           sx={{
-            maxWidth: {
+            width: {
               xs: "100%",
-              sm: 360,
+              sm: 480,
             },
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchRoundedIcon fontSize="small" />
+                <SearchRoundedIcon />
               </InputAdornment>
             ),
           }}
@@ -456,28 +461,42 @@ const Projects = () => {
         <Select
           size="small"
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
+          onChange={(event) =>
+            setStatusFilter(
+              event.target.value,
+            )
+          }
           sx={{
-            minWidth: 150,
+            minWidth: 190,
           }}
         >
-          <MenuItem value="ALL">All</MenuItem>
+          <MenuItem value="ALL">
+            All
+          </MenuItem>
 
-          <MenuItem value="PENDING">Pending</MenuItem>
+          <MenuItem value="PENDING">
+            Pending
+          </MenuItem>
 
-          <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+          <MenuItem value="IN_PROGRESS">
+            In Progress
+          </MenuItem>
 
-          <MenuItem value="ACTIVE">Active</MenuItem>
+          <MenuItem value="ACTIVE">
+            Active
+          </MenuItem>
 
-          <MenuItem value="COMPLETED">Completed</MenuItem>
+          <MenuItem value="COMPLETED">
+            Completed
+          </MenuItem>
 
-          <MenuItem value="CANCELLED">Cancelled</MenuItem>
+          <MenuItem value="CANCELLED">
+            Cancelled
+          </MenuItem>
         </Select>
       </Stack>
 
-      {/* ======================================================
-          ERROR
-      ======================================================= */}
+      {/* ERROR */}
 
       {error && (
         <Alert
@@ -486,71 +505,65 @@ const Projects = () => {
             mb: 3,
             borderRadius: 2,
           }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => void loadProjects()}
-            >
-              Retry
-            </Button>
-          }
         >
           {error}
         </Alert>
       )}
 
-      {/* ======================================================
-          LOADING
-      ======================================================= */}
+      {/* LOADING */}
 
       {loading ? (
         <Box
           sx={{
-            minHeight: 350,
+            minHeight: 300,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent:
+              "center",
           }}
         >
-          <Stack alignItems="center" spacing={2}>
-            <CircularProgress />
-
-            <Typography color="text.secondary">Loading projects...</Typography>
-          </Stack>
+          <CircularProgress />
         </Box>
-      ) : filteredProjects.length === 0 ? (
-        /* ====================================================
-           EMPTY STATE
-        ===================================================== */
+      ) : filteredProjects.length ===
+        0 ? (
+        /* EMPTY */
 
         <Card
           elevation={0}
           sx={{
-            border: "1px solid",
-            borderColor: "divider",
+            border:
+              "1px solid",
+            borderColor:
+              "divider",
             borderRadius: 3,
           }}
         >
           <CardContent
             sx={{
-              minHeight: 350,
+              minHeight: 300,
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection:
+                "column",
+              alignItems:
+                "center",
+              justifyContent:
+                "center",
               textAlign: "center",
             }}
           >
             <FolderRoundedIcon
               sx={{
-                fontSize: 60,
-                color: "text.secondary",
-                mb: 1.5,
+                fontSize: 55,
+                color:
+                  "text.secondary",
+                mb: 1,
               }}
             />
 
-            <Typography variant="h6" fontWeight={700}>
+            <Typography
+              variant="h6"
+              fontWeight={700}
+            >
               No projects available
             </Typography>
 
@@ -560,31 +573,13 @@ const Projects = () => {
                 mt: 0.5,
               }}
             >
-              {search || statusFilter !== "ALL"
-                ? "No projects match your current filters."
-                : "Create a project to get started."}
+              Create a project
+              to get started.
             </Typography>
-
-            {!search && statusFilter === "ALL" && (
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => setCreateOpen(true)}
-                sx={{
-                  mt: 2,
-                  textTransform: "none",
-                  borderRadius: 2,
-                }}
-              >
-                Create Project
-              </Button>
-            )}
           </CardContent>
         </Card>
       ) : (
-        /* ====================================================
-           PROJECT CARDS
-        ===================================================== */
+        /* PROJECT CARDS */
 
         <Box
           sx={{
@@ -629,17 +624,12 @@ const Projects = () => {
                   >
                     <Box
                       sx={{
-                        minWidth: 0,
-                        flex: 1,
+                        mt: 2,
                       }}
                     >
-                      <Typography fontWeight={700} fontSize={17} noWrap>
-                        {project.name || "Untitled Project"}
-                      </Typography>
-
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
                         sx={{
                           mt: 0.5,
                           display: "-webkit-box",
@@ -649,8 +639,31 @@ const Projects = () => {
                           minHeight: 40,
                         }}
                       >
-                        {project.description || "No description available."}
-                      </Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                        >
+                          Progress
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                        >
+                          {progress}%
+                        </Typography>
+                      </Stack>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          progress
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 5,
+                        }}
+                      />
                     </Box>
 
                     {/* MENU BUTTON */}
@@ -674,16 +687,25 @@ const Projects = () => {
                     <Stack
                       direction="row"
                       justifyContent="space-between"
+                      alignItems="center"
                       sx={{
-                        mb: 0.7,
+                        mt: 2,
                       }}
                     >
-                      <Typography variant="body2" fontWeight={600}>
-                        Progress
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        Status
                       </Typography>
 
-                      <Typography variant="body2" fontWeight={700}>
-                        {progress}%
+                      <Typography
+                        variant="body2"
+                        fontWeight={600}
+                      >
+                        {getStatusLabel(
+                          project.status,
+                        )}
                       </Typography>
                     </Stack>
 
@@ -755,34 +777,67 @@ const Projects = () => {
                       P
                     </Avatar>
 
-                    <Avatar
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        fontSize: 12,
-                        border: 2,
-                        borderColor: "background.paper",
-                      }}
-                    >
-                      M
-                    </Avatar>
+                    {project.teamId && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display:
+                            "block",
+                          mt: 1,
+                        }}
+                      >
+                        Team:{" "}
+                        {
+                          project.teamId
+                        }
+                      </Typography>
+                    )}
 
-                    <Avatar
+                    {/* AVATARS */}
+
+                    <Stack
+                      direction="row"
+                      spacing={-0.8}
                       sx={{
-                        width: 30,
-                        height: 30,
-                        fontSize: 12,
-                        border: 2,
-                        borderColor: "background.paper",
+                        mt: 2,
                       }}
                     >
-                      T
-                    </Avatar>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        P
+                      </Avatar>
+
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        M
+                      </Avatar>
+
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          fontSize: 12,
+                        }}
+                      >
+                        T
+                      </Avatar>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            },
+          )}
         </Box>
       )}
 
@@ -793,7 +848,9 @@ const Projects = () => {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        onClose={
+          handleMenuClose
+        }
         transformOrigin={{
           horizontal: "right",
           vertical: "top",
@@ -814,7 +871,9 @@ const Projects = () => {
         {/* EDIT */}
 
         <MenuItem
-          onClick={handleEditClick}
+          onClick={
+            handleEditClick
+          }
           sx={{
             py: 1,
           }}
@@ -823,11 +882,15 @@ const Projects = () => {
             fontSize="small"
             sx={{
               mr: 1.5,
-              color: "text.secondary",
+              color:
+                "text.secondary",
             }}
           />
 
-          <Typography variant="body2" fontWeight={500}>
+          <Typography
+            variant="body2"
+            fontWeight={500}
+          >
             Edit
           </Typography>
         </MenuItem>
@@ -835,7 +898,9 @@ const Projects = () => {
         {/* DELETE */}
 
         <MenuItem
-          onClick={handleDeleteClick}
+          onClick={
+            handleDeleteClick
+          }
           sx={{
             py: 1,
             color: "error.main",
@@ -848,7 +913,10 @@ const Projects = () => {
             }}
           />
 
-          <Typography variant="body2" fontWeight={500}>
+          <Typography
+            variant="body2"
+            fontWeight={500}
+          >
             Delete
           </Typography>
         </MenuItem>
@@ -859,8 +927,14 @@ const Projects = () => {
       ======================================================= */}
 
       <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        open={
+          deleteDialogOpen
+        }
+        onClose={() =>
+          setDeleteDialogOpen(
+            false,
+          )
+        }
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -868,12 +942,26 @@ const Projects = () => {
           },
         }}
       >
-        <DialogTitle fontWeight={700}>Delete Project?</DialogTitle>
+        <DialogTitle
+          fontWeight={700}
+        >
+          Delete Project?
+        </DialogTitle>
 
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete{" "}
-            <strong>{selectedProject?.name}</strong>? This action cannot be
+            Are you sure you want
+            to delete{" "}
+            <b>
+              {
+                selectedProject?.name
+              }
+            </b>
+            ?
+
+            <br />
+
+            This action cannot be
             undone.
           </DialogContentText>
         </DialogContent>
@@ -885,10 +973,15 @@ const Projects = () => {
           }}
         >
           <Button
-            onClick={() => setDeleteDialogOpen(false)}
+            onClick={() =>
+              setDeleteDialogOpen(
+                false,
+              )
+            }
             color="inherit"
             sx={{
-              textTransform: "none",
+              textTransform:
+                "none",
               fontWeight: 600,
             }}
           >
@@ -896,12 +989,15 @@ const Projects = () => {
           </Button>
 
           <Button
-            onClick={() => void handleDeleteConfirm()}
+            onClick={
+              handleDeleteConfirm
+            }
             color="error"
             variant="contained"
             disableElevation
             sx={{
-              textTransform: "none",
+              textTransform:
+                "none",
               fontWeight: 600,
               borderRadius: 2,
             }}
@@ -911,9 +1007,7 @@ const Projects = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ======================================================
-          CREATE PROJECT DIALOG
-      ======================================================= */}
+      {/* CREATE */}
 
       <CreateProjectDialog
         open={createOpen}
@@ -921,16 +1015,20 @@ const Projects = () => {
         onCreated={loadProjects}
       />
 
-      {/* ======================================================
-          EDIT PROJECT DIALOG
-      ======================================================= */}
+      {/* EDIT */}
 
       {selectedProject && (
         <EditProjectDialog
           open={editOpen}
-          project={selectedProject}
-          onClose={handleEditClose}
-          onUpdated={loadProjects}
+          project={
+            selectedProject
+          }
+          onClose={() =>
+            setEditOpen(false)
+          }
+          onUpdated={
+            loadProjects
+          }
         />
       )}
     </Box>

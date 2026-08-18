@@ -20,6 +20,10 @@ export interface Project {
   createdAt?: string;
 
   updatedAt?: string;
+
+  members?: any[];
+
+  createdBy?: any;
 }
 
 export interface CreateProjectPayload {
