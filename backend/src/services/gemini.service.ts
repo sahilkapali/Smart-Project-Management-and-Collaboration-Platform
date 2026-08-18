@@ -1,58 +1,47 @@
-import { gemini } from '../config/gemini';
+import { gemini } from "../config/gemini";
 
 // =====================================================
 // GEMINI MODEL
 // =====================================================
 
-const MODEL_NAME = 'gemini-3.1-flash-lite';
-
+const MODEL_NAME = "gemini-3.1-flash-lite";
 
 // =====================================================
 // TYPES
 // =====================================================
 
-export type TaskPriority =
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'critical';
-
+export type TaskPriority = "low" | "medium" | "high" | "critical";
 
 // =====================================================
 // GENERIC GEMINI GENERATION
 // =====================================================
 
-export const generateAIResponse = async (
-  prompt: string
-): Promise<string> => {
-
+export const generateAIResponse = async (prompt: string): Promise<string> => {
   if (!prompt.trim()) {
-    throw new Error('AI prompt cannot be empty');
+    throw new Error("AI prompt cannot be empty");
   }
 
   const response = await gemini.models.generateContent({
     model: MODEL_NAME,
-    contents: prompt
+    contents: prompt,
   });
 
   const text = response.text;
 
   if (!text) {
-    throw new Error('Gemini returned an empty response');
+    throw new Error("Gemini returned an empty response");
   }
 
   return text.trim();
 };
-
 
 // =====================================================
 // GENERAL PROJECT INSIGHT
 // =====================================================
 
 export const generateProjectInsight = async (
-  projectContext: string
+  projectContext: string,
 ): Promise<string> => {
-
   const prompt = `
 You are an AI project management assistant.
 
@@ -74,15 +63,56 @@ Keep the response practical and concise.
   return generateAIResponse(prompt);
 };
 
+// =====================================================
+// AI PROJECT REPORT SUMMARY
+// =====================================================
+
+export const generateProjectReportSummary = async (
+  reportContext: string,
+): Promise<string> => {
+  const prompt = `
+You are an AI project management assistant.
+
+Analyze the following project report data and generate a concise executive
+summary for a project manager.
+
+Project report:
+${reportContext}
+
+Your response MUST contain these sections:
+
+Overall Summary:
+Write 2-4 sentences describing the current state of the project.
+
+Task Progress:
+Explain how the project is progressing based on the task statistics.
+Mention the completion percentage.
+
+Issue Status:
+Explain the current issue situation.
+Mention the number of open, in-progress, and resolved issues.
+
+Risks and Concerns:
+Identify important risks or concerns based ONLY on the supplied data.
+Do not invent information.
+
+Recommended Actions:
+Provide 3-5 practical actions the project manager should consider.
+
+Keep the language professional, concise, and easy to understand.
+
+Do not mention that you are an AI.
+Do not invent project information.
+`;
+
+  return generateAIResponse(prompt);
+};
 
 // =====================================================
 // TASK PRIORITIZATION
 // =====================================================
 
-export const prioritizeTask = async (
-  taskContext: string
-): Promise<string> => {
-
+export const prioritizeTask = async (taskContext: string): Promise<string> => {
   const prompt = `
 You are an AI project management assistant.
 
@@ -103,16 +133,14 @@ Recommended action:
   return generateAIResponse(prompt);
 };
 
-
 // =====================================================
 // GENERATE TASK PRIORITY
 // Used by task.controller.ts
 // =====================================================
 
 export const generateTaskPriority = async (
-  taskContext: string
+  taskContext: string,
 ): Promise<TaskPriority> => {
-
   const prompt = `
 You are an AI project management assistant.
 
@@ -167,32 +195,30 @@ Do not use markdown.
   const priority = result
     .trim()
     .toLowerCase()
-    .replace(/[^a-z]/g, '');
+    .replace(/[^a-z]/g, "");
 
-  if (priority === 'critical') {
-    return 'critical';
+  if (priority === "critical") {
+    return "critical";
   }
 
-  if (priority === 'high') {
-    return 'high';
+  if (priority === "high") {
+    return "high";
   }
 
-  if (priority === 'medium') {
-    return 'medium';
+  if (priority === "medium") {
+    return "medium";
   }
 
-  return 'low';
+  return "low";
 };
-
 
 // =====================================================
 // MEETING SUMMARY
 // =====================================================
 
 export const generateMeetingSummary = async (
-  meetingText: string
+  meetingText: string,
 ): Promise<string> => {
-
   const prompt = `
 You are an AI meeting assistant.
 
@@ -219,15 +245,13 @@ Important Discussion Points:
   return generateAIResponse(prompt);
 };
 
-
 // =====================================================
 // ACTION ITEMS
 // =====================================================
 
 export const generateActionItems = async (
-  meetingText: string
+  meetingText: string,
 ): Promise<string> => {
-
   const prompt = `
 You are an AI project management assistant.
 

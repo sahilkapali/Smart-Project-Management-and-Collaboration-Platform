@@ -55,80 +55,99 @@ const navigationItems: NavigationItem[] = [
     path: ROUTES.DASHBOARD,
     icon: <DashboardRoundedIcon />,
   },
+
   {
     label: "Projects",
-    path: "/projects",
+    path: ROUTES.PROJECTS,
     icon: <FolderRoundedIcon />,
   },
+
   {
     label: "Tasks",
-    path: "/tasks",
+    path: ROUTES.TASKS,
     icon: <TaskAltRoundedIcon />,
   },
+
   {
     label: "Repositories",
-    path: "/repository",
+    path: ROUTES.REPOSITORY,
     icon: <CodeRoundedIcon />,
   },
+
   {
     label: "Issues",
-    path: "/issues",
+    path: ROUTES.ISSUES,
     icon: <BugReportRoundedIcon />,
   },
+
   {
     label: "Teams",
-    path: "/teams",
+    path: ROUTES.TEAMS,
     icon: <GroupsRoundedIcon />,
   },
+
   {
     label: "Meetings",
-    path: "/meetings",
+    path: ROUTES.MEETINGS,
     icon: <EventRoundedIcon />,
   },
+
   {
     label: "Activity Feed",
-    path: "/activity",
+    path: ROUTES.ACTIVITY,
     icon: <HistoryRoundedIcon />,
   },
+
   {
     label: "Reports",
-    path: "/reports",
+    path: ROUTES.REPORTS,
     icon: <AssessmentRoundedIcon />,
   },
+
   {
     label: "Calendar",
     path: "/calendar",
     icon: <CalendarMonthRoundedIcon />,
   },
+
   {
     label: "Notifications",
     path: ROUTES.NOTIFICATIONS,
     icon: <NotificationsRoundedIcon />,
   },
+
   {
     label: "User Management",
-    path: "/admin/users",
+    path: ROUTES.USERS,
     icon: <ManageAccountsRoundedIcon />,
     adminOnly: true,
   },
+
   {
     label: "Settings",
-    path: "/settings",
+    path: ROUTES.SETTINGS,
     icon: <SettingsRoundedIcon />,
   },
 ];
 
 const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
   const theme = useTheme();
+
   const navigate = useNavigate();
+
   const location = useLocation();
 
   const { user, logout } = useAuth();
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   const [loggingOut, setLoggingOut] = useState(false);
 
   const isDarkMode = theme.palette.mode === "dark";
+
+  // ============================================================
+  // COLORS
+  // ============================================================
 
   const sidebarTextColor = isDarkMode
     ? theme.palette.common.white
@@ -162,16 +181,20 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
     ? "rgba(255,255,255,0.18)"
     : "rgba(37,99,235,0.20)";
 
-  /*
-   * Keep this flexible because different backends may return
-   * role values using different casing.
-   */
+  // ============================================================
+  // USER ROLE
+  // ============================================================
+
   const userRole = String(user?.role ?? "").toUpperCase();
 
   const isAdmin =
     userRole === "ADMIN" ||
     userRole === "SUPER_ADMIN" ||
     userRole === "SUPERADMIN";
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -181,15 +204,41 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
     }
   };
 
+  // ============================================================
+  // ACTIVE ROUTE
+  // ============================================================
+
   const isActive = (path: string) => {
+    /*
+     * Dashboard should only be active on the exact
+     * dashboard route.
+     */
     if (path === ROUTES.DASHBOARD) {
       return location.pathname === ROUTES.DASHBOARD;
     }
 
+    /*
+     * Calendar uses a literal route because ROUTES.CALENDAR
+     * is not currently defined.
+     */
+    if (path === "/calendar") {
+      return (
+        location.pathname === "/calendar" ||
+        location.pathname.startsWith("/calendar/")
+      );
+    }
+
+    /*
+     * Normal nested route handling.
+     */
     return (
       location.pathname === path || location.pathname.startsWith(`${path}/`)
     );
   };
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -212,22 +261,39 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
       });
     } catch (error) {
       console.error("Logout error:", error);
+
       toast.error("Logout failed. Please try again.");
     } finally {
       setLoggingOut(false);
     }
   };
 
-  if (isMobile && !open) {
-    return null;
-  }
+  // ============================================================
+  // FILTER NAVIGATION
+  // ============================================================
 
   const visibleNavigationItems = navigationItems.filter(
     (item) => !item.adminOnly || isAdmin,
   );
 
+  // ============================================================
+  // MOBILE CLOSED
+  // ============================================================
+
+  if (isMobile && !open) {
+    return null;
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <>
+      {/* ======================================================
+          MOBILE BACKDROP
+      ====================================================== */}
+
       {isMobile && open && (
         <Box
           onClick={onClose}
@@ -241,6 +307,10 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         />
       )}
 
+      {/* ======================================================
+          SIDEBAR
+      ====================================================== */}
+
       <Paper
         elevation={0}
         square
@@ -248,6 +318,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
         aria-label="Main navigation"
         sx={{
           position: "fixed",
+
           top: 0,
           left: 0,
           bottom: 0,
@@ -263,6 +334,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           flexDirection: "column",
 
           bgcolor: "background.paper",
+
           color: sidebarTextColor,
 
           borderRight: "1px solid",
@@ -273,6 +345,13 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             md: "0 18px 18px 0",
           },
 
+          /*
+           * Desktop:
+           * sidebar always visible.
+           *
+           * Mobile:
+           * sidebar slides in/out.
+           */
           transform: {
             xs: open ? "translateX(0)" : "translateX(-100%)",
             md: "translateX(0)",
@@ -285,7 +364,9 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           overflow: "hidden",
         }}
       >
-        {/* BRAND */}
+        {/* ====================================================
+            BRAND
+        ==================================================== */}
 
         <Box
           sx={{
@@ -296,13 +377,19 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           }}
         >
           <Stack direction="row" alignItems="center" spacing={1.5}>
+            {/* LOGO */}
+
             <Box
               sx={{
                 width: 42,
                 height: 42,
+
                 flexShrink: 0,
+
                 borderRadius: 2,
+
                 bgcolor: logoBackground,
+
                 border: "1px solid",
                 borderColor: logoBorder,
 
@@ -321,7 +408,14 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               S
             </Box>
 
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            {/* BRAND TEXT */}
+
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
               <Typography
                 fontWeight={800}
                 lineHeight={1.15}
@@ -347,6 +441,8 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               </Typography>
             </Box>
 
+            {/* MOBILE CLOSE */}
+
             {isMobile && (
               <ButtonBase
                 onClick={onClose}
@@ -354,8 +450,11 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                 sx={{
                   width: 36,
                   height: 36,
+
                   flexShrink: 0,
+
                   borderRadius: 2,
+
                   color: sidebarTextColor,
 
                   "&:hover": {
@@ -369,6 +468,10 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           </Stack>
         </Box>
 
+        {/* ====================================================
+            DIVIDER
+        ==================================================== */}
+
         <Divider
           sx={{
             flexShrink: 0,
@@ -376,14 +479,18 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           }}
         />
 
-        {/* NAVIGATION */}
+        {/* ====================================================
+            NAVIGATION
+        ==================================================== */}
 
         <Box
           sx={{
             flex: 1,
             minHeight: 0,
+
             overflowY: "auto",
             overflowX: "hidden",
+
             py: 2,
 
             "&::-webkit-scrollbar": {
@@ -398,6 +505,7 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
               background: isDarkMode
                 ? "rgba(255,255,255,0.20)"
                 : "rgba(0,0,0,0.15)",
+
               borderRadius: 10,
             },
           }}
@@ -418,8 +526,11 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
                   onClick={() => handleNavigation(item.path)}
                   sx={{
                     minHeight: 48,
+
                     mb: 0.5,
+
                     px: 1.5,
+
                     borderRadius: 2,
 
                     color: active
@@ -466,13 +577,17 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
           </List>
         </Box>
 
-        {/* LOGOUT */}
+        {/* ====================================================
+            LOGOUT
+        ==================================================== */}
 
         <Box
           sx={{
             flexShrink: 0,
+
             px: 1.5,
             py: 2,
+
             borderTop: "1px solid",
             borderColor: sidebarBorderColor,
           }}
@@ -482,9 +597,13 @@ const DashboardSidebar = ({ open = true, onClose }: DashboardSidebarProps) => {
             disabled={loggingOut}
             sx={{
               minHeight: 46,
+
               borderRadius: 2,
+
               justifyContent: "center",
+
               color: sidebarTextColor,
+
               opacity: loggingOut ? 0.7 : 1,
 
               "&:hover": {

@@ -1,39 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { Container, Paper, Alert, CircularProgress, Box } from "@mui/material";
+import { Alert, Box, CircularProgress, Container, Paper } from "@mui/material";
 
 import MeetingForm from "../../components/meeting/MeetingForm";
 import meetingService from "../../services/meeting.service";
 import api from "../../services/api";
 
 import type {
+  Meeting,
+  CreateMeetingPayload,
   UserReference,
   ProjectReference,
-  CreateMeetingData,
 } from "../../types/meeting.types";
 
 const CreateMeetingPage = () => {
   const { projectId: routeProjectId } = useParams<{
-    projectId: string;
+    projectId?: string;
   }>();
 
   const navigate = useNavigate();
 
   // ============================================================
-  // VALIDATE PROJECT ID
+  // OPTIONAL PROJECT ID FROM URL
   // ============================================================
 
-  /*
-   * useParams() returns string | undefined.
-   *
-   * We validate it once and use validProjectId everywhere
-   * after that so TypeScript knows it is definitely a string.
-   */
-  const validProjectId =
+  const initialProjectId =
     typeof routeProjectId === "string" && routeProjectId.trim().length > 0
       ? routeProjectId.trim()
-      : null;
+      : "";
 
   // ============================================================
   // STATE
@@ -62,19 +57,46 @@ const CreateMeetingPage = () => {
 
         const response = await api.get("/users");
 
-        const userData = response.data?.data ?? response.data?.users ?? [];
+        const rawUsers =
+          response.data?.data ?? response.data?.users ?? response.data ?? [];
 
-        setUsers(Array.isArray(userData) ? userData : []);
+        if (!Array.isArray(rawUsers)) {
+          setUsers([]);
+          return;
+        }
+
+        const normalizedUsers: UserReference[] = rawUsers
+          .map((user: any) => ({
+            id: String(user.id ?? user._id ?? ""),
+
+            name:
+              user.name ??
+              `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+
+            email: user.email ?? "",
+
+            role: user.role,
+
+            avatar: user.avatar,
+          }))
+          .filter((user: UserReference) => Boolean(user.id));
+
+        setUsers(normalizedUsers);
       } catch (err: any) {
         console.error("Failed to load users:", err);
 
-        setError(err?.response?.data?.message || "Unable to load users.");
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            err?.message ||
+            "Unable to load users.",
+        );
       } finally {
         setLoadingUsers(false);
       }
     };
 
-    loadUsers();
+    void loadUsers();
   }, []);
 
   // ============================================================
@@ -88,97 +110,118 @@ const CreateMeetingPage = () => {
 
         const response = await api.get("/projects");
 
-        const projectData =
-          response.data?.data ?? response.data?.projects ?? [];
+        const rawProjects =
+          response.data?.data ?? response.data?.projects ?? response.data ?? [];
 
-        setProjects(Array.isArray(projectData) ? projectData : []);
+        if (!Array.isArray(rawProjects)) {
+          setProjects([]);
+          return;
+        }
+
+        const normalizedProjects: ProjectReference[] = rawProjects
+          .map((project: any) => ({
+            id: String(project.id ?? project._id ?? ""),
+
+            name: project.name ?? "",
+          }))
+          .filter((project: ProjectReference) => Boolean(project.id));
+
+        setProjects(normalizedProjects);
       } catch (err: any) {
         console.error("Failed to load projects:", err);
 
-        setError(err?.response?.data?.message || "Unable to load projects.");
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            err?.message ||
+            "Unable to load projects.",
+        );
       } finally {
         setLoadingProjects(false);
       }
     };
 
-    loadProjects();
+    void loadProjects();
   }, []);
 
   // ============================================================
   // CREATE MEETING
   // ============================================================
 
-  const handleSubmit = async (data: CreateMeetingData) => {
+  const handleSubmit = async (data: CreateMeetingPayload) => {
     /*
-     * Never trust projectId coming from the form.
+     * projectId now comes from the MeetingForm.
      *
-     * The project ID in the URL is the source of truth.
+     * This means:
+     *
+     * /meetings/create
+     *
+     * works without a project ID in the URL.
      */
-    if (!validProjectId) {
-      setError(
-        "Project ID is missing. Please open the meeting page from a project.",
-      );
+
+    if (!data.projectId || !data.projectId.trim()) {
+      setError("Please select a project.");
+
       return;
     }
 
     try {
       setLoading(true);
+
       setError("");
 
-      const meetingData: CreateMeetingData = {
+      const meetingData: CreateMeetingPayload = {
         ...data,
-        projectId: validProjectId,
+
+        projectId: data.projectId.trim(),
       };
 
-      console.log("Creating meeting with projectId:", validProjectId);
+      console.log("Creating meeting:", meetingData);
 
-      const response = await meetingService.createMeeting(meetingData);
+      const meeting: Meeting = await meetingService.createMeeting(meetingData);
 
-      const meetingId = response?.data?._id;
+      console.log("Created meeting:", meeting);
 
-      if (meetingId) {
-        navigate(`/meetings/${meetingId}`, {
+      // ========================================================
+      // OPEN CREATED MEETING
+      // ========================================================
+
+      if (meeting?.id) {
+        navigate(`/meetings/${meeting.id}`, {
           replace: true,
         });
 
         return;
       }
 
-      /*
-       * If backend successfully creates the meeting
-       * but does not return an ID, go back to the
-       * project's meeting list.
-       */
-      navigate(`/projects/${validProjectId}/meetings`, {
+      // ========================================================
+      // FALLBACK
+      // ========================================================
+
+      navigate("/meetings", {
         replace: true,
       });
     } catch (err: any) {
       console.error("Failed to create meeting:", err);
 
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Unable to create meeting.",
-      );
+      const backendErrors = err?.response?.data?.errors;
+
+      const message =
+        Array.isArray(backendErrors) && backendErrors.length > 0
+          ? backendErrors.join(" ")
+          : err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            err?.message ||
+            "Unable to create meeting.";
+
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   // ============================================================
-  // PROJECT ID MISSING
-  // ============================================================
-
-  if (!validProjectId) {
-    return (
-      <Container maxWidth="md" sx={{ py: 5 }}>
-        <Alert severity="error">Project ID is missing.</Alert>
-      </Container>
-    );
-  }
-
-  // ============================================================
-  // LOADING
+  // INITIAL LOADING
   // ============================================================
 
   if (loadingUsers || loadingProjects) {
@@ -186,8 +229,11 @@ const CreateMeetingPage = () => {
       <Box
         sx={{
           minHeight: "50vh",
+
           display: "flex",
+
           alignItems: "center",
+
           justifyContent: "center",
         }}
       >
@@ -201,9 +247,20 @@ const CreateMeetingPage = () => {
   // ============================================================
 
   return (
-    <Container maxWidth="md" sx={{ py: 5 }}>
+    <Container
+      maxWidth="md"
+      sx={{
+        py: 5,
+      }}
+    >
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+          }}
+          onClose={() => setError("")}
+        >
           {error}
         </Alert>
       )}
@@ -216,15 +273,18 @@ const CreateMeetingPage = () => {
             sm: 3,
             md: 4,
           },
+
           borderRadius: 3,
+
           border: "1px solid",
+
           borderColor: "divider",
         }}
       >
         <MeetingForm
           users={users}
           projects={projects}
-          projectId={validProjectId}
+          projectId={initialProjectId}
           onSubmit={handleSubmit}
           loading={loading}
         />

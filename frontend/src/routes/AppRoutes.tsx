@@ -40,6 +40,12 @@ import RepositoryDetailPage from "../pages/repository/RepositoryDetailPage";
 import RepositoryPage from "../pages/repository/RepositoryPage";
 import RepositoryVersionHistoryPage from "../pages/repository/RepositoryVersionHistoryPage";
 import SettingsPage from "../pages/settings/SettingsPage";
+
+/* =========================================================
+   USER MANAGEMENT
+========================================================= */
+
+import UserManagement from "../pages/users/UserManagement";
 import Tasks from "../pages/tasks/Tasks";
 import Teams from "../pages/teams/Teams";
 
@@ -47,6 +53,10 @@ import Teams from "../pages/teams/Teams";
    ROUTES CONSTANTS
 ========================================================= */
 import { ROUTES } from "../utils/routes";
+
+/* =========================================================
+   APP ROUTES
+========================================================= */
 
 const AppRoutes: React.FC = () => {
   return (
@@ -77,13 +87,16 @@ const AppRoutes: React.FC = () => {
           {/* Dashboard */}
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
 
-          {/* Calendar */}
-          <Route
-            path={ROUTES.CALENDAR || "/calendar"}
-            element={<CalendarPage />}
-          />
+          {/* ==================================================
+              CALENDAR
+          ================================================== */}
 
-          {/* User Profile */}
+          <Route path="/calendar" element={<CalendarPage />} />
+
+          {/* ==================================================
+              PROFILE
+          ================================================== */}
+
           <Route path={ROUTES.PROFILE} element={<Profile />} />
           <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
           <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
@@ -133,24 +146,26 @@ const AppRoutes: React.FC = () => {
           {/* Activity */}
           <Route path={ROUTES.ACTIVITY} element={<ActivityFeedPage />} />
 
-          {/* Meetings */}
+          {/* ==================================================
+              MEETINGS
+          ================================================== */}
+
+          {/* Global meeting list */}
           <Route path={ROUTES.MEETINGS} element={<MeetingListPage />} />
+
+          {/* Global meeting creation */}
           <Route
             path={ROUTES.CREATE_MEETING_GLOBAL || "/meetings/create"}
             element={<CreateMeetingPage />}
           />
-          {ROUTES.PROJECT_MEETINGS && (
-            <Route
-              path={ROUTES.PROJECT_MEETINGS}
-              element={<MeetingListPage />}
-            />
-          )}
-          {ROUTES.CREATE_MEETING && (
-            <Route
-              path={ROUTES.CREATE_MEETING}
-              element={<CreateMeetingPage />}
-            />
-          )}
+
+          {/* Project meeting list */}
+          <Route path={ROUTES.PROJECT_MEETINGS} element={<MeetingListPage />} />
+
+          {/* Project meeting creation */}
+          <Route path={ROUTES.CREATE_MEETING} element={<CreateMeetingPage />} />
+
+          {/* Meeting details */}
           <Route
             path={ROUTES.MEETING_DETAILS}
             element={<MeetingDetailsPage />}
