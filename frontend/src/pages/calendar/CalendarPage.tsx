@@ -13,7 +13,6 @@ import {
   IconButton,
   Paper,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -36,7 +35,7 @@ import type { Project } from "../../types/project.types";
 import type { Task } from "../../types/task.types";
 
 /* =========================================================
-   CALENDAR EVENT TYPE
+   CALENDAR EVENT
 ========================================================= */
 
 type CalendarEventType = "meeting" | "task";
@@ -75,58 +74,34 @@ const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
    HELPERS
 ========================================================= */
 
-const pad = (value: number): string => String(value).padStart(2, "0");
+const pad = (value: number): string => {
+  return String(value).padStart(2, "0");
+};
 
 /* =========================================================
    DATE KEY
 ========================================================= */
 
-const getDateKey = (date: Date): string =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const getDateKey = (date: Date): string => {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}`;
+};
 
 /* =========================================================
    MONTH START
 ========================================================= */
 
-const getMonthStart = (date: Date): Date =>
-  new Date(date.getFullYear(), date.getMonth(), 1);
-
-/* =========================================================
-   SAFE ID
-========================================================= */
-
-const getProjectId = (project: Project): string => {
-  /*
-   * Your Project type uses `id`.
-   *
-   * Do not access project._id because
-   * TypeScript correctly reports that
-   * `_id` does not exist on Project.
-   */
-
-  return project.id;
+const getMonthStart = (date: Date): Date => {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 };
 
 /* =========================================================
-   SAFE MEETING ID
-========================================================= */
-
-const getMeetingId = (meeting: Meeting): string => {
-  /*
-   * Your Meeting type uses `_id`.
-   *
-   * Do not use meeting.id.
-   */
-
-  return meeting._id;
-};
-
-/* =========================================================
-   SAFE DATE STRING
+   NORMALIZE DATE
 ========================================================= */
 
 const normalizeDate = (
-  value: string | Date | undefined | null,
+  value: string | Date | null | undefined,
 ): string | null => {
   if (!value) {
     return null;
@@ -145,7 +120,9 @@ const normalizeDate = (
    FORMAT TIME
 ========================================================= */
 
-const formatTime = (value: string | Date | undefined): string => {
+const formatTime = (
+  value: string | Date | null | undefined,
+): string => {
   if (!value) {
     return "";
   }
@@ -163,10 +140,30 @@ const formatTime = (value: string | Date | undefined): string => {
 };
 
 /* =========================================================
+   SAFE MEETING ID
+========================================================= */
+
+const getMeetingId = (meeting: Meeting): string => {
+  return meeting._id ?? meeting.id ?? "";
+};
+
+/* =========================================================
+   SAFE TASK ID
+========================================================= */
+
+const getTaskId = (task: Task): string => {
+  return task._id ?? task.id ?? "";
+};
+
+/* =========================================================
    CALENDAR PAGE
 ========================================================= */
 
 const CalendarPage = () => {
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   const [currentMonth, setCurrentMonth] = useState<Date>(
     getMonthStart(new Date()),
   );
@@ -179,10 +176,20 @@ const CalendarPage = () => {
 
   const [error, setError] = useState<string>("");
 
+  /*
+   * IMPORTANT:
+   *
+   * selectedDate starts as null.
+   *
+   * Therefore the popup does NOT appear automatically
+   * when the calendar page loads.
+   *
+   * It only appears after clicking Today or a date.
+   */
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   /* =======================================================
-     LOAD CALENDAR
+     LOAD CALENDAR DATA
   ======================================================= */
 
   const loadCalendar = useCallback(async () => {
@@ -191,215 +198,256 @@ const CalendarPage = () => {
       setError("");
 
       /* =================================================
-           GET PROJECTS
-        ================================================= */
+         GET PROJECTS
+      ================================================= */
 
       const projectList = await projectService.getProjects();
 
       setProjects(projectList);
 
-      /*
-       * Only projects with a valid `id`
-       * are used.
-       */
-
-      const validProjects = projectList.filter((project) =>
-        Boolean(project.id),
+      const validProjects = projectList.filter(
+        (project) => Boolean(project.id),
       );
 
       /* =================================================
-           LOAD MEETINGS + TASKS
-        ================================================= */
+         LOAD MEETINGS + TASKS
+         
+         IMPORTANT:
+         
+         We use the EXISTING backend.
+         
+         Meetings:
+         GET /meetings/project/:projectId
+         
+         Tasks:
+         GET /tasks?project=:projectId
+      ================================================= */
 
-      const results = await Promise.allSettled(
+      const projectResults = await Promise.allSettled(
         validProjects.map(async (project) => {
-          const projectId = getProjectId(project);
+          const projectId = project.id;
 
-          /* =========================================
-                   MEETINGS
-                ========================================= */
+          let meetingEvents: CalendarEvent[] = [];
 
-          const meetingResponse =
-            await meetingService.getProjectMeetings(projectId);
+          let taskEvents: CalendarEvent[] = [];
 
-          if (!meetingResponse.success) {
-            throw new Error(
-              meetingResponse.message ||
-                `Unable to load meetings for ${project.name}.`,
+          /* =================================================
+             LOAD MEETINGS
+          ================================================= */
+
+          try {
+            /*
+             * meetingService.getProjectMeetings()
+             * already returns Meeting[].
+             *
+             * DO NOT treat it as:
+             * response.data.data
+             */
+
+            const meetings: Meeting[] =
+              await meetingService.getProjectMeetings(projectId);
+
+            meetingEvents = meetings
+              .map((meeting): CalendarEvent | null => {
+                const startTime = normalizeDate(meeting.startTime);
+
+                /*
+                 * A meeting must have a valid start time
+                 * to appear on the calendar.
+                 */
+
+                if (!startTime) {
+                  return null;
+                }
+
+                const meetingId = getMeetingId(meeting);
+
+                if (!meetingId) {
+                  return null;
+                }
+
+                const endTime = normalizeDate(meeting.endTime);
+
+                return {
+                  id: meetingId,
+
+                  type: "meeting",
+
+                  title: meeting.title,
+
+                  description: meeting.description ?? "",
+
+                  projectId,
+
+                  projectName: project.name,
+
+                  startTime,
+
+                  ...(endTime
+                    ? {
+                        endTime,
+                      }
+                    : {}),
+
+                  meetingLink: meeting.meetingLink ?? "",
+                };
+              })
+              .filter(
+                (meeting): meeting is CalendarEvent =>
+                  meeting !== null,
+              );
+          } catch (meetingError) {
+            /*
+             * Do not stop task loading if meetings fail.
+             */
+
+            console.error(
+              `Failed to load meetings for project ${project.name}:`,
+              meetingError,
             );
           }
 
-          /*
-           * Normalize meetings into
-           * CalendarEvent.
-           */
+          /* =================================================
+             LOAD TASKS
+          ================================================= */
 
-          const meetingEvents: CalendarEvent[] = (meetingResponse.data ?? [])
-            .map((meeting): CalendarEvent | null => {
-              const startTime = normalizeDate(meeting.startTime);
+          try {
+            /*
+             * taskService.getTasks(projectId)
+             * already calls:
+             *
+             * GET /tasks?project=PROJECT_ID
+             */
 
-              if (!startTime) {
-                return null;
-              }
+            const taskList: Task[] =
+              await taskService.getTasks(projectId);
 
-              const endTime = normalizeDate(meeting.endTime);
+            taskEvents = taskList
+              .map((task): CalendarEvent | null => {
+                /*
+                 * IMPORTANT:
+                 *
+                 * Your backend Task model has:
+                 *
+                 * dueDate
+                 *
+                 * It does NOT have startDate.
+                 *
+                 * Therefore tasks are placed on the calendar
+                 * according to their dueDate.
+                 */
 
-              return {
-                id: getMeetingId(meeting),
+                const startTime = normalizeDate(task.dueDate);
 
-                type: "meeting",
+                /*
+                 * Tasks without a due date cannot be placed
+                 * on a date-based calendar.
+                 */
 
-                title: meeting.title,
+                if (!startTime) {
+                  return null;
+                }
 
-                description: meeting.description,
+                const taskId = getTaskId(task);
 
-                projectId,
+                if (!taskId) {
+                  return null;
+                }
 
-                projectName: project.name,
+                return {
+                  id: taskId,
 
-                startTime,
+                  type: "task",
 
-                ...(endTime
-                  ? {
-                      endTime,
-                    }
-                  : {}),
+                  title: task.title,
 
-                meetingLink: meeting.meetingLink,
-              };
-            })
-            .filter((meeting): meeting is CalendarEvent => meeting !== null);
+                  description: task.description ?? "",
 
-          /* =========================================
-                   TASKS
-                ========================================= */
+                  projectId,
 
-          /*
-           * IMPORTANT:
-           *
-           * Your task service exposes:
-           *
-           * getTasks(projectId)
-           *
-           * NOT:
-           *
-           * getProjectTasks(projectId)
-           */
+                  projectName: project.name,
 
-          const taskList = await taskService.getTasks(projectId);
+                  startTime,
 
-          /*
-           * Normalize tasks into
-           * CalendarEvent.
-           */
+                  status: task.status,
 
-          const taskEvents: CalendarEvent[] = taskList
-            .map((task): CalendarEvent | null => {
-              /*
-               * We need a task date.
-               *
-               * Prefer dueDate.
-               *
-               * If dueDate does not exist,
-               * fall back to startDate.
-               */
+                  priority: task.priority,
+                };
+              })
+              .filter(
+                (task): task is CalendarEvent =>
+                  task !== null,
+              );
+          } catch (taskError) {
+            /*
+             * Do not stop meeting loading if tasks fail.
+             */
 
-              const rawStartDate = task.dueDate ?? task.startDate;
+            console.error(
+              `Failed to load tasks for project ${project.name}:`,
+              taskError,
+            );
+          }
 
-              const startTime = normalizeDate(rawStartDate);
-
-              /*
-               * Tasks without a usable
-               * date cannot appear on
-               * the calendar.
-               */
-
-              if (!startTime) {
-                return null;
-              }
-
-              /*
-               * Task ID.
-               *
-               * Your Task type should
-               * expose `_id`.
-               */
-
-              const taskId = task._id;
-
-              if (!taskId) {
-                return null;
-              }
-
-              return {
-                id: taskId,
-
-                type: "task",
-
-                title: task.title,
-
-                description: task.description,
-
-                projectId,
-
-                projectName: project.name,
-
-                startTime,
-
-                status: task.status,
-
-                priority: task.priority,
-              };
-            })
-            .filter((task): task is CalendarEvent => task !== null);
+          /* =================================================
+             RETURN PROJECT EVENTS
+          ================================================= */
 
           return [...meetingEvents, ...taskEvents];
         }),
       );
 
       /* =================================================
-           COMBINE ALL EVENTS
-        ================================================= */
+         COMBINE ALL PROJECT EVENTS
+      ================================================= */
 
       const loadedEvents: CalendarEvent[] = [];
 
-      let failedRequests = 0;
+      let failedProjects = 0;
 
-      results.forEach((result) => {
+      projectResults.forEach((result) => {
         if (result.status === "fulfilled") {
           loadedEvents.push(...result.value);
         } else {
-          failedRequests++;
+          failedProjects++;
 
-          console.error("Failed to load calendar project:", result.reason);
+          console.error(
+            "Failed to load calendar project:",
+            result.reason,
+          );
         }
       });
 
       /* =================================================
-           SORT EVENTS
-        ================================================= */
+         SORT EVENTS BY DATE/TIME
+      ================================================= */
 
-      loadedEvents.sort(
-        (first, second) =>
+      loadedEvents.sort((first, second) => {
+        return (
           new Date(first.startTime).getTime() -
-          new Date(second.startTime).getTime(),
-      );
+          new Date(second.startTime).getTime()
+        );
+      });
 
       setEvents(loadedEvents);
 
       /* =================================================
-           PARTIAL ERROR
-        ================================================= */
+         PARTIAL ERROR
+      ================================================= */
 
-      if (failedRequests > 0 && validProjects.length > 0) {
+      if (failedProjects > 0) {
         setError(
-          "Some project meetings or tasks could not be loaded. Please refresh the calendar.",
+          "Some calendar information could not be loaded. Please refresh the calendar.",
         );
       }
     } catch (err: unknown) {
       console.error("Calendar loading error:", err);
 
-      if (typeof err === "object" && err !== null && "response" in err) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err
+      ) {
         const axiosError = err as {
           response?: {
             data?: {
@@ -409,7 +457,8 @@ const CalendarPage = () => {
         };
 
         setError(
-          axiosError.response?.data?.message || "Unable to load calendar data.",
+          axiosError.response?.data?.message ??
+            "Unable to load calendar data.",
         );
       } else if (err instanceof Error) {
         setError(err.message);
@@ -438,6 +487,11 @@ const CalendarPage = () => {
 
     const firstWeekday = firstDay.getDay();
 
+    /*
+     * Start from the Sunday before the first day
+     * of the current month.
+     */
+
     const startDate = new Date(
       firstDay.getFullYear(),
       firstDay.getMonth(),
@@ -461,7 +515,9 @@ const CalendarPage = () => {
     const grouped = new Map<string, CalendarEvent[]>();
 
     events.forEach((event) => {
-      const dateKey = getDateKey(new Date(event.startTime));
+      const eventDate = new Date(event.startTime);
+
+      const dateKey = getDateKey(eventDate);
 
       const existing = grouped.get(dateKey) ?? [];
 
@@ -486,7 +542,7 @@ const CalendarPage = () => {
   ======================================================= */
 
   const selectedDateEvents = selectedDate
-    ? (eventsByDate.get(getDateKey(selectedDate)) ?? [])
+    ? eventsByDate.get(getDateKey(selectedDate)) ?? []
     : [];
 
   /* =======================================================
@@ -495,24 +551,40 @@ const CalendarPage = () => {
 
   const goToPreviousMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
+      new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() - 1,
+        1,
+      ),
     );
   };
 
   const goToNextMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
+      new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        1,
+      ),
     );
   };
 
   /* =======================================================
-     TODAY
+     TODAY BUTTON
   ======================================================= */
 
   const handleTodayClick = () => {
     const currentDate = new Date();
 
+    /*
+     * Move calendar to current month.
+     */
+
     setCurrentMonth(getMonthStart(currentDate));
+
+    /*
+     * Open today's popup ONLY when the button is clicked.
+     */
 
     setSelectedDate(currentDate);
   };
@@ -522,11 +594,15 @@ const CalendarPage = () => {
   ======================================================= */
 
   const handleDateClick = (date: Date) => {
+    /*
+     * Clicking ANY date opens its popup.
+     */
+
     setSelectedDate(new Date(date));
   };
 
   /* =======================================================
-     CLOSE DIALOG
+     CLOSE POPUP
   ======================================================= */
 
   const closeDateDialog = () => {
@@ -546,6 +622,10 @@ const CalendarPage = () => {
       })
     : "";
 
+  /* =======================================================
+     IS SELECTED DATE TODAY?
+  ======================================================= */
+
   const isSelectedDateToday = selectedDate
     ? getDateKey(selectedDate) === todayKey
     : false;
@@ -560,14 +640,16 @@ const CalendarPage = () => {
   });
 
   /* =======================================================
-     EVENT COUNT
+     EVENT COUNTS
   ======================================================= */
 
   const meetingCount = events.filter(
     (event) => event.type === "meeting",
   ).length;
 
-  const taskCount = events.filter((event) => event.type === "task").length;
+  const taskCount = events.filter(
+    (event) => event.type === "task",
+  ).length;
 
   /* =======================================================
      RENDER
@@ -610,50 +692,63 @@ const CalendarPage = () => {
             sm: "center",
           }}
           spacing={2}
-          sx={{ mb: 3 }}
+          sx={{
+            mb: 3,
+          }}
         >
           <Box>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <CalendarMonthRounded
-                color="primary"
-                sx={{
-                  fontSize: 34,
-                }}
-              />
-
-              <Typography variant="h4" fontWeight={800}>
-                Calendar
-              </Typography>
-            </Stack>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+            >
+              Calendar
+            </Typography>
 
             <Typography
+              variant="body2"
               color="text.secondary"
               sx={{
                 mt: 0.5,
               }}
             >
-              View your project meetings and tasks in one place.
+              View your meetings and scheduled tasks.
             </Typography>
           </Box>
 
-          {/* REFRESH */}
+          <Stack
+            direction="row"
+            spacing={1}
+            flexWrap="wrap"
+          >
+            <Button
+              variant="outlined"
+              startIcon={<CalendarMonthRounded />}
+              onClick={handleTodayClick}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Today
+            </Button>
 
-          <Tooltip title="Refresh calendar">
-            <span>
-              <IconButton
-                onClick={() => void loadCalendar()}
-                disabled={loading}
-                color="primary"
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 2,
-                }}
-              >
-                <RefreshRounded />
-              </IconButton>
-            </span>
-          </Tooltip>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshRounded />}
+              onClick={() => {
+                void loadCalendar();
+              }}
+              disabled={loading}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Refresh
+            </Button>
+          </Stack>
         </Stack>
 
         {/* =================================================
@@ -673,62 +768,7 @@ const CalendarPage = () => {
         )}
 
         {/* =================================================
-            EVENT SUMMARY
-        ================================================= */}
-
-        {!loading && (
-          <Stack
-            direction="row"
-            flexWrap="wrap"
-            gap={1}
-            sx={{
-              mb: 2,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                py: 0.75,
-                borderRadius: 2,
-                bgcolor: "primary.50",
-                border: "1px solid",
-                borderColor: "primary.100",
-              }}
-            >
-              <EventRounded fontSize="small" color="primary" />
-
-              <Typography variant="body2" fontWeight={700}>
-                {meetingCount} {meetingCount === 1 ? "Meeting" : "Meetings"}
-              </Typography>
-            </Box>
-
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                py: 0.75,
-                borderRadius: 2,
-                bgcolor: "secondary.50",
-                border: "1px solid",
-                borderColor: "secondary.100",
-              }}
-            >
-              <TaskAltRounded fontSize="small" color="secondary" />
-
-              <Typography variant="body2" fontWeight={700}>
-                {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-              </Typography>
-            </Box>
-          </Stack>
-        )}
-
-        {/* =================================================
-            CALENDAR
+            CALENDAR PAPER
         ================================================= */}
 
         <Paper
@@ -741,7 +781,7 @@ const CalendarPage = () => {
           }}
         >
           {/* =================================================
-              MONTH HEADER
+              CALENDAR HEADER
           ================================================= */}
 
           <Stack
@@ -751,26 +791,24 @@ const CalendarPage = () => {
             }}
             justifyContent="space-between"
             alignItems={{
-              xs: "stretch",
+              xs: "flex-start",
               sm: "center",
             }}
-            spacing={1.5}
+            spacing={2}
             sx={{
               p: 2,
+              borderBottom: "1px solid",
+              borderColor: "divider",
             }}
           >
             <Stack
               direction="row"
               alignItems="center"
-              justifyContent={{
-                xs: "center",
-                sm: "flex-start",
-              }}
-              spacing={0.5}
+              spacing={1}
             >
               <IconButton
                 onClick={goToPreviousMonth}
-                aria-label="Previous month"
+                size="small"
               >
                 <ChevronLeftRounded />
               </IconButton>
@@ -779,33 +817,69 @@ const CalendarPage = () => {
                 variant="h6"
                 fontWeight={800}
                 sx={{
-                  minWidth: 190,
+                  minWidth: 180,
                   textAlign: "center",
                 }}
               >
                 {monthTitle}
               </Typography>
 
-              <IconButton onClick={goToNextMonth} aria-label="Next month">
+              <IconButton
+                onClick={goToNextMonth}
+                size="small"
+              >
                 <ChevronRightRounded />
               </IconButton>
             </Stack>
 
-            <Button
-              variant="outlined"
-              onClick={handleTodayClick}
-              startIcon={<CalendarMonthRounded />}
-              sx={{
-                textTransform: "none",
-                borderRadius: 2,
-                fontWeight: 600,
-              }}
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
             >
-              Today
-            </Button>
-          </Stack>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+              >
+                <EventRounded
+                  fontSize="small"
+                  color="primary"
+                />
 
-          <Divider />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {meetingCount}{" "}
+                  {meetingCount === 1
+                    ? "Meeting"
+                    : "Meetings"}
+                </Typography>
+              </Stack>
+
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+              >
+                <TaskAltRounded
+                  fontSize="small"
+                  color="secondary"
+                />
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {taskCount}{" "}
+                  {taskCount === 1
+                    ? "Task"
+                    : "Tasks"}
+                </Typography>
+              </Stack>
+            </Stack>
+          </Stack>
 
           {/* =================================================
               LOADING
@@ -814,16 +888,21 @@ const CalendarPage = () => {
           {loading ? (
             <Box
               sx={{
-                minHeight: 650,
+                minHeight: 500,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Stack alignItems="center" spacing={2}>
+              <Stack
+                alignItems="center"
+                spacing={2}
+              >
                 <CircularProgress />
 
-                <Typography color="text.secondary">
+                <Typography
+                  color="text.secondary"
+                >
                   Loading calendar...
                 </Typography>
               </Stack>
@@ -834,137 +913,159 @@ const CalendarPage = () => {
                 overflowX: "auto",
               }}
             >
+              {/* =================================================
+                  WEEK DAY HEADER
+              ================================================= */}
+
               <Box
                 sx={{
                   minWidth: 850,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(7, minmax(120px, 1fr))",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
                 }}
               >
-                {/* =================================================
-                    WEEK DAYS
-                ================================================= */}
+                {WEEK_DAYS.map((day) => (
+                  <Box
+                    key={day}
+                    sx={{
+                      p: 1.5,
+                      textAlign: "center",
+                      fontWeight: 800,
+                      color: "text.secondary",
+                      borderRight: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    {day}
+                  </Box>
+                ))}
+              </Box>
 
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                  }}
-                >
-                  {WEEK_DAYS.map((day) => (
+              {/* =================================================
+                  CALENDAR GRID
+              ================================================= */}
+
+              <Box
+                sx={{
+                  minWidth: 850,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(7, minmax(120px, 1fr))",
+                }}
+              >
+                {calendarDays.map((date) => {
+                  const dateKey = getDateKey(date);
+
+                  const dayEvents =
+                    eventsByDate.get(dateKey) ?? [];
+
+                  const isCurrentMonth =
+                    date.getMonth() ===
+                      currentMonth.getMonth() &&
+                    date.getFullYear() ===
+                      currentMonth.getFullYear();
+
+                  const isToday =
+                    dateKey === todayKey;
+
+                  return (
                     <Box
-                      key={day}
+                      key={dateKey}
+                      onClick={() =>
+                        handleDateClick(date)
+                      }
                       sx={{
-                        p: 1.5,
-                        textAlign: "center",
-                        bgcolor: "action.hover",
+                        minHeight: 140,
+                        p: 1,
+                        cursor: "pointer",
                         borderRight: "1px solid",
+                        borderBottom: "1px solid",
                         borderColor: "divider",
+
+                        backgroundColor:
+                          isToday
+                            ? "action.hover"
+                            : "transparent",
+
+                        transition:
+                          "background-color 0.15s ease",
+
+                        "&:hover": {
+                          backgroundColor:
+                            "action.hover",
+                        },
                       }}
                     >
-                      <Typography
-                        variant="caption"
-                        fontWeight={800}
-                        color="text.secondary"
-                      >
-                        {day}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
+                      {/* =================================================
+                          DATE NUMBER
+                      ================================================= */}
 
-                {/* =================================================
-                    CALENDAR DAYS
-                ================================================= */}
-
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                  }}
-                >
-                  {calendarDays.map((date) => {
-                    const dateKey = getDateKey(date);
-
-                    const dayEvents = eventsByDate.get(dateKey) ?? [];
-
-                    const isCurrentMonth =
-                      date.getMonth() === currentMonth.getMonth() &&
-                      date.getFullYear() === currentMonth.getFullYear();
-
-                    const isToday = dateKey === todayKey;
-
-                    return (
-                      <Box
-                        key={`${dateKey}-${date.getTime()}`}
-                        onClick={() => handleDateClick(date)}
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
                         sx={{
-                          minHeight: 135,
-                          p: 1,
-                          borderTop: "1px solid",
-                          borderRight: "1px solid",
-                          borderColor: "divider",
-                          bgcolor: isCurrentMonth
-                            ? "background.paper"
-                            : "action.hover",
-                          cursor: "pointer",
-                          transition: "background-color 0.15s ease",
-                          "&:hover": {
-                            bgcolor: "action.selected",
-                          },
-                          ...(isToday && {
-                            boxShadow: "inset 0 0 0 2px",
-                            borderColor: "primary.main",
-                          }),
+                          mb: 1,
                         }}
                       >
-                        {/* DATE */}
-
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
+                        <Typography
+                          variant="body2"
+                          fontWeight={
+                            isToday ? 800 : 600
+                          }
                           sx={{
-                            mb: 0.75,
+                            width: 30,
+                            height: 30,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent:
+                              "center",
+                            borderRadius: "50%",
+
+                            bgcolor: isToday
+                              ? "primary.main"
+                              : "transparent",
+
+                            color: isToday
+                              ? "primary.contrastText"
+                              : isCurrentMonth
+                                ? "text.primary"
+                                : "text.disabled",
                           }}
                         >
+                          {date.getDate()}
+                        </Typography>
+
+                        {dayEvents.length > 0 && (
                           <Typography
-                            variant="body2"
-                            fontWeight={isToday ? 800 : 600}
-                            sx={{
-                              width: 28,
-                              height: 28,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "50%",
-                              bgcolor: isToday ? "primary.main" : "transparent",
-                              color: isToday
-                                ? "primary.contrastText"
-                                : isCurrentMonth
-                                  ? "text.primary"
-                                  : "text.disabled",
-                            }}
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={700}
                           >
-                            {date.getDate()}
+                            {dayEvents.length}
                           </Typography>
+                        )}
+                      </Stack>
 
-                          {dayEvents.length > 0 && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              fontWeight={700}
-                            >
-                              {dayEvents.length}
-                            </Typography>
-                          )}
-                        </Stack>
+                      {/* =================================================
+                          EVENTS
+                      ================================================= */}
 
-                        {/* EVENTS */}
+                      <Stack spacing={0.5}>
+                        {dayEvents
+                          .slice(0, 3)
+                          .map((event) => {
+                            const isMeeting =
+                              event.type ===
+                              "meeting";
 
-                        <Stack spacing={0.5}>
-                          {dayEvents.slice(0, 3).map((event) => {
-                            const startTime = formatTime(event.startTime);
-
-                            const isMeeting = event.type === "meeting";
+                            const startTime =
+                              formatTime(
+                                event.startTime,
+                              );
 
                             return (
                               <Box
@@ -973,12 +1074,17 @@ const CalendarPage = () => {
                                   px: 0.8,
                                   py: 0.6,
                                   borderRadius: 1.25,
-                                  bgcolor: isMeeting
-                                    ? "primary.main"
-                                    : "secondary.main",
-                                  color: isMeeting
-                                    ? "primary.contrastText"
-                                    : "secondary.contrastText",
+
+                                  bgcolor:
+                                    isMeeting
+                                      ? "primary.main"
+                                      : "secondary.main",
+
+                                  color:
+                                    isMeeting
+                                      ? "primary.contrastText"
+                                      : "secondary.contrastText",
+
                                   overflow: "hidden",
                                 }}
                               >
@@ -1007,29 +1113,34 @@ const CalendarPage = () => {
                                     noWrap
                                     display="block"
                                   >
-                                    {startTime} {event.title}
+                                    {startTime
+                                      ? `${startTime} `
+                                      : ""}
+                                    {event.title}
                                   </Typography>
                                 </Stack>
                               </Box>
                             );
                           })}
 
-                          {dayEvents.length > 3 && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{
-                                px: 0.5,
-                              }}
-                            >
-                              +{dayEvents.length - 3} more
-                            </Typography>
-                          )}
-                        </Stack>
-                      </Box>
-                    );
-                  })}
-                </Box>
+                        {dayEvents.length > 3 && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              px: 0.5,
+                              fontWeight: 700,
+                            }}
+                          >
+                            +
+                            {dayEvents.length - 3}{" "}
+                            more
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+                  );
+                })}
               </Box>
             </Box>
           )}
@@ -1047,7 +1158,11 @@ const CalendarPage = () => {
             mt: 2,
           }}
         >
-          <Stack direction="row" alignItems="center" spacing={0.75}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.75}
+          >
             <EventRounded
               sx={{
                 fontSize: 18,
@@ -1055,12 +1170,19 @@ const CalendarPage = () => {
               color="primary"
             />
 
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
               Meetings
             </Typography>
           </Stack>
 
-          <Stack direction="row" alignItems="center" spacing={0.75}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.75}
+          >
             <TaskAltRounded
               sx={{
                 fontSize: 18,
@@ -1068,7 +1190,10 @@ const CalendarPage = () => {
               color="secondary"
             />
 
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
               Tasks
             </Typography>
           </Stack>
@@ -1082,7 +1207,8 @@ const CalendarPage = () => {
             mt: 1,
           }}
         >
-          Calendar is view-only. Click any date to view its meetings and tasks.
+          Calendar is view-only. Click any date to view
+          its meetings and tasks.
         </Typography>
 
         {!loading && projects.length === 0 && (
@@ -1099,7 +1225,14 @@ const CalendarPage = () => {
       </Box>
 
       {/* =====================================================
-          DATE DIALOG
+          DATE POPUP
+          
+          This popup appears ONLY after:
+          
+          1. Clicking Today
+          2. Clicking any calendar date
+          
+          It does NOT automatically appear on page load.
       ===================================================== */}
 
       <Dialog
@@ -1114,7 +1247,9 @@ const CalendarPage = () => {
           },
         }}
       >
-        {/* HEADER */}
+        {/* =================================================
+            POPUP HEADER
+        ================================================= */}
 
         <DialogTitle
           sx={{
@@ -1124,34 +1259,55 @@ const CalendarPage = () => {
             pb: 1,
           }}
         >
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+          >
             <CalendarMonthRounded color="primary" />
 
             <Box>
-              <Typography variant="h6" fontWeight={800}>
-                {isSelectedDateToday ? "Today's Schedule" : "Schedule"}
+              <Typography
+                variant="h6"
+                fontWeight={800}
+              >
+                {isSelectedDateToday
+                  ? "Today's Schedule"
+                  : "Schedule"}
               </Typography>
 
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                color="text.secondary"
+              >
                 {selectedDateTitle}
               </Typography>
             </Box>
           </Stack>
 
-          <IconButton onClick={closeDateDialog} aria-label="Close">
+          <IconButton
+            onClick={closeDateDialog}
+            aria-label="Close"
+          >
             <CloseRounded />
           </IconButton>
         </DialogTitle>
 
         <Divider />
 
-        {/* CONTENT */}
+        {/* =================================================
+            POPUP CONTENT
+        ================================================= */}
 
         <DialogContent
           sx={{
             py: 2.5,
           }}
         >
+          {/* =================================================
+              NOTHING SCHEDULED
+          ================================================= */}
+
           {selectedDateEvents.length === 0 ? (
             <Box
               sx={{
@@ -1167,7 +1323,10 @@ const CalendarPage = () => {
                 }}
               />
 
-              <Typography variant="h6" fontWeight={700}>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+              >
                 {isSelectedDateToday
                   ? "Nothing scheduled for today"
                   : "Nothing scheduled"}
@@ -1186,6 +1345,10 @@ const CalendarPage = () => {
             </Box>
           ) : (
             <Stack spacing={1.5}>
+              {/* =================================================
+                  EVENT COUNT
+              ================================================= */}
+
               <Typography
                 variant="body2"
                 color="text.secondary"
@@ -1193,17 +1356,32 @@ const CalendarPage = () => {
                   mb: 0.5,
                 }}
               >
-                You have <strong>{selectedDateEvents.length}</strong> scheduled{" "}
-                {selectedDateEvents.length === 1 ? "event" : "events"} on this
-                date.
+                You have{" "}
+                <strong>
+                  {selectedDateEvents.length}
+                </strong>{" "}
+                scheduled{" "}
+                {selectedDateEvents.length === 1
+                  ? "event"
+                  : "events"}{" "}
+                on this date.
               </Typography>
 
+              {/* =================================================
+                  EVENTS
+              ================================================= */}
+
               {selectedDateEvents.map((event) => {
-                const startTime = formatTime(event.startTime);
+                const isMeeting =
+                  event.type === "meeting";
 
-                const endTime = formatTime(event.endTime);
+                const startTime = formatTime(
+                  event.startTime,
+                );
 
-                const isMeeting = event.type === "meeting";
+                const endTime = formatTime(
+                  event.endTime,
+                );
 
                 return (
                   <Paper
@@ -1221,7 +1399,9 @@ const CalendarPage = () => {
                       spacing={1.5}
                       alignItems="flex-start"
                     >
-                      {/* ICON */}
+                      {/* =================================================
+                          EVENT ICON
+                      ================================================= */}
 
                       <Box
                         sx={{
@@ -1230,20 +1410,29 @@ const CalendarPage = () => {
                           minWidth: 42,
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
+                          justifyContent:
+                            "center",
                           borderRadius: 2,
+
                           bgcolor: isMeeting
                             ? "primary.main"
                             : "secondary.main",
+
                           color: isMeeting
                             ? "primary.contrastText"
                             : "secondary.contrastText",
                         }}
                       >
-                        {isMeeting ? <EventRounded /> : <TaskAltRounded />}
+                        {isMeeting ? (
+                          <EventRounded />
+                        ) : (
+                          <TaskAltRounded />
+                        )}
                       </Box>
 
-                      {/* INFORMATION */}
+                      {/* =================================================
+                          EVENT INFORMATION
+                      ================================================= */}
 
                       <Box
                         sx={{
@@ -1257,7 +1446,10 @@ const CalendarPage = () => {
                           spacing={1}
                           flexWrap="wrap"
                         >
-                          <Typography variant="subtitle1" fontWeight={800}>
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight={800}
+                          >
                             {event.title}
                           </Typography>
 
@@ -1268,17 +1460,25 @@ const CalendarPage = () => {
                               px: 1,
                               py: 0.25,
                               borderRadius: 1,
+
                               bgcolor: isMeeting
                                 ? "primary.50"
                                 : "secondary.50",
+
                               color: isMeeting
                                 ? "primary.main"
                                 : "secondary.main",
                             }}
                           >
-                            {isMeeting ? "Meeting" : "Task"}
+                            {isMeeting
+                              ? "Meeting"
+                              : "Task"}
                           </Typography>
                         </Stack>
+
+                        {/* =================================================
+                            PROJECT
+                        ================================================= */}
 
                         <Typography
                           variant="body2"
@@ -1287,8 +1487,15 @@ const CalendarPage = () => {
                             mt: 0.25,
                           }}
                         >
-                          Project: {event.projectName}
+                          Project:{" "}
+                          <strong>
+                            {event.projectName}
+                          </strong>
                         </Typography>
+
+                        {/* =================================================
+                            TIME
+                        ================================================= */}
 
                         <Typography
                           variant="body2"
@@ -1299,38 +1506,54 @@ const CalendarPage = () => {
                         >
                           {startTime}
 
-                          {endTime ? ` - ${endTime}` : ""}
+                          {endTime
+                            ? ` - ${endTime}`
+                            : ""}
                         </Typography>
 
-                        {/* TASK STATUS */}
+                        {/* =================================================
+                            TASK STATUS
+                        ================================================= */}
 
-                        {!isMeeting && event.status && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              mt: 0.5,
-                            }}
-                          >
-                            Status: <strong>{event.status}</strong>
-                          </Typography>
-                        )}
+                        {!isMeeting &&
+                          event.status && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mt: 0.5,
+                              }}
+                            >
+                              Status:{" "}
+                              <strong>
+                                {event.status}
+                              </strong>
+                            </Typography>
+                          )}
 
-                        {/* TASK PRIORITY */}
+                        {/* =================================================
+                            TASK PRIORITY
+                        ================================================= */}
 
-                        {!isMeeting && event.priority && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              mt: 0.5,
-                            }}
-                          >
-                            Priority: <strong>{event.priority}</strong>
-                          </Typography>
-                        )}
+                        {!isMeeting &&
+                          event.priority && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mt: 0.5,
+                              }}
+                            >
+                              Priority:{" "}
+                              <strong>
+                                {event.priority}
+                              </strong>
+                            </Typography>
+                          )}
 
-                        {/* DESCRIPTION */}
+                        {/* =================================================
+                            DESCRIPTION
+                        ================================================= */}
 
                         {event.description && (
                           <Typography
@@ -1344,25 +1567,31 @@ const CalendarPage = () => {
                           </Typography>
                         )}
 
-                        {/* MEETING LINK */}
+                        {/* =================================================
+                            MEETING LINK
+                        ================================================= */}
 
-                        {isMeeting && event.meetingLink && (
-                          <Button
-                            component="a"
-                            href={event.meetingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            size="small"
-                            variant="outlined"
-                            sx={{
-                              mt: 1,
-                              textTransform: "none",
-                              borderRadius: 2,
-                            }}
-                          >
-                            Join Meeting
-                          </Button>
-                        )}
+                        {isMeeting &&
+                          event.meetingLink && (
+                            <Button
+                              component="a"
+                              href={
+                                event.meetingLink
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                mt: 1,
+                                textTransform:
+                                  "none",
+                                borderRadius: 2,
+                              }}
+                            >
+                              Join Meeting
+                            </Button>
+                          )}
                       </Box>
                     </Stack>
                   </Paper>
@@ -1372,7 +1601,9 @@ const CalendarPage = () => {
           )}
         </DialogContent>
 
-        {/* FOOTER */}
+        {/* =================================================
+            POPUP FOOTER
+        ================================================= */}
 
         <Divider />
 
