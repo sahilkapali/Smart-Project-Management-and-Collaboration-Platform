@@ -22,6 +22,7 @@ const AISummaryCard = ({
 }: AISummaryCardProps) => {
   return (
     <Card
+      elevation={0}
       sx={{
         borderRadius: 3,
         background:
@@ -30,8 +31,11 @@ const AISummaryCard = ({
         borderColor: "divider",
       }}
     >
-      <CardContent>
+      <CardContent sx={{ p: 3 }}>
         <Stack spacing={2}>
+          {/* =====================================================
+              HEADER
+          ===================================================== */}
 
           <Typography
             variant="h6"
@@ -46,48 +50,51 @@ const AISummaryCard = ({
             AI Summary
           </Typography>
 
-          {summary ? (
+          {/* =====================================================
+              SUMMARY
+          ===================================================== */}
+
+          {summary?.trim() ? (
             <Typography
               variant="body1"
               sx={{
                 whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                lineHeight: 1.7,
               }}
             >
               {summary}
             </Typography>
           ) : (
             <Typography color="text.secondary">
-              Generate an AI summary from the meeting
-              notes.
+              Generate an AI summary from the meeting notes.
             </Typography>
           )}
+
+          {/* =====================================================
+              GENERATE BUTTON
+          ===================================================== */}
 
           <Button
             variant="contained"
             startIcon={
               loading ? (
-                <CircularProgress
-                  size={18}
-                  color="inherit"
-                />
+                <CircularProgress size={18} color="inherit" />
               ) : (
                 <AutoAwesomeIcon />
               )
             }
-            onClick={() => {
-              console.log(
-                "AISummaryCard button clicked",
-              );
-
-              onGenerate();
-            }}
+            onClick={onGenerate}
             disabled={loading}
+            sx={{
+              alignSelf: "flex-start",
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+            }}
           >
-            {loading
-              ? "Generating..."
-              : "Generate Summary"}
+            {loading ? "Generating..." : "Generate Summary"}
           </Button>
-
         </Stack>
       </CardContent>
     </Card>

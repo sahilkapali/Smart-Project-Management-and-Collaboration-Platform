@@ -1,112 +1,57 @@
 export const ROUTES = {
-  // ============================================================
-  // PUBLIC / AUTHENTICATION
-  // ============================================================
-
   HOME: "/",
+
   LOGIN: "/login",
   REGISTER: "/register",
   FORGOT_PASSWORD: "/forgot-password",
   RESET_PASSWORD: "/reset-password",
 
-  // ============================================================
-  // USER / PROFILE
-  // ============================================================
+  DASHBOARD: "/dashboard",
+
+  CALENDAR: "/calendar",
 
   PROFILE: "/profile",
   EDIT_PROFILE: "/profile/edit",
   CHANGE_PASSWORD: "/profile/change-password",
 
-  // ============================================================
-  // DASHBOARD
-  // ============================================================
-
-  DASHBOARD: "/dashboard",
-
-  // ============================================================
-  // PROJECTS
-  // ============================================================
-
   PROJECTS: "/projects",
   PROJECT_DETAILS: "/projects/:projectId",
 
-  // ============================================================
-  // TASKS
-  // ============================================================
-
-  TASKS: "/tasks",
   PROJECT_TASKS: "/projects/:projectId/tasks",
-
-  // ============================================================
-  // TEAMS
-  // ============================================================
 
   TEAMS: "/teams",
 
-  // ============================================================
-  // REPOSITORY
-  // ============================================================
+  TASKS: "/tasks",
+
+  REPORTS: "/reports",
+
+  NOTIFICATIONS: "/notifications",
 
   REPOSITORY: "/repository",
-  REPOSITORY_DETAILS: "/repository/:id",
-  REPOSITORY_HISTORY: "/repository/:id/history",
-
-  // ============================================================
-  // ISSUES
-  // ============================================================
+  REPOSITORY_DETAILS: "/repository/:repositoryId",
+  REPOSITORY_HISTORY: "/repository/:repositoryId/history",
 
   ISSUES: "/issues",
   CREATE_ISSUE: "/issues/create",
   CREATE_ISSUE_NEW: "/issues/new",
-  ISSUE_DETAILS: "/issues/:id",
-  EDIT_ISSUE: "/issues/:id/edit",
-
-  // ============================================================
-  // MEETINGS
-  // ============================================================
-
-  // Global meetings page
-  MEETINGS: "/meetings",
-
-  // Global create meeting
-  CREATE_MEETING_GLOBAL: "/meetings/create",
-
-  // Meetings belonging to a project
-  PROJECT_MEETINGS: "/projects/:projectId/meetings",
-
-  // Create meeting for a specific project
-  CREATE_MEETING: "/projects/:projectId/meetings/create",
-
-  // Meeting details
-  MEETING_DETAILS: "/meetings/:id",
-
-  // ============================================================
-  // AI
-  // ============================================================
-
-  PROJECT_AI: "/projects/:projectId/ai",
-
-  // ============================================================
-  // NOTIFICATIONS
-  // ============================================================
-
-  NOTIFICATIONS: "/notifications",
-
-  // ============================================================
-  // ACTIVITY
-  // ============================================================
+  ISSUE_DETAILS: "/issues/:issueId",
+  EDIT_ISSUE: "/issues/:issueId/edit",
 
   ACTIVITY: "/activity",
 
-  // ============================================================
-  // REPORTS
-  // ============================================================
+  MEETINGS: "/meetings",
+  CREATE_MEETING_GLOBAL: "/meetings/create",
+  PROJECT_MEETINGS: "/projects/:projectId/meetings",
+  CREATE_MEETING: "/projects/:projectId/meetings/create",
+  MEETING_DETAILS: "/meetings/:meetingId",
 
-  REPORTS: "/reports",
+  PROJECT_AI: "/projects/:projectId/ai",
 
-  // ============================================================
-  // SETTINGS
-  // ============================================================
+  // ========================================================
+  // USER MANAGEMENT
+  // ========================================================
+
+  USERS: "/users",
 
   SETTINGS: "/settings",
 } as const;

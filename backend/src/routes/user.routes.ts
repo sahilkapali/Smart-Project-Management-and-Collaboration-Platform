@@ -11,6 +11,7 @@ import {
 import { authenticateUser } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validation.middleware";
 import { ROLE } from "../types/enum.types";
+import { authorizeRoles } from "../middleware/rbac.middleware";
 
 const router = express.Router();
 
@@ -83,7 +84,8 @@ router.put(
 
 router.patch(
   "/:userId/role",
-  authenticateUser([ROLE.ADMIN]),
+  authenticateUser(),
+  authorizeRoles(ROLE.ADMIN),
   updateUserRoleController,
 );
 

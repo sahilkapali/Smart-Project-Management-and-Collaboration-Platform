@@ -8,6 +8,7 @@ import Project from "../models/project.models";
 
 import {
   generateProjectInsight,
+  generateProjectReportSummary,
   prioritizeTask,
   generateMeetingSummary,
   generateActionItems,
@@ -107,6 +108,99 @@ export const createProjectInsight = async (
     userId,
     projectId,
     prompt: projectContext,
+    output,
+  });
+
+  return saved;
+};
+
+// =====================================================
+// AI PROJECT REPORT SUMMARY
+// =====================================================
+
+export const createProjectReportSummary = async (
+  projectId: string,
+  userId: string,
+  reportData: {
+    project: {
+      name: string;
+      description?: string;
+      status?: string;
+      startDate?: Date | string;
+      dueDate?: Date | string;
+      membersCount: number;
+    };
+
+    repositoriesCount: number;
+
+    taskStats: {
+      total: number;
+      completed: number;
+      inProgress: number;
+      todo: number;
+    };
+
+    issueStats: {
+      total: number;
+      open: number;
+      inProgress: number;
+      resolved: number;
+    };
+  },
+) => {
+  validateObjectId(projectId, "project");
+  validateObjectId(userId, "user");
+
+  const taskCompletionPercentage =
+    reportData.taskStats.total > 0
+      ? Math.round(
+          (reportData.taskStats.completed / reportData.taskStats.total) * 100,
+        )
+      : 0;
+
+  const issueResolutionPercentage =
+    reportData.issueStats.total > 0
+      ? Math.round(
+          (reportData.issueStats.resolved / reportData.issueStats.total) * 100,
+        )
+      : 0;
+
+  const reportContext = JSON.stringify({
+    project: {
+      name: reportData.project.name,
+      description: reportData.project.description,
+      status: reportData.project.status,
+      startDate: reportData.project.startDate,
+      dueDate: reportData.project.dueDate,
+      membersCount: reportData.project.membersCount,
+    },
+
+    repositoriesCount: reportData.repositoriesCount,
+
+    tasks: {
+      total: reportData.taskStats.total,
+      completed: reportData.taskStats.completed,
+      inProgress: reportData.taskStats.inProgress,
+      todo: reportData.taskStats.todo,
+      completionPercentage: taskCompletionPercentage,
+    },
+
+    issues: {
+      total: reportData.issueStats.total,
+      open: reportData.issueStats.open,
+      inProgress: reportData.issueStats.inProgress,
+      resolved: reportData.issueStats.resolved,
+      resolutionPercentage: issueResolutionPercentage,
+    },
+  });
+
+  const output = await generateProjectReportSummary(reportContext);
+
+  const saved = await saveAIOutput({
+    type: AIOutputType.INSIGHT,
+    userId,
+    projectId,
+    prompt: reportContext,
     output,
   });
 

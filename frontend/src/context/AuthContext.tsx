@@ -71,12 +71,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const saveUser = useCallback((userData: User) => {
     setUser(userData);
 
-    /*
-     * localStorage is only used for persistence/UI convenience.
-     *
-     * The backend remains the source of truth for the
-     * authenticated user's role and account state.
-     */
+    // Store only for UI persistence/convenience.
+    // Backend remains the source of truth.
+
     localStorage.setItem("user", JSON.stringify(userData));
   }, []);
 
@@ -95,23 +92,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   // ==========================================================
-  // REFRESH USER
-  // ==========================================================
-  //
-  // Always retrieves the current user from the backend.
-  //
-  // This is important because an administrator may change:
-  //
-  // - role
-  // - profile
-  // - active status
-  //
-  // The frontend must not rely on stale localStorage data.
-  //
+  // REFRESH CURRENT USER
   // ==========================================================
 
   const refreshUser = useCallback(async (): Promise<User | null> => {
     const storedToken = getToken();
+
+    // ------------------------------------------------------
+    // No token
+    // ------------------------------------------------------
 
     if (!storedToken) {
       clearSession();
@@ -120,25 +109,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     try {
-      const response = await getUserProfile();
+      // ----------------------------------------------------
+      // Ask backend for current authenticated user
+      // ----------------------------------------------------
 
-      /*
-       * Some service implementations return the User
-       * directly while others may return response.data.
-       *
-       * Your current user.service returns User, so this
-       * remains the expected path.
-       */
-
-      const currentUser = response;
+      const currentUser = await getUserProfile();
 
       if (!currentUser) {
         throw new Error("User profile was not returned by the server.");
       }
 
-      saveUser(currentUser);
+      // ----------------------------------------------------
+      // Update authentication state
+      // ----------------------------------------------------
 
       setTokenState(storedToken);
+
+      saveUser(currentUser);
 
       return currentUser;
     } catch (error) {
@@ -158,30 +145,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     let mounted = true;
 
     const restoreSession = async () => {
-      const storedToken = getToken();
+      try {
+        const storedToken = getToken();
 
-      /*
-       * No token means there is no authenticated session.
-       */
+        // ----------------------------------------------------
+        // No stored token
+        // ----------------------------------------------------
 
-      if (!storedToken) {
-        if (mounted) {
-          setTokenState(null);
-          setUser(null);
-          setLoading(false);
+        if (!storedToken) {
+          if (mounted) {
+            setTokenState(null);
+            setUser(null);
+          }
+
+          return;
         }
 
-        return;
-      }
+        // ----------------------------------------------------
+        // Temporarily restore token
+        // ----------------------------------------------------
+        //
+        // This allows the application to know that a token
+        // exists while we validate the session.
+        //
+        // ----------------------------------------------------
 
-      try {
-        /*
-         * We deliberately do NOT restore the user from
-         * localStorage as the source of truth.
-         *
-         * Instead, the JWT is verified through the backend
-         * profile endpoint.
-         */
+        if (mounted) {
+          setTokenState(storedToken);
+        }
+
+        // ----------------------------------------------------
+        // Validate token through backend
+        // ----------------------------------------------------
 
         const currentUser = await getUserProfile();
 
@@ -193,7 +188,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           throw new Error("Authenticated user profile was not returned.");
         }
 
-        setTokenState(storedToken);
+        // ----------------------------------------------------
+        // Save authenticated user
+        // ----------------------------------------------------
 
         saveUser(currentUser);
       } catch (error) {
@@ -222,21 +219,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = useCallback(
     async (data: LoginData): Promise<User> => {
-      /*
-       * During login, the backend returns:
-       *
-       * {
-       *   success,
-       *   message,
-       *   token,
-       *   data: User
-       * }
-       */
-
       const response = await loginUser(data);
 
       // ------------------------------------------------------
-      // Validate authentication token
+      // Validate token
       // ------------------------------------------------------
 
       if (!response?.token) {
@@ -244,7 +230,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       // ------------------------------------------------------
-      // Validate authenticated user
+      // Validate user
       // ------------------------------------------------------
 
       if (!response?.data) {
@@ -252,7 +238,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       // ------------------------------------------------------
-      // Store JWT
+      // Save token
       // ------------------------------------------------------
 
       setToken(response.token);
@@ -260,7 +246,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setTokenState(response.token);
 
       // ------------------------------------------------------
-      // Store user
+      // Save user
       // ------------------------------------------------------
 
       saveUser(response.data);
@@ -276,20 +262,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const register = useCallback(
     async (data: RegisterData): Promise<User> => {
-      /*
-       * The backend automatically assigns:
-       *
-       * TEAM_MEMBER
-       *
-       * during public registration.
-       *
-       * The frontend does not send a role.
-       */
-
       const response = await registerUser(data);
 
       // ------------------------------------------------------
-      // Validate authentication token
+      // Validate token
       // ------------------------------------------------------
 
       if (!response?.token) {
@@ -307,7 +283,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       // ------------------------------------------------------
-      // Store JWT
+      // Save token
       // ------------------------------------------------------
 
       setToken(response.token);
@@ -315,7 +291,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setTokenState(response.token);
 
       // ------------------------------------------------------
-      // Store user
+      // Save user
       // ------------------------------------------------------
 
       saveUser(response.data);
@@ -331,13 +307,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      /*
-       * Attempt to notify the backend first.
-       *
-       * Even if this request fails, local authentication
-       * state is always cleared.
-       */
-
       await logoutUser();
     } catch (error) {
       console.error("Backend logout failed:", error);
@@ -345,6 +314,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       clearSession();
     }
   }, [clearSession]);
+
+  // ==========================================================
+  // AUTHENTICATION STATE
+  // ==========================================================
+
+  const isAuthenticated = Boolean(token && user);
 
   // ==========================================================
   // CONTEXT VALUE
@@ -356,7 +331,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       token,
 
-      isAuthenticated: Boolean(token && user),
+      isAuthenticated,
 
       loading,
 
@@ -368,7 +343,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       refreshUser,
     }),
-    [user, token, loading, login, register, logout, refreshUser],
+    [
+      user,
+      token,
+      isAuthenticated,
+      loading,
+      login,
+      register,
+      logout,
+      refreshUser,
+    ],
   );
 
   // ==========================================================
@@ -379,7 +363,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 };
 
 // ============================================================
-// USE AUTH HOOK
+// USE AUTH
 // ============================================================
 
 export const useAuth = (): AuthContextType => {

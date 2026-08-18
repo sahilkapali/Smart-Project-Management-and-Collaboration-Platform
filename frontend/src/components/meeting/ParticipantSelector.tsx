@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Autocomplete,
   Avatar,
@@ -8,126 +7,121 @@ import {
   Typography,
 } from "@mui/material";
 
-import type { UserReference } from "../../types/meeting.types";
+import type { MeetingUser } from "../../types/meeting.types";
 
 interface ParticipantSelectorProps {
-  users: UserReference[];
-  selectedParticipants: UserReference[];
-  onChange: (participants: UserReference[]) => void;
-  disabled?: boolean;
-  loading?: boolean;
+  users: MeetingUser[];
+  selectedParticipants: MeetingUser[];
+  onChange: (users: MeetingUser[]) => void;
 }
 
-const ParticipantSelector: React.FC<ParticipantSelectorProps> = ({
+const getUserName = (user: MeetingUser): string => {
+  if (user.name?.trim()) {
+    return user.name;
+  }
+
+  if (user.email?.trim()) {
+    return user.email;
+  }
+
+  return "Unknown User";
+};
+
+const ParticipantSelector = ({
   users,
   selectedParticipants,
   onChange,
-  disabled = false,
-  loading = false,
-}) => {
+}: ParticipantSelectorProps) => {
   return (
-    <Autocomplete<UserReference, true, false, false>
+    <Autocomplete
       multiple
       options={users}
       value={selectedParticipants}
       onChange={(_, newValue) => {
         onChange(newValue);
       }}
-      loading={loading}
-      disabled={disabled}
-      isOptionEqualToValue={(option, value) =>
-        option._id === value._id
+      isOptionEqualToValue={(option, value) => option.id === value.id}
+      getOptionLabel={(option) => getUserName(option)}
+      filterSelectedOptions
+      fullWidth
+      renderTags={(selected, getTagProps) =>
+        selected.map((user, index) => {
+          const name = getUserName(user);
+
+          return (
+            <Chip
+              {...getTagProps({ index })}
+              key={user.id}
+              avatar={
+                <Avatar src={user.avatar} alt={name}>
+                  {name.charAt(0).toUpperCase()}
+                </Avatar>
+              }
+              label={name}
+            />
+          );
+        })
       }
-      getOptionLabel={(option) => {
-        // Always return a string
-        const fullName = `${option.firstName ?? ""} ${
-          option.lastName ?? ""
-        }`.trim();
-
-        if (fullName) {
-          return fullName;
-        }
-
-        if (option.name) {
-          return option.name;
-        }
-
-        if (option.email) {
-          return option.email;
-        }
-
-        return "Unknown User";
-      }}
-      renderOption={(props, option) => {
-        const fullName = `${option.firstName ?? ""} ${
-          option.lastName ?? ""
-        }`.trim();
-
-        const displayName =
-          fullName || option.name || option.email || "Unknown User";
+      renderOption={(props, user) => {
+        const name = getUserName(user);
 
         return (
           <Box
             component="li"
             {...props}
-            key={option._id}
+            key={user.id}
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1.5,
-              py: 1,
             }}
           >
-            <Avatar sx={{ width: 36, height: 36 }}>
-              {displayName.charAt(0).toUpperCase()}
+            <Avatar
+              src={user.avatar}
+              alt={name}
+              sx={{
+                width: 36,
+                height: 36,
+              }}
+            >
+              {name.charAt(0).toUpperCase()}
             </Avatar>
 
             <Box>
               <Typography variant="body2" fontWeight={600}>
-                {displayName}
+                {name}
               </Typography>
 
-              {option.email && (
+              {user.email && (
+                <Typography variant="caption" color="text.secondary">
+                  {user.email}
+                </Typography>
+              )}
+
+              {user.role && (
                 <Typography
                   variant="caption"
                   color="text.secondary"
+                  sx={{
+                    display: "block",
+                  }}
                 >
-                  {option.email}
+                  {user.role}
                 </Typography>
               )}
             </Box>
           </Box>
         );
       }}
-      renderTags={(value, getTagProps) =>
-        value.map((option, index) => {
-          const fullName = `${option.firstName ?? ""} ${
-            option.lastName ?? ""
-          }`.trim();
-
-          const displayName =
-            fullName || option.name || option.email || "Unknown User";
-
-          return (
-            <Chip
-              {...getTagProps({ index })}
-              key={option._id}
-              avatar={
-                <Avatar>
-                  {displayName.charAt(0).toUpperCase()}
-                </Avatar>
-              }
-              label={displayName}
-            />
-          );
-        })
-      }
       renderInput={(params) => (
         <TextField
           {...params}
           label="Participants"
-          placeholder="Select participants"
-          helperText="Select the team members who should receive the meeting invitation."
+          placeholder={
+            selectedParticipants.length === 0
+              ? "Select participants"
+              : "Add participant"
+          }
         />
       )}
     />

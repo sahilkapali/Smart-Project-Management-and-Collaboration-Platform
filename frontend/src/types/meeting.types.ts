@@ -1,32 +1,69 @@
-export interface UserReference {
-  _id: string;
+/* ============================================================
+   MEETING USER
+============================================================ */
+
+export interface MeetingUser {
+  id: string;
+  _id?: string;
 
   name?: string;
   firstName?: string;
   lastName?: string;
 
-  email?: string;
+  email: string;
+
   role?: string;
+
   avatar?: string;
 }
 
-// ============================================================
-// PROJECT REFERENCE
-// ============================================================
+/* ============================================================
+   USER REFERENCE
+============================================================ */
 
-export interface ProjectReference {
-  _id: string;
-  name: string;
+export interface UserReference {
+  id: string;
+  _id?: string;
 
-  description?: string;
-  status?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+
+  email: string;
+
+  role?: string;
+
+  avatar?: string;
 }
 
-// ============================================================
-// MEETING NOTE
-// ============================================================
+/* ============================================================
+   MEETING PROJECT
+============================================================ */
+
+export interface MeetingProject {
+  id: string;
+  _id?: string;
+
+  name?: string;
+}
+
+/* ============================================================
+   PROJECT REFERENCE
+============================================================ */
+
+export interface ProjectReference {
+  id: string;
+  _id?: string;
+
+  name?: string;
+}
+
+/* ============================================================
+   MEETING NOTE
+============================================================ */
 
 export interface MeetingNote {
+  id?: string;
   _id?: string;
 
   content: string;
@@ -37,59 +74,14 @@ export interface MeetingNote {
   updatedAt?: string;
 }
 
-// ============================================================
-// MEETING USER
-// ============================================================
-
-export interface MeetingUser {
-  _id: string;
-
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-
-  email?: string;
-  role?: string;
-  avatar?: string;
-}
-
-// ============================================================
-// MEETING
-// ============================================================
+/* ============================================================
+   MEETING
+============================================================ */
 
 export interface Meeting {
-  _id: string;
+  id: string;
+  _id?: string;
 
-  title: string;
-
-  description?: string;
-
-  meetingLink?: string;
-
-  startTime: string | Date;
-
-  endTime?: string | Date;
-
-  projectId: string | ProjectReference;
-
-  createdBy: string | MeetingUser;
-
-  participants: Array<string | MeetingUser>;
-
-  notes?: MeetingNote[];
-
-  actionItems?: string[];
-
-  createdAt: string | Date;
-
-  updatedAt: string | Date;
-}
-
-// ============================================================
-// CREATE MEETING
-// ============================================================
-
-export interface CreateMeetingData {
   title: string;
 
   description?: string;
@@ -98,73 +90,108 @@ export interface CreateMeetingData {
 
   startTime: string;
 
-  endTime?: string;
+  endTime?: string | null;
 
   projectId: string;
 
-  participants: string[];
+  project?: MeetingProject;
+
+  createdBy: MeetingUser | null;
+
+  participants: MeetingUser[];
+
+  notes: MeetingNote[];
+
+  actionItems: string[];
+
+  createdAt?: string;
+
+  updatedAt?: string;
 }
 
-// ============================================================
-// UPDATE MEETING
-// ============================================================
+/* ============================================================
+   CREATE MEETING
+============================================================ */
 
-export interface UpdateMeetingData {
+export interface CreateMeetingPayload {
+  title: string;
+
+  description?: string;
+
+  meetingLink?: string;
+
+  projectId: string;
+
+  participants?: string[];
+
+  startTime: string;
+
+  endTime?: string;
+
+  notes?: Array<{
+    content: string;
+  }>;
+}
+
+/* ============================================================
+   BACKWARD COMPATIBILITY
+============================================================ */
+
+export type CreateMeetingData = CreateMeetingPayload;
+
+/* ============================================================
+   UPDATE MEETING
+============================================================ */
+
+export interface UpdateMeetingPayload {
   title?: string;
 
   description?: string;
 
   meetingLink?: string;
 
+  projectId?: string;
+
+  participants?: string[];
+
   startTime?: string;
 
   endTime?: string;
 
-  projectId?: string;
+  notes?: Array<{
+    _id?: string;
+    id?: string;
 
-  participants?: string[];
+    content: string;
+
+    aiGeneratedSummary?: string;
+  }>;
 }
 
-// ============================================================
-// API RESPONSE
-// ============================================================
+/* ============================================================
+   ADD MEETING NOTE
+============================================================ */
 
-export interface MeetingResponse {
-  success: boolean;
-
-  message?: string;
-
-  data: Meeting;
+export interface AddMeetingNotePayload {
+  content: string;
 }
 
-// ============================================================
-// MEETING LIST RESPONSE
-// ============================================================
+/* ============================================================
+   UPDATE MEETING NOTE
+============================================================ */
 
-export interface MeetingListResponse {
-  success: boolean;
+export interface UpdateMeetingNotePayload {
+  noteId: string;
 
-  message?: string;
-
-  data: Meeting[];
+  content: string;
 }
 
-// ============================================================
-// AI RESPONSE
-// ============================================================
+/* ============================================================
+   PATCH MEETING NOTE
+============================================================ */
 
-export interface MeetingAIResponse {
-  success?: boolean;
+export interface PatchMeetingNotePayload {
+  noteId: string;
 
-  message?: string;
-
-  data?: unknown;
-
-  result?: unknown;
-
-  output?: unknown;
+  content?: string;
 }
-
-// Prevent accidental unused-import issues while keeping
-// compatibility with projects that already expose User.
-export type MeetingUserReference = UserReference;

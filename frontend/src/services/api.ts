@@ -1,29 +1,22 @@
 import axios from "axios";
 
 /**
- * Backend API URL
- *
- * VITE_API_URL should normally be:
- *
- * http://localhost:8080/api
- *
- * If it is not defined, the application will use
- * the local backend URL above.
+ * ============================================================
+ * API URL
+ * ============================================================
  */
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 /**
- * Axios API client
+ * ============================================================
+ * AXIOS INSTANCE
+ * ============================================================
  */
+
 const api = axios.create({
   baseURL: API_URL,
-
-  /*
-   * Keep this enabled because the backend supports
-   * credentials/cookies as well.
-   */
   withCredentials: true,
-
   timeout: 30000,
 
   headers: {
@@ -35,32 +28,21 @@ const api = axios.create({
  * ============================================================
  * REQUEST INTERCEPTOR
  * ============================================================
- *
- * IMPORTANT:
- *
- * AuthContext stores the JWT using:
- *
- *     localStorage.setItem("accessToken", token)
- *
- * Therefore we MUST read "accessToken" here.
- *
- * The previous implementation incorrectly read:
- *
- *     localStorage.getItem("token")
- *
- * which caused authenticated requests to be sent without
- * the Authorization header.
  */
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("accessToken");
 
+    console.log("==========================================");
+    console.log("API REQUEST");
+    console.log("URL:", `${config.baseURL}${config.url}`);
+    console.log("METHOD:", config.method);
+    console.log("TOKEN EXISTS:", Boolean(token));
+    console.log("TOKEN:", token ? `${token.substring(0, 20)}...` : "NONE");
+    console.log("==========================================");
+
     if (token) {
-      /*
-       * Axios 1.x supports AxiosHeaders.set().
-       *
-       * We also make sure headers exists before setting it.
-       */
       if (config.headers) {
         config.headers.set("Authorization", `Bearer ${token}`);
       }
@@ -68,7 +50,6 @@ api.interceptors.request.use(
 
     return config;
   },
-
   (error) => {
     return Promise.reject(error);
   },
@@ -78,48 +59,45 @@ api.interceptors.request.use(
  * ============================================================
  * RESPONSE INTERCEPTOR
  * ============================================================
- *
- * Handles expired/invalid authentication.
  */
+
 api.interceptors.response.use(
   (response) => {
+    console.log("==========================================");
+    console.log("API SUCCESS");
+    console.log("URL:", response.config.url);
+    console.log("STATUS:", response.status);
+    console.log("DATA:", response.data);
+    console.log("==========================================");
+
     return response;
   },
 
   (error) => {
     const status = error?.response?.status;
 
+    console.log("==========================================");
+    console.log("API ERROR");
+    console.log("URL:", error?.config?.url);
+    console.log("METHOD:", error?.config?.method);
+    console.log("STATUS:", status);
+    console.log("RESPONSE:", error?.response?.data);
+    console.log("==========================================");
+
     if (status === 401) {
-      console.warn(
-        "Authentication failed: JWT is missing, invalid, or expired.",
-      );
+      console.warn("401 Unauthorized detected.");
 
-      const currentPath = window.location.pathname;
+      /*
+       * IMPORTANT:
+       *
+       * We are temporarily NOT redirecting to login here.
+       *
+       * This allows us to see which API request is actually
+       * failing.
+       */
 
-      const authPages = [
-        "/login",
-        "/register",
-        "/forgot-password",
-        "/reset-password",
-      ];
-
-      const isAuthPage = authPages.includes(currentPath);
-
-      if (!isAuthPage) {
-        /*
-         * Remove BOTH keys.
-         *
-         * "accessToken" is the current correct key.
-         *
-         * "token" is removed as a compatibility cleanup in
-         * case an older version of the application stored it.
-         */
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-
-        window.location.href = "/login";
-      }
+      // DO NOT CLEAR TOKEN FOR NOW
+      // DO NOT REDIRECT TO LOGIN FOR NOW
     }
 
     return Promise.reject(error);
