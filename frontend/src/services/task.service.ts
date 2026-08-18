@@ -1,291 +1,227 @@
 import api from "./api";
 
 import type {
-  CreateTaskPayload,
   Task,
-  TaskStatus,
+  CreateTaskPayload,
   UpdateTaskPayload,
+  TaskStatus,
+  TaskComment,
+  TaskResponse,
+  TasksResponse,
+  KanbanResponse,
+  TaskCommentsResponse,
 } from "../types/task.types";
 
-
-/* =========================================================
-   RESPONSE HELPER
-========================================================= */
-
-const unwrap = <T>(
-  response: any,
-): T => {
-
-  const body =
-    response?.data;
-
-  return (
-    body?.data ??
-    body?.tasks ??
-    body
-  ) as T;
-};
-
-
-/* =========================================================
-   TASK SERVICE
-========================================================= */
+// ============================================================
+// TASK SERVICE
+// ============================================================
 
 const taskService = {
+  // ==========================================================
+  // GET ALL TASKS
+  // GET /tasks?project=PROJECT_ID
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * GET TASKS FOR PROJECT
-   *
-   * Backend:
-   *
-   * GET /api/tasks?project=PROJECT_ID
-   *
-   * The backend checks whether the current user belongs
-   * to this project.
-   * =======================================================
-   */
-  async getTasks(
-    projectId: string,
-  ): Promise<Task[]> {
-
+  async getTasks(projectId: string): Promise<Task[]> {
     if (!projectId) {
-
-      throw new Error(
-        "Project ID is required to load tasks.",
-      );
+      throw new Error("Project ID is required.");
     }
 
+    const response = await api.get<TasksResponse>("/tasks", {
+      params: {
+        project: projectId,
+      },
+    });
 
-    const response =
-      await api.get(
-        "/tasks",
-        {
-          params: {
-            project:
-              projectId,
-          },
-        },
-      );
-
-
-    const data =
-      unwrap<Task[]>(
-        response,
-      );
-
-
-    return Array.isArray(
-      data,
-    )
-      ? data
-      : [];
+    return Array.isArray(response.data?.data) ? response.data.data : [];
   },
 
+  // ==========================================================
+  // GET TASK BY ID
+  // GET /tasks/:id
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * GET SINGLE TASK
-   * =======================================================
-   */
-  async getTaskById(
-    taskId: string,
-  ): Promise<Task> {
-
+  async getTaskById(taskId: string): Promise<Task> {
     if (!taskId) {
-
-      throw new Error(
-        "Task ID is required.",
-      );
+      throw new Error("Task ID is required.");
     }
 
+    const response = await api.get<TaskResponse>(`/tasks/${taskId}`);
 
-    const response =
-      await api.get(
-        `/tasks/${taskId}`,
-      );
-
-
-    return unwrap<Task>(
-      response,
-    );
+    return response.data.data;
   },
 
+  // ==========================================================
+  // CREATE TASK
+  // POST /tasks
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * CREATE TASK
-   * =======================================================
-   */
-  async createTask(
-    data: CreateTaskPayload,
-  ): Promise<Task> {
+  async createTask(data: CreateTaskPayload): Promise<Task> {
+    const response = await api.post<TaskResponse>("/tasks", data);
 
-    if (!data.project) {
-
-      throw new Error(
-        "Project ID is required to create a task.",
-      );
-    }
-
-
-    const response =
-      await api.post(
-        "/tasks",
-        data,
-      );
-
-
-    return unwrap<Task>(
-      response,
-    );
+    return response.data.data;
   },
 
+  // ==========================================================
+  // UPDATE TASK
+  // PUT /tasks/:id
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * UPDATE TASK
-   * =======================================================
-   */
-  async updateTask(
-    taskId: string,
-    data: UpdateTaskPayload,
-  ): Promise<Task> {
-
+  async updateTask(taskId: string, data: UpdateTaskPayload): Promise<Task> {
     if (!taskId) {
-
-      throw new Error(
-        "Task ID is required.",
-      );
+      throw new Error("Task ID is required.");
     }
 
+    const response = await api.put<TaskResponse>(`/tasks/${taskId}`, data);
 
-    const response =
-      await api.put(
-        `/tasks/${taskId}`,
-        data,
-      );
-
-
-    return unwrap<Task>(
-      response,
-    );
+    return response.data.data;
   },
 
+  // ==========================================================
+  // DELETE TASK
+  // DELETE /tasks/:id
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * DELETE TASK
-   * =======================================================
-   */
-  async deleteTask(
-    taskId: string,
-  ): Promise<void> {
-
+  async deleteTask(taskId: string): Promise<void> {
     if (!taskId) {
-
-      throw new Error(
-        "Task ID is required.",
-      );
+      throw new Error("Task ID is required.");
     }
 
-
-    await api.delete(
-      `/tasks/${taskId}`,
-    );
+    await api.delete(`/tasks/${taskId}`);
   },
 
+  // ==========================================================
+  // UPDATE TASK STATUS
+  // PATCH /tasks/:id/status
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * UPDATE TASK STATUS
-   * =======================================================
-   */
-  async updateStatus(
-    taskId: string,
-    status: TaskStatus,
-  ): Promise<Task> {
-
+  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
     if (!taskId) {
-
-      throw new Error(
-        "Task ID is required.",
-      );
+      throw new Error("Task ID is required.");
     }
 
+    const response = await api.patch<TaskResponse>(`/tasks/${taskId}/status`, {
+      status,
+    });
 
-    const response =
-      await api.patch(
-        `/tasks/${taskId}/status`,
-        {
-          status,
-        },
-      );
+    /*
+     * Backend returns:
+     *
+     * {
+     *   success: true,
+     *   message: "...",
+     *   data: task
+     * }
+     */
 
-
-    return unwrap<Task>(
-      response,
-    );
+    return response.data.data;
   },
 
+  // ==========================================================
+  // GET KANBAN BOARD
+  // GET /tasks/project/:projectId/kanban
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * GET KANBAN
-   * =======================================================
-   */
-  async getKanban(
-    projectId: string,
-  ) {
-
+  async getKanban(projectId: string): Promise<KanbanResponse["data"]> {
     if (!projectId) {
-
-      throw new Error(
-        "Project ID is required.",
-      );
+      throw new Error("Project ID is required.");
     }
 
-
-    const response =
-      await api.get(
-        `/tasks/project/${projectId}/kanban`,
-      );
-
-
-    return unwrap(
-      response,
+    const response = await api.get<KanbanResponse>(
+      `/tasks/project/${projectId}/kanban`,
     );
+
+    return response.data.data;
   },
 
+  // ==========================================================
+  // ADD TASK COMMENT
+  // POST /tasks/:id/comments
+  // ==========================================================
 
-  /**
-   * =======================================================
-   * AI PRIORITIZATION
-   * =======================================================
-   */
-  async autoPrioritize(
-    taskId: string,
-  ): Promise<Task> {
-
+  async addTaskComment(taskId: string, text: string): Promise<TaskComment> {
     if (!taskId) {
-
-      throw new Error(
-        "Task ID is required.",
-      );
+      throw new Error("Task ID is required.");
     }
 
+    if (!text.trim()) {
+      throw new Error("Comment text is required.");
+    }
 
-    const response =
-      await api.patch(
-        `/tasks/${taskId}/ai-prioritize`,
-      );
+    /*
+     * Backend returns:
+     *
+     * {
+     *   success: true,
+     *   message: "Comment added successfully.",
+     *   data: populatedComment
+     * }
+     *
+     * Therefore we use a dedicated response type
+     * instead of TaskResponse.
+     */
 
+    const response = await api.post<{
+      success: boolean;
+      message?: string;
+      data: TaskComment;
+    }>(`/tasks/${taskId}/comments`, {
+      text: text.trim(),
+    });
 
-    return unwrap<Task>(
-      response,
+    return response.data.data;
+  },
+
+  // ==========================================================
+  // GET TASK COMMENTS
+  // GET /tasks/:id/comments
+  // ==========================================================
+
+  async getTaskComments(taskId: string): Promise<TaskComment[]> {
+    if (!taskId) {
+      throw new Error("Task ID is required.");
+    }
+
+    const response = await api.get<TaskCommentsResponse>(
+      `/tasks/${taskId}/comments`,
     );
+
+    return Array.isArray(response.data?.data) ? response.data.data : [];
+  },
+
+  // ==========================================================
+  // DELETE TASK COMMENT
+  // DELETE /tasks/:taskId/comments/:commentId
+  // ==========================================================
+
+  async deleteTaskComment(taskId: string, commentId: string): Promise<void> {
+    if (!taskId) {
+      throw new Error("Task ID is required.");
+    }
+
+    if (!commentId) {
+      throw new Error("Comment ID is required.");
+    }
+
+    await api.delete(`/tasks/${taskId}/comments/${commentId}`);
+  },
+
+  // ==========================================================
+  // AI AUTO PRIORITIZE
+  // PATCH /tasks/:id/ai-prioritize
+  // ==========================================================
+
+  async autoPrioritizeTask(taskId: string): Promise<Task> {
+    if (!taskId) {
+      throw new Error("Task ID is required.");
+    }
+
+    const response = await api.patch<TaskResponse>(
+      `/tasks/${taskId}/ai-prioritize`,
+    );
+
+    return response.data.data;
   },
 };
-
 
 export default taskService;

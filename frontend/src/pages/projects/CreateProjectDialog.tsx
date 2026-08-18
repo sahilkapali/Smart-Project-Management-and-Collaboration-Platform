@@ -1,15 +1,15 @@
-import {
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import {
   Alert,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   MenuItem,
+  Slider,
   Stack,
   TextField,
 } from "@mui/material";
@@ -17,29 +17,33 @@ import {
 import projectService from "../../services/project.service";
 
 import type {
+  CreateProjectPayload,
   ProjectStatus,
-  BackendProjectStatus,
 } from "../../types/project.types";
+
+// ============================================================
+// PROPS
+// ============================================================
 
 interface CreateProjectDialogProps {
   open: boolean;
 
   onClose: () => void;
 
-  onCreated: () => void;
+  onCreated?: () => void;
 }
 
-const STATUS_OPTIONS: {
+// ============================================================
+// STATUS OPTIONS
+// ============================================================
+
+const STATUS_OPTIONS: Array<{
   value: ProjectStatus;
   label: string;
-}[] = [
+}> = [
   {
-    value: "PENDING",
-    label: "Pending",
-  },
-  {
-    value: "IN_PROGRESS",
-    label: "In Progress",
+    value: "PLANNING",
+    label: "Planning",
   },
   {
     value: "ACTIVE",
@@ -50,41 +54,39 @@ const STATUS_OPTIONS: {
     label: "Completed",
   },
   {
-    value: "CANCELLED",
-    label: "Cancelled",
+    value: "ARCHIVED",
+    label: "Archived",
   },
 ];
 
-const UI_TO_BACKEND_STATUS: Record<
-  ProjectStatus,
-  BackendProjectStatus
-> = {
-  PENDING: "PLANNING",
+// ============================================================
+// ERROR TYPE
+// ============================================================
 
-  IN_PROGRESS: "ACTIVE",
+interface ApiErrorResponse {
+  message?: string;
+  error?: string;
+}
 
-  ACTIVE: "ACTIVE",
-
-  COMPLETED: "COMPLETED",
-
-  CANCELLED: "ARCHIVED",
-};
+// ============================================================
+// CREATE PROJECT DIALOG
+// ============================================================
 
 const CreateProjectDialog = ({
   open,
   onClose,
   onCreated,
 }: CreateProjectDialogProps) => {
-  const [name, setName] =
-    useState("");
+  // ==========================================================
+  // FORM STATE
+  // ==========================================================
+
+  const [projectName, setProjectName] = useState("");
 
   const [description, setDescription] =
     useState("");
 
-  const [status, setStatus] =
-    useState<ProjectStatus>(
-      "PENDING",
-    );
+  const [status, setStatus] = useState<ProjectStatus>("PLANNING");
 
   const [teamId, setTeamId] =
     useState("");
@@ -95,21 +97,52 @@ const CreateProjectDialog = ({
   const [dueDate, setDueDate] =
     useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // ==========================================================
+  // UI STATE
+  // ==========================================================
+
+  const [loading, setLoading] = useState(false);
 
   const [error, setError] =
     useState("");
 
+  // ==========================================================
+  // RESET FORM
+  // ==========================================================
+
   const resetForm = () => {
-    setName("");
+    setProjectName("");
+
     setDescription("");
-    setStatus("PENDING");
+
+    setStatus("PLANNING");
+
     setTeamId("");
+
     setStartDate("");
-    setDueDate("");
+
+    setEndDate("");
+
+    setProgress(0);
+
     setError("");
   };
+
+  // ==========================================================
+  // RESET WHEN DIALOG OPENS
+  // ==========================================================
+
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open]);
+
+  // ==========================================================
+  // CLOSE DIALOG
+  // ==========================================================
 
   const handleClose = () => {
     if (loading) {
@@ -121,44 +154,59 @@ const CreateProjectDialog = ({
     onClose();
   };
 
-  const handleSubmit = async (
-    event: React.FormEvent,
-  ) => {
-    event.preventDefault();
+  // ==========================================================
+  // SUBMIT
+  // ==========================================================
 
+  const handleSubmit = async () => {
     setError("");
 
-    if (!name.trim()) {
-      setError(
-        "Project name is required.",
-      );
+    // --------------------------------------------------------
+    // Project name validation
+    // --------------------------------------------------------
+
+    if (!projectName.trim()) {
+      setError("Project name is required.");
 
       return;
     }
+
+    // --------------------------------------------------------
+    // Team validation
+    // --------------------------------------------------------
 
     if (!teamId.trim()) {
-      setError(
-        "Team ID is required.",
-      );
+      setError("Team ID is required.");
 
       return;
     }
 
-    if (
-      startDate &&
-      dueDate &&
-      new Date(startDate) >
-        new Date(dueDate)
-    ) {
-      setError(
-        "Due date cannot be earlier than start date.",
-      );
+    // --------------------------------------------------------
+    // Date validation
+    // --------------------------------------------------------
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      setError("End date cannot be before the start date.");
 
       return;
     }
 
-    const payload: any = {
-      name: name.trim(),
+    // --------------------------------------------------------
+    // Progress validation
+    // --------------------------------------------------------
+
+    if (progress < 0 || progress > 100) {
+      setError("Project progress must be between 0 and 100.");
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Payload
+    // --------------------------------------------------------
+
+    const payload: CreateProjectPayload = {
+      name: projectName.trim(),
 
       description:
         description.trim(),
@@ -172,10 +220,13 @@ const CreateProjectDialog = ({
         teamId.trim(),
     };
 
-    if (startDate) {
-      payload.startDate =
-        startDate;
-    }
+      progress,
+
+      ...(startDate
+        ? {
+            startDate,
+          }
+        : {}),
 
     if (dueDate) {
       payload.dueDate =
@@ -185,30 +236,49 @@ const CreateProjectDialog = ({
     try {
       setLoading(true);
 
-      await projectService.createProject(
-        payload,
-      );
+      // ------------------------------------------------------
+      // CREATE PROJECT
+      // ------------------------------------------------------
+
+      await projectService.createProject(payload);
+
+      // ------------------------------------------------------
+      // SUCCESS
+      // ------------------------------------------------------
 
       resetForm();
 
       onCreated();
 
       onClose();
-    } catch (err: any) {
-      console.error(
-        "Create project failed:",
-        err,
-      );
+    } catch (error: unknown) {
+      console.error("Create project failed:", error);
+
+      // ------------------------------------------------------
+      // Extract backend error safely
+      // ------------------------------------------------------
+
+      const axiosError = error as {
+        response?: {
+          data?: ApiErrorResponse;
+        };
+      };
+
+      const backendMessage =
+        axiosError.response?.data?.message || axiosError.response?.data?.error;
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Failed to create project.",
+        backendMessage ||
+          "Unable to create project. Please check the information and try again.",
       );
     } finally {
       setLoading(false);
     }
   };
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <Dialog
@@ -219,26 +289,62 @@ const CreateProjectDialog = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
+
+          p: {
+            xs: 1,
+            sm: 2,
+          },
         },
       }}
     >
-      <form
-        onSubmit={
-          handleSubmit
-        }
-      >
-        <DialogTitle
-          sx={{
-            fontWeight: 700,
-          }}
-        >
-          New Project
-        </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2.5}>
+          {/* ==================================================
+              HEADER
+          ================================================== */}
 
-        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+
+              alignItems: "center",
+
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: {
+                  xs: "1.6rem",
+                  sm: "2rem",
+                },
+
+                fontWeight: 700,
+              }}
+            >
+              Create Project
+            </Typography>
+
+            <IconButton
+              onClick={handleClose}
+              disabled={loading}
+              aria-label="Close create project dialog"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Box>
+
+          {/* ==================================================
+              ERROR
+          ================================================== */}
+
           {error && (
             <Alert
               severity="error"
+              onClose={() => setError("")}
               sx={{
                 mb: 2,
               }}
@@ -247,76 +353,92 @@ const CreateProjectDialog = ({
             </Alert>
           )}
 
-          <Stack
-            spacing={2.5}
+          {/* ==================================================
+              PROJECT NAME
+          ================================================== */}
+
+          <TextField
+            label="Project Name"
+            required
+            fullWidth
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+            disabled={loading}
+            inputProps={{
+              maxLength: 150,
+            }}
+            helperText={`${projectName.length}/150`}
+          />
+
+          {/* ==================================================
+              DESCRIPTION
+          ================================================== */}
+
+          <TextField
+            label="Description"
+            fullWidth
+            multiline
+            minRows={4}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            disabled={loading}
+            inputProps={{
+              maxLength: 1000,
+            }}
+            helperText={`${description.length}/1000`}
+          />
+
+          {/* ==================================================
+              TEAM ID
+          ================================================== */}
+
+          <TextField
+            label="Team ID"
+            required
+            fullWidth
+            value={teamId}
+            onChange={(event) => setTeamId(event.target.value)}
+            disabled={loading}
+            placeholder="Enter an existing team ID"
+            helperText="Enter the ID of an existing team that you belong to."
+          />
+
+          {/* ==================================================
+              STATUS
+          ================================================== */}
+
+          <TextField
+            select
+            label="Project Status"
+            fullWidth
+            value={status}
+            onChange={(event) => setStatus(event.target.value as ProjectStatus)}
+            disabled={loading}
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {/* ==================================================
+              DATES
+          ================================================== */}
+
+          <Box
             sx={{
-              mt: 1,
+              display: "grid",
+
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "1fr 1fr",
+              },
+
+              gap: 2,
             }}
           >
-            <TextField
-              label="Project Name"
-              required
-              fullWidth
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value,
-                )
-              }
-            />
-
-            <TextField
-              label="Description"
-              fullWidth
-              multiline
-              rows={4}
-              value={description}
-              onChange={(event) =>
-                setDescription(
-                  event.target.value,
-                )
-              }
-            />
-
-            <TextField
-              select
-              label="Status"
-              fullWidth
-              value={status}
-              onChange={(event) =>
-                setStatus(
-                  event.target
-                    .value as ProjectStatus,
-                )
-              }
-            >
-              {STATUS_OPTIONS.map(
-                (option) => (
-                  <MenuItem
-                    key={
-                      option.value
-                    }
-                    value={
-                      option.value
-                    }
-                  >
-                    {option.label}
-                  </MenuItem>
-                ),
-              )}
-            </TextField>
-
-            <TextField
-              label="Team ID"
-              required
-              fullWidth
-              value={teamId}
-              onChange={(event) =>
-                setTeamId(
-                  event.target.value,
-                )
-              }
-            />
+            {/* Start Date */}
 
             <TextField
               label="Start Date"
@@ -333,8 +455,10 @@ const CreateProjectDialog = ({
               }}
             />
 
+            {/* Deadline */}
+
             <TextField
-              label="Due Date"
+              label="Project Deadline"
               type="date"
               fullWidth
               value={dueDate}
@@ -347,28 +471,49 @@ const CreateProjectDialog = ({
                 shrink: true,
               }}
             />
-          </Stack>
-        </DialogContent>
+          </Box>
 
-        <DialogActions
-          sx={{
-            px: 3,
-            pb: 3,
-          }}
-        >
-          <Button
-            onClick={
-              handleClose
-            }
-            disabled={loading}
-            color="inherit"
-            sx={{
-              textTransform:
-                "none",
-            }}
-          >
-            Cancel
-          </Button>
+          {/* ==================================================
+              PROGRESS
+          ================================================== */}
+
+          <Box>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              sx={{
+                mb: 1,
+              }}
+            >
+              <Typography variant="body2" fontWeight={600}>
+                Initial Project Progress
+              </Typography>
+
+              <Typography variant="body2" fontWeight={700} color="primary.main">
+                {progress}%
+              </Typography>
+            </Stack>
+
+            <Slider
+              value={progress}
+              onChange={(_event, value) => {
+                if (typeof value === "number") {
+                  setProgress(value);
+                }
+              }}
+              min={0}
+              max={100}
+              step={5}
+              valueLabelDisplay="auto"
+              disabled={loading}
+              aria-label="Initial project progress"
+            />
+          </Box>
+
+          {/* ==================================================
+              BUTTONS
+          ================================================== */}
 
           <Button
             type="submit"
@@ -380,12 +525,49 @@ const CreateProjectDialog = ({
               fontWeight: 700,
             }}
           >
-            {loading
-              ? "Creating..."
-              : "Create Project"}
-          </Button>
-        </DialogActions>
-      </form>
+            <Button
+              variant="outlined"
+              onClick={handleClose}
+              disabled={loading}
+              sx={{
+                minWidth: 120,
+
+                borderRadius: 2,
+
+                textTransform: "none",
+
+                fontWeight: 700,
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              variant="contained"
+              startIcon={
+                loading ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  <SaveRoundedIcon />
+                )
+              }
+              onClick={handleSubmit}
+              disabled={loading || !projectName.trim() || !teamId.trim()}
+              sx={{
+                minWidth: 170,
+
+                borderRadius: 2,
+
+                textTransform: "none",
+
+                fontWeight: 700,
+              }}
+            >
+              {loading ? "Creating..." : "Create Project"}
+            </Button>
+          </Stack>
+        </Stack>
+      </DialogContent>
     </Dialog>
   );
 };

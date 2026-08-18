@@ -1,151 +1,348 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
 import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Paper,
-  MenuItem,
-  CircularProgress,
   Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
-  IconButton
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { createIssue } from '../../services/issues.service';
-import type { IssuePriority } from '../../types/issues.types';
+  TextField,
+  Typography,
+} from "@mui/material";
 
-const CreateIssuePage: React.FC = () => {
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+
+import { createIssue } from "../../services/issues.service";
+
+import type {
+  CreateIssuePayload,
+  IssuePriority,
+} from "../../types/issue.types";
+
+const CreateIssuePage = () => {
   const navigate = useNavigate();
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<IssuePriority>('medium');
-  const [projectId, setProjectId] = useState('');
-  const [assignee, setAssignee] = useState('');
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !projectId.trim()) {
-      setError('Title and Project ID are required.');
+  // ============================================================
+  // STATE
+  // ============================================================
+
+  const [repositoryId, setRepositoryId] = useState("");
+
+  const [title, setTitle] = useState("");
+
+  const [description, setDescription] = useState("");
+
+  const [priority, setPriority] = useState<IssuePriority>("Medium");
+
+  const [assignedTo, setAssignedTo] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  // ============================================================
+  // GET REPOSITORY ID FROM URL
+  // ============================================================
+
+  useEffect(() => {
+    const urlRepositoryId =
+      searchParams.get("repositoryId") ||
+      searchParams.get("repository") ||
+      searchParams.get("projectId") ||
+      "";
+
+    if (urlRepositoryId) {
+      setRepositoryId(urlRepositoryId);
+    }
+  }, [searchParams]);
+
+  // ============================================================
+  // SUBMIT
+  // ============================================================
+
+  const handleSubmit = async () => {
+    setError("");
+
+    // ----------------------------------------------------------
+    // VALIDATE REPOSITORY
+    // ----------------------------------------------------------
+
+    if (!repositoryId.trim()) {
+      setError("Repository ID is required.");
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // VALIDATE TITLE
+    // ----------------------------------------------------------
+
+    if (!title.trim()) {
+      setError("Issue title is required.");
+      return;
+    }
+
+    if (title.trim().length < 3) {
+      setError("Issue title must be at least 3 characters.");
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
-      await createIssue({
-        title,
-        description,
+
+      // --------------------------------------------------------
+      // CREATE PAYLOAD
+      // --------------------------------------------------------
+
+      const payload: CreateIssuePayload = {
+        repository: repositoryId.trim(),
+        title: title.trim(),
+        description: description.trim() || undefined,
         priority,
-        projectId,
-        assignee: assignee || undefined, // Only send if provided
-      });
-      navigate('/issues'); // Redirect back to list on success
+        assignedTo: assignedTo.trim() || undefined,
+      };
+
+      console.log("Creating issue with payload:", payload);
+
+      // --------------------------------------------------------
+      // API CALL
+      // --------------------------------------------------------
+
+      const createdIssue = await createIssue(payload);
+
+      console.log("Issue created successfully:", createdIssue);
+
+      // --------------------------------------------------------
+      // NAVIGATE TO CREATED ISSUE
+      // --------------------------------------------------------
+
+      if (createdIssue?._id) {
+        navigate(`/issues/${createdIssue._id}`);
+      } else if (createdIssue?.id) {
+        navigate(`/issues/${createdIssue.id}`);
+      } else {
+        navigate("/issues");
+      }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to create issue. Please try again.');
+      console.error("Create issue failed:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to create issue.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ============================================================
+  // CANCEL
+  // ============================================================
+
+  const handleCancel = () => {
+    if (loading) {
+      return;
+    }
+
+    navigate(-1);
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 800, mx: 'auto' }}>
-      <Stack direction="row" alignItems="center" mb={4} spacing={2}>
-        <IconButton onClick={() => navigate('/issues')} color="primary">
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" fontWeight="bold">
-          Create New Issue
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 900,
+        mx: "auto",
+      }}
+    >
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
+        <Button
+          startIcon={<ArrowBackRoundedIcon />}
+          onClick={handleCancel}
+          disabled={loading}
+          sx={{
+            textTransform: "none",
+          }}
+        >
+          Back
+        </Button>
+
+        <Typography variant="h4" fontWeight={700}>
+          Create Issue
         </Typography>
       </Stack>
 
-      <Paper variant="outlined" sx={{ p: 4, borderRadius: 3 }}>
-        <form onSubmit={handleSubmit}>
-          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {/* ======================================================
+          FORM
+      ====================================================== */}
 
-          <TextField
-            label="Project ID *"
-            fullWidth
-            required
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            margin="normal"
-            disabled={loading}
-            helperText="Enter the ID of the project this issue belongs to"
-          />
+      <Card
+        elevation={0}
+        sx={{
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 3,
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={3}>
+            {/* ==================================================
+                ERROR
+            ================================================== */}
 
-          <TextField
-            label="Issue Title *"
-            fullWidth
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            margin="normal"
-            disabled={loading}
-            placeholder="e.g., Login button not responding on mobile"
-          />
+            {error && (
+              <Alert severity="error" onClose={() => setError("")}>
+                {error}
+              </Alert>
+            )}
 
-          <TextField
-            label="Description"
-            fullWidth
-            multiline
-            rows={5}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            margin="normal"
-            disabled={loading}
-            placeholder="Provide detailed steps to reproduce, expected behavior, and actual behavior."
-          />
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2, mb: 3 }}>
-            <TextField
-              select
-              label="Priority"
-              fullWidth
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as IssuePriority)}
-              disabled={loading}
-            >
-              <MenuItem value="low">Low</MenuItem>
-              <MenuItem value="medium">Medium</MenuItem>
-              <MenuItem value="high">High</MenuItem>
-              <MenuItem value="critical">Critical</MenuItem>
-            </TextField>
+            {/* ==================================================
+                REPOSITORY ID
+            ================================================== */}
 
             <TextField
-              label="Assignee (Username/ID)"
               fullWidth
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
+              label="Repository ID"
+              placeholder="Enter repository MongoDB ID"
+              value={repositoryId}
+              onChange={(event) => {
+                setRepositoryId(event.target.value);
+              }}
+              required
+              helperText={
+                repositoryId.trim()
+                  ? "Repository ID entered."
+                  : "Enter the MongoDB repository ID."
+              }
               disabled={loading}
-              placeholder="Leave blank if unassigned"
             />
-          </Stack>
 
-          <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
-            <Button 
-              variant="outlined" 
-              onClick={() => navigate('/issues')} 
+            {/* ==================================================
+                ISSUE TITLE
+            ================================================== */}
+
+            <TextField
+              fullWidth
+              label="Issue Title"
+              placeholder="Enter issue title"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+              }}
+              required
+              autoFocus
               disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              variant="contained" 
-              disabled={loading || !title.trim() || !projectId.trim()} 
-              sx={{ bgcolor: '#5e35b1', '&:hover': { bgcolor: '#4527a0' }, minWidth: 120 }}
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Create Issue'}
-            </Button>
-          </Box>
-        </form>
-      </Paper>
+            />
+
+            {/* ==================================================
+                DESCRIPTION
+            ================================================== */}
+
+            <TextField
+              fullWidth
+              label="Description"
+              placeholder="Describe the issue"
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+              }}
+              multiline
+              minRows={5}
+              disabled={loading}
+            />
+
+            {/* ==================================================
+                PRIORITY
+            ================================================== */}
+
+            <FormControl fullWidth disabled={loading}>
+              <InputLabel>Priority</InputLabel>
+
+              <Select
+                value={priority}
+                label="Priority"
+                onChange={(event) => {
+                  setPriority(event.target.value as IssuePriority);
+                }}
+              >
+                <MenuItem value="Low">Low</MenuItem>
+
+                <MenuItem value="Medium">Medium</MenuItem>
+
+                <MenuItem value="High">High</MenuItem>
+
+                <MenuItem value="Critical">Critical</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* ==================================================
+                ASSIGNED USER
+            ================================================== */}
+
+            <TextField
+              fullWidth
+              label="Assigned User ID"
+              placeholder="Enter user MongoDB ID"
+              value={assignedTo}
+              onChange={(event) => {
+                setAssignedTo(event.target.value);
+              }}
+              helperText="Optional"
+              disabled={loading}
+            />
+
+            {/* ==================================================
+                ACTIONS
+            ================================================== */}
+
+            <Stack direction="row" justifyContent="flex-end" spacing={2}>
+              <Button
+                variant="outlined"
+                onClick={handleCancel}
+                disabled={loading}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={() => {
+                  void handleSubmit();
+                }}
+                disabled={loading || !repositoryId.trim() || !title.trim()}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  minWidth: 150,
+                }}
+              >
+                {loading ? "Creating..." : "Create Issue"}
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

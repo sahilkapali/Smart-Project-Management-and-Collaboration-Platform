@@ -6,125 +6,111 @@ import type {
   UpdateProjectPayload,
 } from "../types/project.types";
 
+/**
+ * Backend MongoDB documents may contain _id.
+ * Frontend uses id consistently.
+ */
+interface BackendProject extends Omit<Project, "id"> {
+  id?: string;
+  _id?: string;
+}
+
+const normalizeProject = (project: BackendProject): Project => {
+  return {
+    id: project.id ?? project._id ?? "",
+    name: project.name,
+    description: project.description ?? null,
+    status: project.status,
+    startDate: project.startDate ?? null,
+    endDate: project.endDate ?? null,
+    teamId: project.teamId ?? null,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  };
+};
+
 const projectService = {
-  /**
-   * Get projects accessible to the current user.
-   *
-   * The backend should return only projects where the
-   * current user is:
-   *
-   * - creator
-   * - project manager
-   * - team member
-   */
+  // ============================================================
+  // GET ALL PROJECTS
+  // ============================================================
+
   async getProjects(): Promise<Project[]> {
     const response = await api.get("/projects");
 
-    const data = response.data;
+    const rawData = response.data;
 
-    if (Array.isArray(data)) {
-      return data;
-    }
+    /**
+     * Support different backend response formats:
+     *
+     * 1. [ ... ]
+     * 2. { data: [ ... ] }
+     * 3. { projects: [ ... ] }
+     */
 
-    if (Array.isArray(data?.data)) {
-      return data.data;
-    }
+    const projectsData = Array.isArray(rawData)
+      ? rawData
+      : Array.isArray(rawData?.data)
+        ? rawData.data
+        : Array.isArray(rawData?.projects)
+          ? rawData.projects
+          : [];
 
-    if (Array.isArray(data?.projects)) {
-      return data.projects;
-    }
-
-    return [];
-  },
-
-  /**
-   * Get one specific project.
-   *
-   * The backend is responsible for checking whether
-   * the authenticated user has access to this project.
-   */
-  async getProjectById(
-    projectId: string,
-  ): Promise<Project> {
-    if (!projectId) {
-      throw new Error("Project ID is required.");
-    }
-
-    const response = await api.get(
-      `/projects/${projectId}`,
-    );
-
-    const data = response.data;
-
-    return (
-      data?.data ||
-      data?.project ||
-      data
+    return projectsData.map((project: BackendProject) =>
+      normalizeProject(project),
     );
   },
 
-  /**
-   * Create project
-   */
-  async createProject(
-    data: CreateProjectPayload,
-  ): Promise<Project> {
-    const response = await api.post(
-      "/projects",
-      data,
-    );
+  // ============================================================
+  // GET PROJECT BY ID
+  // ============================================================
 
-    const responseData = response.data;
+  async getProjectById(projectId: string): Promise<Project> {
+    const response = await api.get(`/projects/${projectId}`);
 
-    return (
-      responseData?.data ||
-      responseData?.project ||
-      responseData
-    );
+    const rawData = response.data;
+
+    const project = rawData?.data ?? rawData?.project ?? rawData;
+
+    return normalizeProject(project);
   },
 
-  /**
-   * Update project
-   */
+  // ============================================================
+  // CREATE PROJECT
+  // ============================================================
+
+  async createProject(data: CreateProjectPayload): Promise<Project> {
+    const response = await api.post("/projects", data);
+
+    const rawData = response.data;
+
+    const project = rawData?.data ?? rawData?.project ?? rawData;
+
+    return normalizeProject(project);
+  },
+
+  // ============================================================
+  // UPDATE PROJECT
+  // ============================================================
+
   async updateProject(
     projectId: string,
     data: UpdateProjectPayload,
   ): Promise<Project> {
-    if (!projectId) {
-      throw new Error(
-        "Project ID is required.",
-      );
-    }
+    const response = await api.put(`/projects/${projectId}`, data);
 
-    const response = await api.put(
-      `/projects/${projectId}`,
-      data,
-    );
+    const rawData = response.data;
 
-    const responseData = response.data;
+    const project = rawData?.data ?? rawData?.project ?? rawData;
 
-    return (
-      responseData?.data ||
-      responseData?.project ||
-      responseData
-    );
+    return normalizeProject(project);
   },
 
-  /**
-   * Delete project
-   */
-  async deleteProject(
-    projectId: string,
-  ): Promise<void> {
-    if (!projectId) {
-      throw new Error(
-        "Project ID is required.",
-      );
-    }
+  // ============================================================
+  // DELETE PROJECT
+  // ============================================================
 
-    await api.delete(
-      `/projects/${projectId}`,
-    );
+  async deleteProject(projectId: string): Promise<void> {
+    await api.delete(`/projects/${projectId}`);
   },
 };
 

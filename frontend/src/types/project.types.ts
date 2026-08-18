@@ -1,36 +1,21 @@
-export type BackendProjectStatus =
-  | "PLANNING"
-  | "ACTIVE"
-  | "COMPLETED"
-  | "ARCHIVED";
-
-export type ProjectStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "ACTIVE"
-  | "COMPLETED"
-  | "CANCELLED";
+export type ProjectStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 
 export interface Project {
   id: string;
 
-  _id?: string;
-
   name: string;
 
-  description?: string;
+  description?: string | null;
 
-  status: BackendProjectStatus | string;
+  status: ProjectStatus;
 
-  teamId?: string;
+  progress?: number;
 
-  team?: any;
+  startDate?: string | null;
 
-  startDate?: string;
+  endDate?: string | null;
 
-  dueDate?: string;
-
-  endDate?: string;
+  teamId?: string | null;
 
   createdAt?: string;
 
@@ -46,13 +31,15 @@ export interface CreateProjectPayload {
 
   description?: string;
 
-  status?: BackendProjectStatus;
-
-  teamId: string;
+  status: ProjectStatus;
 
   startDate?: string;
 
-  dueDate?: string;
+  endDate?: string;
+
+  teamId: string;
+
+  progress?: number;
 }
 
 export interface UpdateProjectPayload {
@@ -60,11 +47,13 @@ export interface UpdateProjectPayload {
 
   description?: string;
 
-  status?: BackendProjectStatus;
-
-  teamId?: string;
+  status?: ProjectStatus;
 
   startDate?: string;
 
-  dueDate?: string;
+  endDate?: string;
+
+  teamId?: string;
+
+  progress?: number;
 }

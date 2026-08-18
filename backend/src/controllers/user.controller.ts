@@ -7,6 +7,9 @@ import {
   changePassword,
 } from "../services/auth.service";
 
+import { updateUserRole } from "../services/user.service";
+import { ROLE } from "../types/enum.types";
+
 // ============================================
 // Get all users
 // ============================================
@@ -42,8 +45,6 @@ export const getUserProfile = async (
   try {
     const userId = req.user?.id;
 
-    // Make sure userId exists before passing it
-    // to a function requiring a string.
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -71,7 +72,6 @@ export const updateUserProfile = async (
   try {
     const userId = req.user?.id;
 
-    // Make sure userId exists
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -79,33 +79,29 @@ export const updateUserProfile = async (
       });
     }
 
-    const {
-      firstName,
-      lastName,
-      phone,
-    } = req.body;
+    const { firstName, lastName, phone } = req.body;
 
-    // At least one field must be provided
+    // At least one field must be provided.
+    //
+    // Use === undefined instead of !value so that
+    // validation does not incorrectly reject values
+    // based only on truthiness.
     if (
-      !firstName &&
-      !lastName &&
-      !phone
+      firstName === undefined &&
+      lastName === undefined &&
+      phone === undefined
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "At least one field is required to update profile.",
+        message: "At least one field is required to update profile.",
       });
     }
 
-    const result = await updateProfile(
-      userId,
-      {
-        firstName,
-        lastName,
-        phone,
-      },
-    );
+    const result = await updateProfile(userId, {
+      firstName,
+      lastName,
+      phone,
+    });
 
     return res.status(200).json(result);
   } catch (error) {
@@ -125,10 +121,6 @@ export const changeUserPassword = async (
   try {
     const userId = req.user?.id;
 
-    // IMPORTANT:
-    // Check userId before calling changePassword().
-    // req.user?.id is string | undefined,
-    // while changePassword() requires string.
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -136,38 +128,134 @@ export const changeUserPassword = async (
       });
     }
 
-    const {
-      currentPassword,
-      newPassword,
-    } = req.body;
+    const { currentPassword, newPassword } = req.body;
 
     // Validate request body
-    if (
-      !currentPassword ||
-      !newPassword
-    ) {
+    if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message:
-          "currentPassword and newPassword are required.",
+        message: "currentPassword and newPassword are required.",
       });
     }
 
-    // Optional password length validation
+    // Validate new password length
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message:
-          "New password must be at least 6 characters.",
+        message: "New password must be at least 6 characters.",
       });
     }
 
-    // At this point userId is guaranteed to be a string.
-    const result = await changePassword(
-      userId,
-      currentPassword,
-      newPassword,
-    );
+    const result = await changePassword(userId, currentPassword, newPassword);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================
+// Update User Role
+// ============================================
+//
+// PATCH /api/users/:userId/role
+//
+// ADMIN ONLY
+//
+// Request body:
+//
+// {
+//   "role": "PROJECT_MANAGER"
+// }
+//
+// Allowed roles:
+//
+// ADMIN
+// PROJECT_MANAGER
+// TEAM_MEMBER
+//
+// ============================================
+
+export const updateUserRoleController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    // ------------------------------------------
+    // Get user ID safely
+    // ------------------------------------------
+    //
+    // Express can type req.params values as
+    // string | string[] depending on the
+    // TypeScript/Express version.
+    //
+    // We explicitly normalize it to a string.
+    // ------------------------------------------
+
+    const userIdParam = req.params.userId;
+
+    if (!userIdParam) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required.",
+      });
+    }
+
+    const userId = Array.isArray(userIdParam) ? userIdParam[0] : userIdParam;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
+    // ------------------------------------------
+    // Get requested role
+    // ------------------------------------------
+
+    const { role } = req.body;
+
+    // ------------------------------------------
+    // Validate role exists
+    // ------------------------------------------
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "Role is required.",
+      });
+    }
+
+    // ------------------------------------------
+    // Validate role
+    // ------------------------------------------
+
+    if (!Object.values(ROLE).includes(role as ROLE)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid role. Allowed roles are ADMIN, PROJECT_MANAGER, and TEAM_MEMBER.",
+      });
+    }
+
+    // ------------------------------------------
+    // Prevent Admin from removing own Admin role
+    // ------------------------------------------
+
+    if (req.user?.id === userId && role !== ROLE.ADMIN) {
+      return res.status(400).json({
+        success: false,
+        message: "An administrator cannot remove their own admin role.",
+      });
+    }
+
+    // ------------------------------------------
+    // Update role
+    // ------------------------------------------
+
+    const result = await updateUserRole(userId, role as ROLE);
 
     return res.status(200).json(result);
   } catch (error) {

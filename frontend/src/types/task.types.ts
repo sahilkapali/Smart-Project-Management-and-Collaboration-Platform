@@ -1,37 +1,26 @@
-export type TaskStatus =
-  | "Todo"
-  | "In Progress"
-  | "Completed";
+export type TaskStatus = "Todo" | "In Progress" | "Completed";
 
-export type TaskPriority =
-  | "Low"
-  | "Medium"
-  | "High"
-  | "Critical";
+export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 
 export interface TaskUser {
-  _id?: string;
-  id?: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
+  _id: string;
+  name: string;
+  email: string;
   role?: string;
 }
 
 export interface TaskProject {
-  _id?: string;
-  id?: string;
-  name?: string;
+  _id: string;
+  name: string;
+  description?: string;
 }
 
 export interface Task {
   _id?: string;
+
   id?: string;
 
-  project:
-    | string
-    | TaskProject;
+  project: string | TaskProject;
 
   title: string;
 
@@ -41,22 +30,17 @@ export interface Task {
 
   priority: TaskPriority;
 
-  assignedTo?:
-    | string
-    | TaskUser
-    | null;
+  assignedTo?: string | TaskUser | null;
 
   dueDate?: string | null;
 
-  createdBy?:
-    | string
-    | TaskUser;
+  createdBy: string | TaskUser;
+
+  overdue?: boolean;
 
   createdAt?: string;
 
   updatedAt?: string;
-
-  overdue?: boolean;
 }
 
 export interface CreateTaskPayload {
@@ -78,11 +62,68 @@ export interface UpdateTaskPayload {
 
   description?: string;
 
-  assignedTo?: string;
-
-  dueDate?: string | null;
+  status?: TaskStatus;
 
   priority?: TaskPriority;
 
-  status?: TaskStatus;
+  assignedTo?: string;
+
+  dueDate?: string;
+}
+
+export interface TaskCommentUser {
+  _id: string;
+  name: string;
+  email: string;
+  role?: string;
+}
+
+export interface TaskComment {
+  _id: string;
+
+  task: string;
+
+  user: string | TaskCommentUser;
+
+  text: string;
+
+  createdAt?: string;
+
+  updatedAt?: string;
+}
+
+export interface TaskResponse {
+  success: boolean;
+
+  message?: string;
+
+  data: Task;
+}
+
+export interface TasksResponse {
+  success: boolean;
+
+  count?: number;
+
+  data: Task[];
+}
+
+export interface KanbanResponse {
+  success: boolean;
+
+  data: {
+    todo: Task[];
+
+    inProgress: Task[];
+
+    completed: Task[];
+  };
+}
+
+export interface TaskCommentsResponse {
+  success: boolean;
+
+  count?: number;
+
+  data: TaskComment[];
 }

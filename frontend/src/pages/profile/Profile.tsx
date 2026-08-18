@@ -209,7 +209,7 @@ const Profile = () => {
                 {/* Avatar Box */}
                 <Box sx={{ position: "relative", display: "inline-block" }}>
                   <Avatar
-                    src={profile.profile_image?.path || (profile as any).avatar}
+                    src={profile.profileImage?.path || (profile as any).avatar}
                     alt={fullName}
                     sx={{
                       width: 96,

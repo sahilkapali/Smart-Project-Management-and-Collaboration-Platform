@@ -1,27 +1,34 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import {
   Alert,
+  Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   MenuItem,
+  Slider,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
+
+import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
 import projectService from "../../services/project.service";
 
 import type {
   Project,
   ProjectStatus,
-  BackendProjectStatus,
+  UpdateProjectPayload,
 } from "../../types/project.types";
+
+// ============================================================
+// PROPS
+// ============================================================
 
 interface EditProjectDialogProps {
   open: boolean;
@@ -33,21 +40,17 @@ interface EditProjectDialogProps {
   onUpdated: () => void;
 }
 
-// =====================================================
-// UI STATUS OPTIONS
-// =====================================================
+// ============================================================
+// STATUS OPTIONS
+// ============================================================
 
-const STATUS_OPTIONS: {
+const STATUS_OPTIONS: Array<{
   value: ProjectStatus;
   label: string;
-}[] = [
+}> = [
   {
-    value: "PENDING",
-    label: "Pending",
-  },
-  {
-    value: "IN_PROGRESS",
-    label: "In Progress",
+    value: "PLANNING",
+    label: "Planning",
   },
   {
     value: "ACTIVE",
@@ -58,91 +61,23 @@ const STATUS_OPTIONS: {
     label: "Completed",
   },
   {
-    value: "CANCELLED",
-    label: "Cancelled",
+    value: "ARCHIVED",
+    label: "Archived",
   },
 ];
 
-// =====================================================
-// UI → BACKEND
-// =====================================================
+// ============================================================
+// API ERROR TYPE
+// ============================================================
 
-const UI_TO_BACKEND_STATUS: Record<
-  ProjectStatus,
-  BackendProjectStatus
-> = {
-  PENDING: "PLANNING",
+interface ApiErrorResponse {
+  message?: string;
+  error?: string;
+}
 
-  /*
-   * IMPORTANT:
-   * Your backend already uses ACTIVE.
-   *
-   * Therefore "In Progress" is represented
-   * using ACTIVE on the backend.
-   */
-  IN_PROGRESS: "ACTIVE",
-
-  ACTIVE: "ACTIVE",
-
-  COMPLETED: "COMPLETED",
-
-  CANCELLED: "ARCHIVED",
-};
-
-// =====================================================
-// BACKEND → UI
-// =====================================================
-
-const backendToUIStatus = (
-  status?: string,
-): ProjectStatus => {
-  switch (status) {
-    case "PLANNING":
-      return "PENDING";
-
-    case "ACTIVE":
-      return "ACTIVE";
-
-    case "COMPLETED":
-      return "COMPLETED";
-
-    case "ARCHIVED":
-      return "CANCELLED";
-
-    default:
-      return "PENDING";
-  }
-};
-
-// =====================================================
-// DATE FORMAT
-// =====================================================
-
-const formatDateForInput = (
-  value?: string,
-) => {
-  if (!value) {
-    return "";
-  }
-
-  try {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return "";
-    }
-
-    return date
-      .toISOString()
-      .split("T")[0];
-  } catch {
-    return "";
-  }
-};
-
-// =====================================================
-// COMPONENT
-// =====================================================
+// ============================================================
+// EDIT PROJECT DIALOG
+// ============================================================
 
 const EditProjectDialog = ({
   open,
@@ -150,194 +85,61 @@ const EditProjectDialog = ({
   onClose,
   onUpdated,
 }: EditProjectDialogProps) => {
-  const [name, setName] =
-    useState("");
+  // ==========================================================
+  // FORM STATE
+  // ==========================================================
 
-  const [description, setDescription] =
-    useState("");
+  const [name, setName] = useState("");
 
-  const [status, setStatus] =
-    useState<ProjectStatus>(
-      "PENDING",
-    );
+  const [description, setDescription] = useState("");
 
-  const [teamId, setTeamId] =
-    useState("");
+  const [status, setStatus] = useState<ProjectStatus>("PLANNING");
 
-  const [startDate, setStartDate] =
-    useState("");
+  const [startDate, setStartDate] = useState("");
 
-  const [dueDate, setDueDate] =
-    useState("");
+  const [endDate, setEndDate] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [progress, setProgress] = useState(0);
 
-  const [error, setError] =
-    useState("");
+  // ==========================================================
+  // UI STATE
+  // ==========================================================
 
-  // ===================================================
-  // LOAD PROJECT INTO FORM
-  // ===================================================
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  // ==========================================================
+  // POPULATE FORM
+  // ==========================================================
 
   useEffect(() => {
-    if (!project || !open) {
+    if (!open || !project) {
       return;
     }
 
-    setName(
-      project.name || "",
-    );
+    setName(project.name ?? "");
 
-    setDescription(
-      project.description || "",
-    );
+    setDescription(project.description ?? "");
 
-    setStatus(
-      backendToUIStatus(
-        project.status,
-      ),
-    );
+    setStatus(project.status ?? "PLANNING");
 
-    setTeamId(
-      project.teamId ||
-        project.team?._id ||
-        project.team?.id ||
-        "",
-    );
+    setStartDate(project.startDate ? project.startDate.slice(0, 10) : "");
 
-    setStartDate(
-      formatDateForInput(
-        project.startDate,
-      ),
-    );
+    setEndDate(project.endDate ? project.endDate.slice(0, 10) : "");
 
-    setDueDate(
-      formatDateForInput(
-        project.dueDate ||
-          project.endDate,
-      ),
+    setProgress(
+      typeof project.progress === "number"
+        ? Math.min(100, Math.max(0, project.progress))
+        : 0,
     );
 
     setError("");
   }, [project, open]);
 
-  // ===================================================
-  // SAVE
-  // ===================================================
-
-  const handleSubmit = async (
-    event: React.FormEvent,
-  ) => {
-    event.preventDefault();
-
-    setError("");
-
-    if (!name.trim()) {
-      setError(
-        "Project name is required.",
-      );
-
-      return;
-    }
-
-    if (name.trim().length < 3) {
-      setError(
-        "Project name must be at least 3 characters.",
-      );
-
-      return;
-    }
-
-    if (
-      startDate &&
-      dueDate &&
-      new Date(startDate) >
-        new Date(dueDate)
-    ) {
-      setError(
-        "Due date cannot be earlier than start date.",
-      );
-
-      return;
-    }
-
-    const projectId =
-      project.id ||
-      project._id;
-
-    if (!projectId) {
-      setError(
-        "Project ID is missing.",
-      );
-
-      return;
-    }
-
-    // ================================================
-    // TRANSLATE UI STATUS TO BACKEND STATUS
-    // ================================================
-
-    const backendStatus =
-      UI_TO_BACKEND_STATUS[
-        status
-      ];
-
-    const payload: any = {
-      name: name.trim(),
-
-      description:
-        description.trim(),
-
-      status: backendStatus,
-    };
-
-    if (teamId.trim()) {
-      payload.teamId =
-        teamId.trim();
-    }
-
-    if (startDate) {
-      payload.startDate =
-        startDate;
-    }
-
-    if (dueDate) {
-      payload.dueDate =
-        dueDate;
-    }
-
-    try {
-      setLoading(true);
-
-      await projectService.updateProject(
-        projectId,
-        payload,
-      );
-
-      onUpdated();
-
-      onClose();
-    } catch (err: any) {
-      console.error(
-        "Update project failed:",
-        err,
-      );
-
-      const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Failed to update project.";
-
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===================================================
+  // ==========================================================
   // CLOSE
-  // ===================================================
+  // ==========================================================
 
   const handleClose = () => {
     if (loading) {
@@ -348,6 +150,109 @@ const EditProjectDialog = ({
 
     onClose();
   };
+
+  // ==========================================================
+  // SUBMIT
+  // ==========================================================
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setError("");
+
+    // --------------------------------------------------------
+    // Project name validation
+    // --------------------------------------------------------
+
+    if (!name.trim()) {
+      setError("Project name is required.");
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Date validation
+    // --------------------------------------------------------
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      setError("End date cannot be earlier than the start date.");
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Progress validation
+    // --------------------------------------------------------
+
+    if (progress < 0 || progress > 100) {
+      setError("Project progress must be between 0 and 100.");
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Update payload
+    // --------------------------------------------------------
+
+    const updateData: UpdateProjectPayload = {
+      name: name.trim(),
+
+      description: description.trim(),
+
+      status,
+
+      progress,
+
+      ...(startDate
+        ? {
+            startDate,
+          }
+        : {}),
+
+      ...(endDate
+        ? {
+            endDate,
+          }
+        : {}),
+    };
+
+    try {
+      setLoading(true);
+
+      // ------------------------------------------------------
+      // UPDATE PROJECT
+      // ------------------------------------------------------
+
+      await projectService.updateProject(project.id, updateData);
+
+      // ------------------------------------------------------
+      // SUCCESS
+      // ------------------------------------------------------
+
+      onUpdated();
+
+      onClose();
+    } catch (error: unknown) {
+      console.error("Failed to update project:", error);
+
+      const axiosError = error as {
+        response?: {
+          data?: ApiErrorResponse;
+        };
+      };
+
+      const backendMessage =
+        axiosError.response?.data?.message || axiosError.response?.data?.error;
+
+      setError(backendMessage || "Failed to update project. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <Dialog
@@ -361,160 +266,207 @@ const EditProjectDialog = ({
         },
       }}
     >
-      <form
-        onSubmit={
-          handleSubmit
-        }
-      >
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        {/* ==================================================
+            TITLE
+        ================================================== */}
+
         <DialogTitle
           sx={{
             fontWeight: 700,
-            fontSize: "1.4rem",
+            fontSize: "1.5rem",
           }}
         >
           Edit Project
         </DialogTitle>
 
-        <DialogContent>
-          {error && (
-            <Alert
-              severity="error"
-              sx={{
-                mb: 2,
-                borderRadius: 2,
-              }}
-            >
-              {error}
-            </Alert>
-          )}
+        {/* ==================================================
+            CONTENT
+        ================================================== */}
 
+        <DialogContent>
           <Stack
             spacing={2.5}
-            sx={{ mt: 1 }}
+            sx={{
+              mt: 1,
+            }}
           >
-            {/* NAME */}
+            {/* ==================================================
+                ERROR
+            ================================================== */}
+
+            {error && (
+              <Alert
+                severity="error"
+                onClose={() => setError("")}
+                sx={{
+                  borderRadius: 2,
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+
+            {/* ==================================================
+                NAME
+            ================================================== */}
 
             <TextField
               label="Project Name"
               required
               fullWidth
               value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setName(event.target.value)}
+              disabled={loading}
+              inputProps={{
+                maxLength: 150,
+              }}
+              helperText={`${name.length}/150`}
             />
 
-            {/* DESCRIPTION */}
+            {/* ==================================================
+                DESCRIPTION
+            ================================================== */}
 
             <TextField
-              label="Description"
+              label="Project Description"
               fullWidth
               multiline
-              rows={4}
+              minRows={4}
               value={description}
-              onChange={(event) =>
-                setDescription(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={loading}
+              inputProps={{
+                maxLength: 1000,
+              }}
+              helperText={`${description.length}/1000`}
             />
 
-            {/* STATUS */}
+            {/* ==================================================
+                STATUS
+            ================================================== */}
 
             <TextField
               select
-              label="Status"
+              label="Project Status"
               fullWidth
               value={status}
               onChange={(event) =>
-                setStatus(
-                  event.target
-                    .value as ProjectStatus,
-                )
+                setStatus(event.target.value as ProjectStatus)
               }
+              disabled={loading}
             >
-              {STATUS_OPTIONS.map(
-                (option) => (
-                  <MenuItem
-                    key={
-                      option.value
-                    }
-                    value={
-                      option.value
-                    }
-                  >
-                    {option.label}
-                  </MenuItem>
-                ),
-              )}
+              {STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
             </TextField>
 
-            {/* TEAM */}
+            {/* ==================================================
+                DATES
+            ================================================== */}
 
-            <TextField
-              label="Team ID"
-              fullWidth
-              value={teamId}
-              onChange={(event) =>
-                setTeamId(
-                  event.target.value,
-                )
-              }
-            />
+            <Box
+              sx={{
+                display: "grid",
 
-            {/* START DATE */}
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "1fr 1fr",
+                },
 
-            <TextField
-              label="Start Date"
-              type="date"
-              fullWidth
-              value={startDate}
-              onChange={(event) =>
-                setStartDate(
-                  event.target.value,
-                )
-              }
-              InputLabelProps={{
-                shrink: true,
+                gap: 2,
               }}
-            />
+            >
+              <TextField
+                label="Start Date"
+                type="date"
+                fullWidth
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                disabled={loading}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
 
-            {/* DUE DATE */}
+              <TextField
+                label="Project Deadline"
+                type="date"
+                fullWidth
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                disabled={loading}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Box>
 
-            <TextField
-              label="Due Date"
-              type="date"
-              fullWidth
-              value={dueDate}
-              onChange={(event) =>
-                setDueDate(
-                  event.target.value,
-                )
-              }
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
+            {/* ==================================================
+                PROGRESS
+            ================================================== */}
+
+            <Box>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{
+                  mb: 1,
+                }}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  Project Progress
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="primary.main"
+                >
+                  {progress}%
+                </Typography>
+              </Stack>
+
+              <Slider
+                value={progress}
+                onChange={(_event, value) => {
+                  if (typeof value === "number") {
+                    setProgress(value);
+                  }
+                }}
+                min={0}
+                max={100}
+                step={5}
+                valueLabelDisplay="auto"
+                disabled={loading}
+                aria-label="Project progress"
+              />
+            </Box>
           </Stack>
         </DialogContent>
+
+        {/* ==================================================
+            ACTIONS
+        ================================================== */}
 
         <DialogActions
           sx={{
             px: 3,
             pb: 3,
+            pt: 1,
           }}
         >
           <Button
-            onClick={
-              handleClose
-            }
+            onClick={handleClose}
             disabled={loading}
             color="inherit"
             sx={{
-              textTransform:
-                "none",
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: 2,
             }}
           >
             Cancel
@@ -523,11 +475,19 @@ const EditProjectDialog = ({
           <Button
             type="submit"
             variant="contained"
-            disabled={loading}
+            disabled={loading || !name.trim()}
+            disableElevation
+            startIcon={
+              loading ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <SaveRoundedIcon />
+              )
+            }
             sx={{
-              textTransform:
-                "none",
-              fontWeight: 700,
+              minWidth: 150,
+              fontWeight: 600,
+              textTransform: "none",
               borderRadius: 2,
             }}
           >
@@ -536,7 +496,7 @@ const EditProjectDialog = ({
               : "Save Changes"}
           </Button>
         </DialogActions>
-      </form>
+      </Box>
     </Dialog>
   );
 };

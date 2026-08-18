@@ -23,9 +23,7 @@ interface DashboardMetricsResponse {
 const dashboardService = {
   getMetrics: async (): Promise<DashboardMetrics> => {
     const response =
-      await api.get<DashboardMetricsResponse>(
-        "/dashboard/metrics",
-      );
+      await api.get<DashboardMetricsResponse>("/dashboard/metrics");
 
     return response.data.data;
   },

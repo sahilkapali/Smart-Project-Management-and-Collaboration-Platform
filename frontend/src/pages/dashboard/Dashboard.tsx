@@ -11,7 +11,6 @@ import {
 
 import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
-import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
@@ -20,7 +19,6 @@ import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
 import ProjectActivityChart from "../../components/dashboard/ProjectActivityChart";
 import TaskList from "../../components/dashboard/TaskList";
 import ProjectTimeline from "../../components/dashboard/ProjectTimeline";
-import DashboardSidebar from "../../components/dashboard/DashboardSidebar"; // Added missing import
 
 import dashboardService, {
   type DashboardMetrics,
@@ -32,15 +30,16 @@ const Dashboard = () => {
   // ============================================================
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Added missing state
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
   // ============================================================
   // LOAD DASHBOARD DATA
   // ============================================================
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadDashboard = async () => {
       try {
         setLoading(true);
@@ -48,7 +47,9 @@ const Dashboard = () => {
 
         const data = await dashboardService.getMetrics();
 
-        setMetrics(data);
+        if (isMounted) {
+          setMetrics(data);
+        }
       } catch (err: unknown) {
         console.error("Dashboard loading failed:", err);
 
@@ -58,18 +59,28 @@ const Dashboard = () => {
               message?: string;
             };
           };
+          message?: string;
         };
 
-        setError(
-          axiosError?.response?.data?.message ||
-            "Unable to load dashboard data.",
-        );
+        if (isMounted) {
+          setError(
+            axiosError.response?.data?.message ||
+              axiosError.message ||
+              "Unable to load dashboard data.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     void loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // ============================================================
@@ -89,6 +100,7 @@ const Dashboard = () => {
       >
         <Stack alignItems="center" spacing={2}>
           <CircularProgress />
+
           <Typography color="text.secondary">Loading dashboard...</Typography>
         </Stack>
       </Box>
@@ -147,11 +159,6 @@ const Dashboard = () => {
           WELCOME HEADER
       ======================================================= */}
 
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-      
       <Box sx={{ mb: 3 }}>
         <Typography
           sx={{
@@ -209,6 +216,7 @@ const Dashboard = () => {
         }}
       >
         {/* ACTIVE PROJECTS */}
+
         <DashboardStatCard
           title="Active Projects"
           value={metrics.totalProjects}
@@ -221,20 +229,22 @@ const Dashboard = () => {
           }
         />
 
-        {/* TASKS DUE */}
+        {/* OVERDUE TASKS */}
+
         <DashboardStatCard
-          title="Tasks Due Today"
+          title="Overdue Tasks"
           value={metrics.overdueTasks}
           subtitle="Tasks requiring attention"
           icon={<CalendarMonthRoundedIcon fontSize="small" />}
         />
 
-        {/* TEAM */}
+        {/* REPOSITORIES */}
+
         <DashboardStatCard
-          title="Team Availability"
+          title="Repositories"
           value={metrics.repositoriesCount}
-          subtitle="Repository resources"
-          icon={<GroupsRoundedIcon fontSize="small" />}
+          subtitle="Available repositories"
+          icon={<FolderRoundedIcon fontSize="small" />}
         />
       </Box>
 
@@ -254,17 +264,23 @@ const Dashboard = () => {
           mb: 2,
         }}
       >
+        {/* COMPLETED TASKS */}
+
         <SmallMetric
           icon={<CalendarMonthRoundedIcon fontSize="small" />}
           title="Completed Tasks"
           value={metrics.completedTasks}
         />
 
+        {/* PENDING TASKS */}
+
         <SmallMetric
           icon={<CalendarMonthRoundedIcon fontSize="small" />}
           title="Pending Tasks"
           value={metrics.pendingTodoTasks}
         />
+
+        {/* OPEN ISSUES */}
 
         <SmallMetric
           icon={<BugReportRoundedIcon fontSize="small" />}
@@ -289,6 +305,7 @@ const Dashboard = () => {
         }}
       >
         <TaskList tasks={[]} />
+
         <ProjectTimeline />
       </Box>
 
@@ -308,6 +325,7 @@ const Dashboard = () => {
         }}
       >
         {/* REPOSITORIES */}
+
         <SmallMetric
           icon={<FolderRoundedIcon fontSize="small" />}
           title="Repositories"
@@ -315,6 +333,7 @@ const Dashboard = () => {
         />
 
         {/* TOTAL ISSUES */}
+
         <SmallMetric
           icon={<BugReportRoundedIcon fontSize="small" />}
           title="Total Issues"
@@ -322,6 +341,7 @@ const Dashboard = () => {
         />
 
         {/* RESOLVED ISSUES */}
+
         <SmallMetric
           icon={<BugReportRoundedIcon fontSize="small" />}
           title="Resolved Issues"
@@ -329,6 +349,7 @@ const Dashboard = () => {
         />
 
         {/* UPCOMING MEETINGS */}
+
         <SmallMetric
           icon={<EventRoundedIcon fontSize="small" />}
           title="Upcoming Meetings"
@@ -361,6 +382,7 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
         borderColor: "divider",
         bgcolor: "background.paper",
         transition: "box-shadow 0.2s ease, transform 0.2s ease",
+
         "&:hover": {
           boxShadow: 2,
           transform: "translateY(-1px)",
@@ -368,6 +390,7 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       }}
     >
       {/* HEADER */}
+
       <Stack direction="row" alignItems="center" spacing={1}>
         <Box
           sx={{
@@ -397,6 +420,7 @@ const SmallMetric = ({ title, value, icon }: SmallMetricProps) => {
       </Stack>
 
       {/* VALUE */}
+
       <Typography
         variant="h5"
         fontWeight={700}
