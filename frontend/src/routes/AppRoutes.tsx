@@ -110,6 +110,12 @@ import AIPage from "../pages/ai/AIPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 
 /* =========================================================
+   USER MANAGEMENT
+========================================================= */
+
+import UserManagement from "../pages/users/UserManagement";
+
+/* =========================================================
    AUTH GUARD
 ========================================================= */
 
@@ -121,11 +127,15 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 import { ROUTES } from "../utils/routes";
 
+/* =========================================================
+   APP ROUTES
+========================================================= */
+
 const AppRoutes = () => {
   return (
     <Routes>
       {/* ======================================================
-          PUBLIC
+          PUBLIC ROUTES
       ====================================================== */}
 
       <Route
@@ -157,7 +167,23 @@ const AppRoutes = () => {
               CALENDAR
           ================================================== */}
 
+          {/*
+            Your ROUTES object currently does not contain
+            ROUTES.CALENDAR, so keep the existing literal path.
+          */}
+
           <Route path="/calendar" element={<CalendarPage />} />
+
+          {/* ==================================================
+              USER MANAGEMENT
+          ================================================== */}
+
+          {/*
+            Your ROUTES object DOES contain USERS.
+            Therefore use ROUTES.USERS here.
+          */}
+
+          <Route path={ROUTES.USERS} element={<UserManagement />} />
 
           {/* ==================================================
               PROFILE
@@ -243,22 +269,17 @@ const AppRoutes = () => {
               MEETINGS
           ================================================== */}
 
-          {/* Global meeting list */}
           <Route path={ROUTES.MEETINGS} element={<MeetingListPage />} />
 
-          {/* Global meeting creation */}
           <Route
             path={ROUTES.CREATE_MEETING_GLOBAL}
             element={<CreateMeetingPage />}
           />
 
-          {/* Project meeting list */}
           <Route path={ROUTES.PROJECT_MEETINGS} element={<MeetingListPage />} />
 
-          {/* Project meeting creation */}
           <Route path={ROUTES.CREATE_MEETING} element={<CreateMeetingPage />} />
 
-          {/* Meeting details */}
           <Route
             path={ROUTES.MEETING_DETAILS}
             element={<MeetingDetailsPage />}

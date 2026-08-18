@@ -36,10 +36,6 @@ const MeetingDetailsPage = () => {
     meetingId?: string;
   }>();
 
-  /*
-   * Support both names just in case another route
-   * uses :meetingId.
-   */
   const meetingId = params.id ?? params.meetingId;
 
   const navigate = useNavigate();
@@ -61,6 +57,7 @@ const MeetingDetailsPage = () => {
   const loadMeeting = useCallback(async () => {
     if (!meetingId || meetingId === "undefined" || meetingId === "null") {
       setError("Meeting ID is missing.");
+      setMeeting(null);
       setLoading(false);
       return;
     }
@@ -71,22 +68,38 @@ const MeetingDetailsPage = () => {
 
       console.log("Loading meeting:", meetingId);
 
-      const response = await meetingService.getMeetingById(meetingId);
+      /*
+       * meetingService.getMeetingById() already normalizes
+       * the backend response and returns a Meeting directly.
+       *
+       * Therefore:
+       *
+       * const response = await ...
+       * response.data
+       *
+       * is incorrect.
+       */
 
-      if (!response?.data) {
-        setError(response?.message || "Meeting not found.");
+      const loadedMeeting = await meetingService.getMeetingById(meetingId);
 
+      if (!loadedMeeting || !loadedMeeting.id) {
         setMeeting(null);
+        setError("Meeting not found.");
         return;
       }
 
-      setMeeting(response.data);
+      setMeeting(loadedMeeting);
     } catch (err: any) {
       console.error("Failed to load meeting:", err);
 
       setMeeting(null);
 
-      setError(err?.response?.data?.message || "Unable to load meeting.");
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Unable to load meeting.",
+      );
     } finally {
       setLoading(false);
     }
@@ -123,6 +136,7 @@ const MeetingDetailsPage = () => {
       setError(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
+          err?.message ||
           "Failed to generate AI meeting summary.",
       );
     } finally {
@@ -153,6 +167,7 @@ const MeetingDetailsPage = () => {
       setError(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
+          err?.message ||
           "Failed to extract action items.",
       );
     } finally {
@@ -405,7 +420,7 @@ const MeetingDetailsPage = () => {
             NOTES
         ===================================================== */}
 
-        <MeetingNotes meetingId={meeting._id} notes={meeting.notes ?? []} />
+        <MeetingNotes meetingId={meeting.id} notes={meeting.notes ?? []} />
 
         {/* =====================================================
             AI SUMMARY

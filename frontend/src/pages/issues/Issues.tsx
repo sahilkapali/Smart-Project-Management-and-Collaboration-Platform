@@ -157,27 +157,16 @@ const Issues = () => {
   // USER NAME
   // ============================================================
 
-  const getUserName = (
-    user:
-      | string
-      | {
-          _id: string;
-          name: string;
-          email: string;
-          role?: string;
-        }
-      | null
-      | undefined,
-  ) => {
+  const getUserName = (user: Issue["assignedTo"]): string => {
     if (!user) {
       return "Unassigned";
     }
 
-    if (typeof user === "object") {
-      return user.name || user.email || "User";
+    if (typeof user === "string") {
+      return user;
     }
 
-    return user;
+    return user.name || user.email || "User";
   };
 
   // ============================================================
@@ -252,7 +241,9 @@ const Issues = () => {
         mx: "auto",
       }}
     >
-      {/* HEADER */}
+      {/* ========================================================
+          HEADER
+      ======================================================== */}
 
       <Stack
         direction={{
@@ -300,7 +291,9 @@ const Issues = () => {
         </Button>
       </Stack>
 
-      {/* ERROR */}
+      {/* ========================================================
+          ERROR
+      ======================================================== */}
 
       {error && (
         <Alert
@@ -323,7 +316,9 @@ const Issues = () => {
         </Alert>
       )}
 
-      {/* SEARCH */}
+      {/* ========================================================
+          SEARCH
+      ======================================================== */}
 
       <TextField
         fullWidth
@@ -348,7 +343,9 @@ const Issues = () => {
         }}
       />
 
-      {/* EMPTY */}
+      {/* ========================================================
+          EMPTY STATE
+      ======================================================== */}
 
       {filteredIssues.length === 0 ? (
         <Card
@@ -436,7 +433,9 @@ const Issues = () => {
                     }}
                     justifyContent="space-between"
                   >
-                    {/* ISSUE INFO */}
+                    {/* ==================================================
+                        ISSUE INFO
+                    ================================================== */}
 
                     <Box
                       sx={{
@@ -497,7 +496,9 @@ const Issues = () => {
                       </Stack>
                     </Box>
 
-                    {/* ACTIONS */}
+                    {/* ==================================================
+                        ACTIONS
+                    ================================================== */}
 
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <IconButton

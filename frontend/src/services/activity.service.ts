@@ -1,10 +1,6 @@
 import api from "./api";
 
-import type {
-  ActivityItem,
-  ActivityAction,
-  ActivityEntityType,
-} from "../types/activity.types";
+import type { ActivityItem } from "../types/activity.types";
 
 // =====================================================
 // API RESPONSE TYPES

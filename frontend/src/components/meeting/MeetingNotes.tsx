@@ -31,6 +31,11 @@ const MeetingNotes = ({
   const [message, setMessage] = useState("");
 
   const handleAddNote = async () => {
+    if (!meetingId) {
+      setMessage("Meeting ID is missing.");
+      return;
+    }
+
     if (!newNote.trim()) {
       setMessage("Please enter a meeting note.");
       return;
@@ -40,7 +45,7 @@ const MeetingNotes = ({
       setLoading(true);
       setMessage("");
 
-      await meetingService.addMeetingNotes(
+      await meetingService.addMeetingNote(
         meetingId,
         newNote.trim(),
       );
@@ -48,7 +53,11 @@ const MeetingNotes = ({
       setNewNote("");
       setMessage("Meeting note added successfully.");
 
-      // Refresh the page so the newly added note appears
+      /*
+       * Reload the page so the parent MeetingDetailsPage
+       * fetches the updated meeting and displays the
+       * newly created note.
+       */
       window.location.reload();
     } catch (error: any) {
       console.error(
@@ -58,6 +67,8 @@ const MeetingNotes = ({
 
       setMessage(
         error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
           "Failed to add meeting note.",
       );
     } finally {
@@ -67,14 +78,18 @@ const MeetingNotes = ({
 
   return (
     <Card
+      elevation={0}
       sx={{
         borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
       }}
     >
-      <CardContent>
-        {/* Header */}
+      <CardContent sx={{ p: 3 }}>
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+
         <Typography
           variant="h6"
           fontWeight={700}
@@ -89,7 +104,10 @@ const MeetingNotes = ({
           Meeting Notes
         </Typography>
 
-        {/* Add Meeting Note */}
+        {/* =====================================================
+            ADD NOTE
+        ===================================================== */}
+
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
@@ -98,17 +116,27 @@ const MeetingNotes = ({
             label="Meeting Note"
             placeholder="Enter your meeting notes here..."
             value={newNote}
-            onChange={(e) =>
-              setNewNote(e.target.value)
-            }
+            onChange={(event) => {
+              setNewNote(event.target.value);
+
+              if (message) {
+                setMessage("");
+              }
+            }}
+            disabled={loading}
           />
 
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAddNote}
-            disabled={loading}
-            sx={{ mt: 2 }}
+            disabled={loading || !meetingId}
+            sx={{
+              mt: 2,
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+            }}
           >
             {loading
               ? "Adding..."
@@ -123,6 +151,7 @@ const MeetingNotes = ({
                   : "error"
               }
               sx={{ mt: 2 }}
+              onClose={() => setMessage("")}
             >
               {message}
             </Alert>
@@ -131,7 +160,10 @@ const MeetingNotes = ({
 
         <Divider sx={{ mb: 2 }} />
 
-        {/* Existing Notes */}
+        {/* =====================================================
+            EXISTING NOTES
+        ===================================================== */}
+
         {notes.length === 0 ? (
           <Typography color="text.secondary">
             No notes have been added yet.
@@ -139,27 +171,42 @@ const MeetingNotes = ({
         ) : (
           <Box>
             {notes.map((note, index) => (
-              <Box key={note._id || index}>
+              <Box
+                key={
+                  note._id ||
+                  note.id ||
+                  `meeting-note-${index}`
+                }
+              >
                 <Typography
                   variant="body1"
                   sx={{
                     whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
                   }}
                 >
                   {note.content}
                 </Typography>
 
                 {note.aiGeneratedSummary && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: "action.hover",
+                    }}
                   >
-                    <strong>
-                      AI Summary:
-                    </strong>{" "}
-                    {note.aiGeneratedSummary}
-                  </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      <strong>
+                        AI Summary:
+                      </strong>{" "}
+                      {note.aiGeneratedSummary}
+                    </Typography>
+                  </Box>
                 )}
 
                 {index < notes.length - 1 && (
