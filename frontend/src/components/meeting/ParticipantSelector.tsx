@@ -35,11 +35,15 @@ const ParticipantSelector: React.FC<ParticipantSelectorProps> = ({
       }}
       loading={loading}
       disabled={disabled}
+
+      // Keep the dropdown open while selecting multiple participants.
+      // It will close when the user clicks outside or presses Escape.
+      disableCloseOnSelect
+
       isOptionEqualToValue={(option, value) =>
         option._id === value._id
       }
       getOptionLabel={(option) => {
-        // Always return a string
         const fullName = `${option.firstName ?? ""} ${
           option.lastName ?? ""
         }`.trim();
@@ -64,7 +68,10 @@ const ParticipantSelector: React.FC<ParticipantSelectorProps> = ({
         }`.trim();
 
         const displayName =
-          fullName || option.name || option.email || "Unknown User";
+          fullName ||
+          option.name ||
+          option.email ||
+          "Unknown User";
 
         return (
           <Box
@@ -106,7 +113,10 @@ const ParticipantSelector: React.FC<ParticipantSelectorProps> = ({
           }`.trim();
 
           const displayName =
-            fullName || option.name || option.email || "Unknown User";
+            fullName ||
+            option.name ||
+            option.email ||
+            "Unknown User";
 
           return (
             <Chip

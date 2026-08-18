@@ -35,35 +35,24 @@ import {
 import meetingService from "../../services/meeting.service";
 import projectService from "../../services/project.service";
 import api from "../../services/api";
+import { getMyTeams } from "../../services/team.service";
 
 import ParticipantSelector from "../../components/meeting/ParticipantSelector";
+import TeamSelector from "../../components/meeting/TeamSelector";
 
-import type {
-  UserReference,
-} from "../../types/meeting.types";
-
+import type { Team } from "../../types/team.types";
+import type { UserReference } from "../../types/meeting.types";
 
 // ============================================================
 // TYPES
 // ============================================================
 
-/*
- * IMPORTANT:
- *
- * Do not create a ProjectReference type here.
- *
- * We use the exact type returned by projectService.getProjects().
- * This prevents the TypeScript error:
- *
- * "A type predicate's type must be assignable..."
- */
 type ProjectList =
   Awaited<
     ReturnType<
       typeof projectService.getProjects
     >
   >;
-
 
 // ============================================================
 // HELPERS
@@ -77,7 +66,6 @@ const getProjectName = (
     "Untitled Project"
   );
 };
-
 
 const getErrorMessage = (
   err: any,
@@ -124,7 +112,6 @@ const getErrorMessage = (
   return fallback;
 };
 
-
 // ============================================================
 // COMPONENT
 // ============================================================
@@ -140,15 +127,12 @@ const CreateMeetingPage = () => {
    * and:
    *
    * /projects/:projectId/meetings/create
-   *
-   * Normally the user will use /meetings/create.
    */
   const {
     projectId: routeProjectId,
   } = useParams<{
     projectId?: string;
   }>();
-
 
   // ==========================================================
   // PROJECTS
@@ -169,9 +153,8 @@ const CreateMeetingPage = () => {
     setLoadingProjects,
   ] = useState(true);
 
-
   // ==========================================================
-  // USERS
+  // USERS / PARTICIPANTS
   // ==========================================================
 
   const [users, setUsers] =
@@ -187,6 +170,22 @@ const CreateMeetingPage = () => {
     setLoadingUsers,
   ] = useState(true);
 
+  // ==========================================================
+  // TEAMS
+  // ==========================================================
+
+  const [teams, setTeams] =
+    useState<Team[]>([]);
+
+  const [
+    selectedTeams,
+    setSelectedTeams,
+  ] = useState<Team[]>([]);
+
+  const [
+    loadingTeams,
+    setLoadingTeams,
+  ] = useState(true);
 
   // ==========================================================
   // FORM
@@ -207,7 +206,6 @@ const CreateMeetingPage = () => {
   const [meetingLink, setMeetingLink] =
     useState("");
 
-
   // ==========================================================
   // STATE
   // ==========================================================
@@ -220,7 +218,6 @@ const CreateMeetingPage = () => {
 
   const [success, setSuccess] =
     useState("");
-
 
   // ==========================================================
   // LOAD PROJECTS
@@ -236,17 +233,11 @@ const CreateMeetingPage = () => {
           const data =
             await projectService.getProjects();
 
-          /*
-           * getProjects() already returns
-           * the correct Project[] type.
-           *
-           * Do not use a type predicate here.
-           */
           if (Array.isArray(data)) {
             setProjects(data);
 
             /*
-             * If the page was opened through:
+             * If opened through:
              *
              * /projects/:projectId/meetings/create
              *
@@ -289,7 +280,6 @@ const CreateMeetingPage = () => {
     void loadProjects();
   }, [routeProjectId]);
 
-
   // ==========================================================
   // LOAD USERS
   // ==========================================================
@@ -309,13 +299,9 @@ const CreateMeetingPage = () => {
             [];
 
           if (
-            Array.isArray(
-              userData,
-            )
+            Array.isArray(userData)
           ) {
-            setUsers(
-              userData,
-            );
+            setUsers(userData);
           } else {
             setUsers([]);
           }
@@ -334,6 +320,38 @@ const CreateMeetingPage = () => {
     void loadUsers();
   }, []);
 
+  // ==========================================================
+  // LOAD TEAMS
+  // ==========================================================
+
+  useEffect(() => {
+    const loadTeams =
+      async () => {
+        try {
+          setLoadingTeams(true);
+
+          const data =
+            await getMyTeams();
+
+          if (Array.isArray(data)) {
+            setTeams(data);
+          } else {
+            setTeams([]);
+          }
+        } catch (err) {
+          console.error(
+            "Failed to load teams:",
+            err,
+          );
+
+          setTeams([]);
+        } finally {
+          setLoadingTeams(false);
+        }
+      };
+
+    void loadTeams();
+  }, []);
 
   // ==========================================================
   // SELECTED PARTICIPANT IDS
@@ -351,6 +369,21 @@ const CreateMeetingPage = () => {
       selectedParticipants,
     ]);
 
+  // ==========================================================
+  // SELECTED TEAM IDS
+  // ==========================================================
+
+  const teamIds =
+    useMemo(() => {
+      return selectedTeams
+        .map(
+          (team) =>
+            team._id,
+        )
+        .filter(Boolean);
+    }, [
+      selectedTeams,
+    ]);
 
   // ==========================================================
   // DEFAULT END TIME
@@ -415,7 +448,6 @@ const CreateMeetingPage = () => {
     );
   };
 
-
   // ==========================================================
   // CREATE MEETING
   // ==========================================================
@@ -436,7 +468,6 @@ const CreateMeetingPage = () => {
 
         return;
       }
-
 
       // ------------------------------------------------------
       // TITLE
@@ -460,7 +491,6 @@ const CreateMeetingPage = () => {
         return;
       }
 
-
       // ------------------------------------------------------
       // START TIME
       // ------------------------------------------------------
@@ -472,7 +502,6 @@ const CreateMeetingPage = () => {
 
         return;
       }
-
 
       // ------------------------------------------------------
       // END TIME
@@ -526,7 +555,6 @@ const CreateMeetingPage = () => {
         return;
       }
 
-
       // ------------------------------------------------------
       // MEETING LINK
       // ------------------------------------------------------
@@ -547,7 +575,6 @@ const CreateMeetingPage = () => {
         }
       }
 
-
       // ------------------------------------------------------
       // SAVE
       // ------------------------------------------------------
@@ -556,10 +583,10 @@ const CreateMeetingPage = () => {
         setLoading(true);
 
         /*
-         * IMPORTANT:
+         * Meeting contains both:
          *
-         * The project ID comes from the
-         * project dropdown inside this page.
+         * participants -> individual users
+         * teams        -> selected teams
          */
         const meetingData = {
           title:
@@ -576,6 +603,9 @@ const CreateMeetingPage = () => {
 
           participants:
             participantIds,
+
+          teams:
+            teamIds,
 
           startTime:
             start.toISOString(),
@@ -610,7 +640,7 @@ const CreateMeetingPage = () => {
         );
 
         /*
-         * Return to the global meetings page.
+         * Return to global meetings page.
          */
         setTimeout(() => {
           navigate(
@@ -633,7 +663,6 @@ const CreateMeetingPage = () => {
         setLoading(false);
       }
     };
-
 
   // ==========================================================
   // LOADING PROJECTS
@@ -662,7 +691,6 @@ const CreateMeetingPage = () => {
       </Container>
     );
   }
-
 
   // ==========================================================
   // PAGE
@@ -700,7 +728,6 @@ const CreateMeetingPage = () => {
         >
           Back
         </Button>
-
 
         {/* ==================================================
             HEADER
@@ -768,7 +795,6 @@ const CreateMeetingPage = () => {
           </Stack>
         </Paper>
 
-
         {/* ==================================================
             ERROR
         ================================================== */}
@@ -784,7 +810,6 @@ const CreateMeetingPage = () => {
           </Alert>
         )}
 
-
         {/* ==================================================
             SUCCESS
         ================================================== */}
@@ -794,7 +819,6 @@ const CreateMeetingPage = () => {
             {success}
           </Alert>
         )}
-
 
         {/* ==================================================
             FORM
@@ -844,10 +868,6 @@ const CreateMeetingPage = () => {
                     event.target.value,
                   );
 
-                  /*
-                   * Clear any previous
-                   * project-related error.
-                   */
                   setError("");
                 }}
                 MenuProps={{
@@ -877,7 +897,6 @@ const CreateMeetingPage = () => {
               </Select>
             </FormControl>
 
-
             {/* =================================================
                 NO PROJECTS
             ================================================= */}
@@ -889,7 +908,6 @@ const CreateMeetingPage = () => {
                 accessible projects.
               </Alert>
             )}
-
 
             {/* =================================================
                 TITLE
@@ -907,7 +925,6 @@ const CreateMeetingPage = () => {
               }
               disabled={loading}
             />
-
 
             {/* =================================================
                 DESCRIPTION
@@ -928,7 +945,6 @@ const CreateMeetingPage = () => {
               multiline
               minRows={4}
             />
-
 
             {/* =================================================
                 START
@@ -953,7 +969,6 @@ const CreateMeetingPage = () => {
               }}
             />
 
-
             {/* =================================================
                 END
             ================================================= */}
@@ -977,7 +992,6 @@ const CreateMeetingPage = () => {
               }}
             />
 
-
             {/* =================================================
                 MEETING LINK
             ================================================= */}
@@ -996,7 +1010,6 @@ const CreateMeetingPage = () => {
               disabled={loading}
               placeholder="https://meet.google.com/..."
             />
-
 
             {/* =================================================
                 PARTICIPANTS
@@ -1044,6 +1057,51 @@ const CreateMeetingPage = () => {
               />
             </Box>
 
+            {/* =================================================
+                TEAMS
+            ================================================= */}
+
+            <Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{
+                  mb: 1,
+                }}
+              >
+                <Groups
+                  color="primary"
+                />
+
+                <Typography
+                  fontWeight={700}
+                >
+                  Teams
+                </Typography>
+              </Stack>
+
+              <TeamSelector
+                teams={teams}
+                selectedTeams={
+                  selectedTeams
+                }
+                onChange={(
+                  selected,
+                ) => {
+                  setSelectedTeams(
+                    selected,
+                  );
+                }}
+                disabled={
+                  loading ||
+                  loadingTeams
+                }
+                loading={
+                  loadingTeams
+                }
+              />
+            </Box>
 
             {/* =================================================
                 BUTTONS
