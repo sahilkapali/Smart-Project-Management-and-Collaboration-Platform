@@ -1,12 +1,23 @@
-import mongoose, { Schema } from 'mongoose';
+import { Types } from "mongoose";
 
-export interface ITask extends Document {
-  project: mongoose.Types.ObjectId;
+export type TASK_STATUS = "Todo" | "In Progress" | "Completed";
+
+export type TASK_PRIORITY = "Low" | "Medium" | "High" | "Critical";
+
+export interface ITask {
+  project: Types.ObjectId;
+
   title: string;
+
   description?: string;
-  status: "Todo" | "In Progress" | "Completed";
-  priority: "Low" | "Medium" | "High" | "Critical";
-  assignedTo?: mongoose.Types.ObjectId;
-  dueDate?: Date;
-  createdBy: mongoose.Types.ObjectId;
+
+  status: TASK_STATUS;
+
+  priority: TASK_PRIORITY;
+
+  assignedTo?: Types.ObjectId | null;
+
+  dueDate?: Date | null;
+
+  createdBy: Types.ObjectId;
 }

@@ -11,20 +11,16 @@ import { connectDatabase } from "./config/db";
 // Routes
 import authRouter from "./routes/auth.routes";
 import userRouter from "./routes/user.routes";
-
 import projectRoutes from "./routes/project.routes";
 import teamRoutes from "./routes/team.routes";
 import taskRoutes from "./routes/task.routes";
 import repositoryRoutes from "./routes/repository.routes";
 import repositoryVersionRoutes from "./routes/repositoryVersion.routes";
-
 import issueRoutes from "./routes/issue.routes";
 import commentRoutes from "./routes/comment.routes";
-
 import meetingRouter from "./routes/meeting.routes";
 import aiRoutes from "./routes/ai.routes";
 import notificationRoutes from "./routes/notification.routes";
-
 import dashboardRoutes from "./routes/dashboard.routes";
 import reportRoutes from "./routes/report.routes";
 import activityRoutes from "./routes/activity.routes";
@@ -34,7 +30,9 @@ import errorHandler from "./middleware/errorHandler.middleware";
 
 const app = express();
 
-//Environment Configuration Validation
+// =====================================================
+// ENVIRONMENT CONFIGURATION
+// =====================================================
 
 if (!ENV_CONFIG.mongodb_uri) {
   throw new Error("DB_URI is not configured in the .env file.");
@@ -46,22 +44,23 @@ if (!ENV_CONFIG.jwt_secret) {
 
 const PORT = ENV_CONFIG.port;
 
-//Database Connection
+// =====================================================
+// DATABASE CONNECTION
+// =====================================================
 
 connectDatabase(ENV_CONFIG.mongodb_uri);
 
-//Global middlewares
+// =====================================================
+// GLOBAL MIDDLEWARES
+// =====================================================
 
-// Parse JSON requests
 app.use(express.json());
-
-// Parse URL-encoded requests
 app.use(express.urlencoded({ extended: true }));
-
-// Parse cookies
 app.use(cookieParser());
 
-// CORS Configuration
+// =====================================================
+// CORS CONFIGURATION
+// =====================================================
 
 app.use(
   cors({
@@ -70,8 +69,9 @@ app.use(
   }),
 );
 
-
- //Home / Health Check
+// =====================================================
+// HOME / HEALTH CHECK
+// =====================================================
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
@@ -80,50 +80,96 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-//Authentication Route
+// =====================================================
+// AUTHENTICATION ROUTES
+// =====================================================
+
 app.use("/api/auth", authRouter);
 
-//User Routes
+// =====================================================
+// USER ROUTES
+// =====================================================
+
 app.use("/api/users", userRouter);
 
-//Project & Team Routes
+// =====================================================
+// PROJECT & TEAM ROUTES
+// =====================================================
+
 app.use("/api/projects", projectRoutes);
 app.use("/api/teams", teamRoutes);
 
-//Task Routes
+// =====================================================
+// TASK ROUTES
+// =====================================================
+
 app.use("/api/tasks", taskRoutes);
 
-//Repository Routes
+// =====================================================
+// REPOSITORY ROUTES
+// =====================================================
+
 app.use("/api/repositories", repositoryRoutes);
 app.use("/api/repositories", repositoryVersionRoutes);
 
-//Issue Routes
+// =====================================================
+// ISSUE ROUTES
+// =====================================================
+
 app.use("/api/issues", issueRoutes);
 
-//Comment Routes
+// =====================================================
+// COMMENT ROUTES
+// =====================================================
+
 app.use("/api", commentRoutes);
 
-//Report Routes
+// =====================================================
+// REPORT ROUTES
+// =====================================================
+
 app.use("/api/reports", reportRoutes);
 
-//Activity Routes
+// =====================================================
+// ACTIVITY ROUTES
+// =====================================================
+
 app.use("/api/activities", activityRoutes);
 
-//Meeting Routes
+// =====================================================
+// MEETING ROUTES
+// =====================================================
+
 app.use("/api/meetings", meetingRouter);
 
-//AI Routes
+// =====================================================
+// AI ROUTES
+// =====================================================
+
 app.use("/api/ai", aiRoutes);
 
-//Notification Routes
+// =====================================================
+// NOTIFICATION ROUTES
+// =====================================================
+
 app.use("/api/notifications", notificationRoutes);
 
-//Dashboard Routes
+// =====================================================
+// DASHBOARD ROUTES
+// =====================================================
+
 app.use("/api/dashboard", dashboardRoutes);
 
-// Global Error Handler ,MUST BE LAST
+// =====================================================
+// GLOBAL ERROR HANDLER
+// MUST BE LAST
+// =====================================================
+
 app.use(errorHandler);
 
+// =====================================================
+// START SERVER
+// =====================================================
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

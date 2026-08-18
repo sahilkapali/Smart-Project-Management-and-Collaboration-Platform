@@ -1,221 +1,259 @@
-import Repository from '../models/repository.models';
-import Project from '../models/project.models';
-import User from '../models/user.models';
+import Repository from "../models/repository.models";
+import Project from "../models/project.models";
+import User from "../models/user.models";
 
-import { ROLE } from '../types/user.types';
+import { ROLE } from "../types/user.types";
 
-import * as activityService
-  from './activity.service';
+import * as activityService from "./activity.service";
 
-import {
-  ActivityAction,
-  ActivityEntityType
-} from '../types/activity.types';
+import { ActivityAction, ActivityEntityType } from "../types/activity.types";
 
+// =====================================================
+// TYPES
+// =====================================================
+
+type RepositoryAction = "VIEW" | "MANAGE";
+
+interface CreateRepositoryData {
+  project: string;
+  name: string;
+  description?: string;
+  githubUrl?: string;
+}
+
+interface UpdateRepositoryData {
+  name?: string;
+  description?: string;
+  githubUrl?: string;
+}
+
+// =====================================================
+// VALIDATION HELPERS
+// =====================================================
+
+const isValidObjectId = (value: string): boolean => {
+  return /^[0-9a-fA-F]{24}$/.test(value);
+};
+
+const cleanString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : undefined;
+};
 
 // =====================================================
 // CHECK PROJECT ACCESS
 // =====================================================
 
-const checkProjectAccess = async (
+export const checkProjectAccess = async (
   projectId: string,
   userId: string,
-  action: 'VIEW' | 'MANAGE'
+  action: RepositoryAction,
 ) => {
+  if (!isValidObjectId(projectId)) {
+    throw new Error("INVALID_PROJECT_ID");
+  }
+
+  if (!isValidObjectId(userId)) {
+    throw new Error("INVALID_USER_ID");
+  }
+
   const project = await Project.findById(projectId);
 
   if (!project) {
-    throw new Error('PROJECT_NOT_FOUND');
+    throw new Error("PROJECT_NOT_FOUND");
   }
 
-  const user = await User.findById(userId)
-    .select('role');
+  const user = await User.findById(userId).select("role");
 
   if (!user) {
-    throw new Error('USER_NOT_FOUND');
+    throw new Error("USER_NOT_FOUND");
   }
 
-  const isAdmin =
-    user.role === ROLE.ADMIN;
+  const isAdmin = user.role === ROLE.ADMIN;
 
-  const isOwner =
-    project.createdBy.toString() === userId;
+  const isOwner = project.createdBy?.toString() === userId;
 
   const isMember =
-    project.members.some(
-      (member) => member.toString() === userId
-    );
+    Array.isArray(project.members) &&
+    project.members.some((member) => member.toString() === userId);
 
-  // ================================================
+  // =====================================================
   // VIEW ACCESS
-  // ================================================
+  // =====================================================
 
-  if (action === 'VIEW') {
-    if (
-      isAdmin ||
-      isOwner ||
-      isMember
-    ) {
+  if (action === "VIEW") {
+    if (isAdmin || isOwner || isMember) {
       return project;
     }
 
-    throw new Error('PROJECT_ACCESS_DENIED');
+    throw new Error("PROJECT_ACCESS_DENIED");
   }
 
-  // ================================================
+  // =====================================================
   // MANAGEMENT ACCESS
-  // ================================================
+  // =====================================================
 
-  if (action === 'MANAGE') {
+  if (action === "MANAGE") {
     if (isAdmin) {
       return project;
     }
 
-    if (
-      user.role === ROLE.PROJECT_MANAGER &&
-      (isOwner || isMember)
-    ) {
+    /*
+     * Project managers can manage repositories belonging
+     * to projects they own or are members of.
+     */
+    if (user.role === ROLE.PROJECT_MANAGER && (isOwner || isMember)) {
       return project;
     }
 
-    throw new Error('PROJECT_MANAGE_DENIED');
+    /*
+     * Project owner should always be able to manage
+     * repositories, even if the role enum changes later.
+     */
+    if (isOwner) {
+      return project;
+    }
+
+    throw new Error("PROJECT_MANAGE_DENIED");
   }
 
-  throw new Error('PROJECT_ACCESS_DENIED');
+  throw new Error("PROJECT_ACCESS_DENIED");
 };
-
 
 // =====================================================
 // CREATE REPOSITORY
 // =====================================================
 
 export const createRepositoryService = async (
-  data: {
-    project: string;
-    name: string;
-    description?: string;
-    githubUrl?: string;
-  },
-  userId: string
+  data: CreateRepositoryData,
+  userId: string,
 ) => {
+  const projectId = cleanString(data.project);
+  const name = cleanString(data.name);
 
-  // Verify project + membership + role
-  const project = await checkProjectAccess(
-    data.project,
-    userId,
-    'MANAGE'
-  );
+  if (!projectId) {
+    throw new Error("PROJECT_ID_REQUIRED");
+  }
 
-  const repository =
-    await Repository.create({
-      project: project._id,
-      name: data.name,
-      description: data.description,
-      githubUrl: data.githubUrl,
+  if (!name) {
+    throw new Error("REPOSITORY_NAME_REQUIRED");
+  }
 
-      // Never trust createdBy from frontend
-      createdBy: userId
-    });
+  if (!isValidObjectId(projectId)) {
+    throw new Error("INVALID_PROJECT_ID");
+  }
 
-  // ================================================
-  // AUTOMATIC ACTIVITY
-  // ================================================
+  const project = await checkProjectAccess(projectId, userId, "MANAGE");
+
+  /*
+   * Prevent duplicate repository names inside the
+   * same project.
+   */
+  const existingRepository = await Repository.findOne({
+    project: project._id,
+    name,
+  });
+
+  if (existingRepository) {
+    throw new Error("REPOSITORY_NAME_ALREADY_EXISTS");
+  }
+
+  const repository = await Repository.create({
+    project: project._id,
+    name,
+    description: cleanString(data.description),
+    githubUrl: cleanString(data.githubUrl),
+    createdBy: userId,
+  });
+
+  // =====================================================
+  // ACTIVITY
+  // =====================================================
 
   await activityService.createActivityService({
     user: userId,
 
     project: project._id.toString(),
 
-    action:
-      ActivityAction.REPOSITORY_CREATED,
+    action: ActivityAction.REPOSITORY_CREATED,
 
-    description:
-      `Repository "${repository.name}" was created.`,
+    description: `Repository "${repository.name}" was created.`,
 
-    entityType:
-      ActivityEntityType.REPOSITORY,
+    entityType: ActivityEntityType.REPOSITORY,
 
-    entityId:
-      repository._id.toString()
+    entityId: repository._id.toString(),
   });
 
-  return repository;
+  return Repository.findById(repository._id)
+    .populate("createdBy", "name email avatar")
+    .populate("project", "name description");
 };
-
 
 // =====================================================
 // GET ALL ACCESSIBLE REPOSITORIES
 // =====================================================
 
-export const getRepositoriesService = async (
-  userId: string
-) => {
-
-  const user = await User.findById(userId)
-    .select('role');
-
-  if (!user) {
-    throw new Error('USER_NOT_FOUND');
+export const getRepositoriesService = async (userId: string) => {
+  if (!isValidObjectId(userId)) {
+    throw new Error("INVALID_USER_ID");
   }
 
-  /*
-   * ADMIN can see everything.
-   */
+  const user = await User.findById(userId).select("role");
+
+  if (!user) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  // =====================================================
+  // ADMIN
+  // =====================================================
+
   if (user.role === ROLE.ADMIN) {
-    return await Repository.find()
-      .populate(
-        'createdBy',
-        'name email avatar'
-      )
-      .populate(
-        'project',
-        'name description'
-      )
+    return Repository.find()
+      .populate("createdBy", "name email avatar")
+      .populate("project", "name description")
       .sort({
-        createdAt: -1
+        createdAt: -1,
       });
   }
 
-  /*
-   * Find projects where the user is:
-   *
-   * 1. owner
-   * 2. member
-   */
+  // =====================================================
+  // USER PROJECTS
+  // =====================================================
+
   const projects = await Project.find({
     $or: [
       {
-        createdBy: userId
+        createdBy: userId,
       },
       {
-        members: userId
-      }
-    ]
-  }).select('_id');
+        members: userId,
+      },
+    ],
+  }).select("_id");
 
-  const projectIds =
-    projects.map(
-      (project) => project._id
-    );
+  const projectIds = projects.map((project) => project._id);
 
-  return await Repository.find({
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  return Repository.find({
     project: {
-      $in: projectIds
-    }
+      $in: projectIds,
+    },
   })
-    .populate(
-      'createdBy',
-      'name email avatar'
-    )
-    .populate(
-      'project',
-      'name description'
-    )
+    .populate("createdBy", "name email avatar")
+    .populate("project", "name description")
     .sort({
-      createdAt: -1
+      createdAt: -1,
     });
 };
-
 
 // =====================================================
 // GET PROJECT REPOSITORIES
@@ -223,38 +261,19 @@ export const getRepositoriesService = async (
 
 export const getProjectRepositoriesService = async (
   projectId: string,
-  userId: string
+  userId: string,
 ) => {
+  await checkProjectAccess(projectId, userId, "VIEW");
 
-  /*
-   * VIEW permission:
-   *
-   * ADMIN
-   * OWNER
-   * PROJECT MEMBER
-   */
-  await checkProjectAccess(
-    projectId,
-    userId,
-    'VIEW'
-  );
-
-  return await Repository.find({
-    project: projectId
+  return Repository.find({
+    project: projectId,
   })
-    .populate(
-      'createdBy',
-      'name email avatar'
-    )
-    .populate(
-      'project',
-      'name description'
-    )
+    .populate("createdBy", "name email avatar")
+    .populate("project", "name description")
     .sort({
-      createdAt: -1
+      createdAt: -1,
     });
 };
-
 
 // =====================================================
 // GET REPOSITORY BY ID
@@ -262,36 +281,30 @@ export const getProjectRepositoriesService = async (
 
 export const getRepositoryByIdService = async (
   repositoryId: string,
-  userId: string
+  userId: string,
 ) => {
-
-  const repository =
-    await Repository.findById(repositoryId);
-
-  if (!repository) {
-    throw new Error('REPOSITORY_NOT_FOUND');
+  if (!isValidObjectId(repositoryId)) {
+    throw new Error("INVALID_REPOSITORY_ID");
   }
 
-  /*
-   * Get repository's project.
-   */
-  await checkProjectAccess(
-    repository.project.toString(),
-    userId,
-    'VIEW'
-  );
+  const repository = await Repository.findById(repositoryId);
 
-  return await Repository.findById(repositoryId)
-    .populate(
-      'createdBy',
-      'name email avatar'
-    )
-    .populate(
-      'project',
-      'name description owner members'
-    );
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  await checkProjectAccess(repository.project.toString(), userId, "VIEW");
+
+  const populatedRepository = await Repository.findById(repositoryId)
+    .populate("createdBy", "name email avatar")
+    .populate("project", "name description");
+
+  if (!populatedRepository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  return populatedRepository;
 };
-
 
 // =====================================================
 // UPDATE REPOSITORY
@@ -299,96 +312,98 @@ export const getRepositoryByIdService = async (
 
 export const updateRepositoryService = async (
   repositoryId: string,
-  data: {
-    name?: string;
-    description?: string;
-    githubUrl?: string;
-  },
-  userId: string
+  data: UpdateRepositoryData,
+  userId: string,
 ) => {
-
-  const repository =
-    await Repository.findById(repositoryId);
-
-  if (!repository) {
-    throw new Error('REPOSITORY_NOT_FOUND');
+  if (!isValidObjectId(repositoryId)) {
+    throw new Error("INVALID_REPOSITORY_ID");
   }
 
-  /*
-   * Repository → Project
-   *
-   * Then check:
-   * ADMIN
-   * PROJECT_MANAGER + project member
-   */
+  const repository = await Repository.findById(repositoryId);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
   const project = await checkProjectAccess(
     repository.project.toString(),
     userId,
-    'MANAGE'
+    "MANAGE",
   );
 
-  /*
-   * Do NOT allow project to be changed here.
-   */
-  const updatedRepository =
-    await Repository.findByIdAndUpdate(
-      repositoryId,
-      {
-        ...(data.name !== undefined && {
-          name: data.name
-        }),
+  const updateData: UpdateRepositoryData = {};
 
-        ...(data.description !== undefined && {
-          description: data.description
-        }),
+  if (data.name !== undefined) {
+    const name = cleanString(data.name);
 
-        ...(data.githubUrl !== undefined && {
-          githubUrl: data.githubUrl
-        })
+    if (!name) {
+      throw new Error("REPOSITORY_NAME_REQUIRED");
+    }
+
+    /*
+     * Don't allow another repository in the same
+     * project to use the same name.
+     */
+    const duplicate = await Repository.findOne({
+      project: repository.project,
+      name,
+      _id: {
+        $ne: repositoryId,
       },
-      {
-        new: true,
-        runValidators: true
-      }
-    )
-      .populate(
-        'createdBy',
-        'name email avatar'
-      )
-      .populate(
-        'project',
-        'name description'
-      );
+    });
 
-  if (!updatedRepository) {
-    throw new Error('REPOSITORY_NOT_FOUND');
+    if (duplicate) {
+      throw new Error("REPOSITORY_NAME_ALREADY_EXISTS");
+    }
+
+    updateData.name = name;
   }
 
-  // ================================================
-  // AUTOMATIC ACTIVITY
-  // ================================================
+  if (data.description !== undefined) {
+    updateData.description = cleanString(data.description) ?? "";
+  }
+
+  if (data.githubUrl !== undefined) {
+    updateData.githubUrl = cleanString(data.githubUrl) ?? "";
+  }
+
+  const updatedRepository = await Repository.findByIdAndUpdate(
+    repositoryId,
+    {
+      $set: updateData,
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  )
+    .populate("createdBy", "name email avatar")
+    .populate("project", "name description");
+
+  if (!updatedRepository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  // =====================================================
+  // ACTIVITY
+  // =====================================================
 
   await activityService.createActivityService({
     user: userId,
 
     project: project._id.toString(),
 
-    action:
-      ActivityAction.REPOSITORY_UPDATED,
+    action: ActivityAction.REPOSITORY_UPDATED,
 
-    description:
-      `Repository "${updatedRepository.name}" was updated.`,
+    description: `Repository "${updatedRepository.name}" was updated.`,
 
-    entityType:
-      ActivityEntityType.REPOSITORY,
+    entityType: ActivityEntityType.REPOSITORY,
 
-    entityId:
-      updatedRepository._id.toString()
+    entityId: updatedRepository._id.toString(),
   });
 
   return updatedRepository;
 };
-
 
 // =====================================================
 // DELETE REPOSITORY
@@ -396,53 +411,44 @@ export const updateRepositoryService = async (
 
 export const deleteRepositoryService = async (
   repositoryId: string,
-  userId: string
+  userId: string,
 ) => {
-
-  const repository =
-    await Repository.findById(repositoryId);
-
-  if (!repository) {
-    throw new Error('REPOSITORY_NOT_FOUND');
+  if (!isValidObjectId(repositoryId)) {
+    throw new Error("INVALID_REPOSITORY_ID");
   }
 
-  /*
-   * Check project management access
-   * before deleting.
-   */
+  const repository = await Repository.findById(repositoryId);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
   const project = await checkProjectAccess(
     repository.project.toString(),
     userId,
-    'MANAGE'
+    "MANAGE",
   );
 
-  const repositoryName =
-    repository.name;
+  const repositoryName = repository.name;
 
-  await Repository.findByIdAndDelete(
-    repositoryId
-  );
+  await Repository.findByIdAndDelete(repositoryId);
 
-  // ================================================
-  // AUTOMATIC ACTIVITY
-  // ================================================
+  // =====================================================
+  // ACTIVITY
+  // =====================================================
 
   await activityService.createActivityService({
     user: userId,
 
     project: project._id.toString(),
 
-    action:
-      ActivityAction.REPOSITORY_DELETED,
+    action: ActivityAction.REPOSITORY_DELETED,
 
-    description:
-      `Repository "${repositoryName}" was deleted.`,
+    description: `Repository "${repositoryName}" was deleted.`,
 
-    entityType:
-      ActivityEntityType.REPOSITORY,
+    entityType: ActivityEntityType.REPOSITORY,
 
-    entityId:
-      repositoryId
+    entityId: repositoryId,
   });
 
   return true;

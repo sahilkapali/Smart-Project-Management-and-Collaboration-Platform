@@ -1,46 +1,50 @@
-import { Router } from 'express';
+import { Router } from "express";
 
 import {
   getActivities,
   getProjectActivities,
+  getUserActivities,
   getActivityById,
-  deleteActivity
-} from '../controllers/activity.controller';
+  deleteActivity,
+} from "../controllers/activity.controller";
 
-import { authenticateUser } from '../middleware/auth.middleware';
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
 
+// =====================================================
+// GET ALL ACTIVITIES
+// GET /api/activities
+// =====================================================
 
-// Get all activities
-router.get(
-  '/',
-  authenticateUser(),
-  getActivities
-);
+router.get("/", authenticateUser(), getActivities);
 
+// =====================================================
+// GET ACTIVITIES BY PROJECT
+// GET /api/activities/project/:projectId
+// =====================================================
 
-// Get activities for a project
-router.get(
-  '/project/:projectId',
-  authenticateUser(),
-  getProjectActivities
-);
+router.get("/project/:projectId", authenticateUser(), getProjectActivities);
 
+// =====================================================
+// GET ACTIVITIES BY USER
+// GET /api/activities/user/:userId
+// =====================================================
 
-// Get one activity
-router.get(
-  '/:id',
-  authenticateUser(),
-  getActivityById
-);
+router.get("/user/:userId", authenticateUser(), getUserActivities);
 
+// =====================================================
+// GET ACTIVITY BY ID
+// GET /api/activities/:id
+// =====================================================
 
-// Delete activity
-router.delete(
-  '/:id',
-  authenticateUser(),
-  deleteActivity
-);
+router.get("/:id", authenticateUser(), getActivityById);
+
+// =====================================================
+// DELETE ACTIVITY
+// DELETE /api/activities/:id
+// =====================================================
+
+router.delete("/:id", authenticateUser(), deleteActivity);
 
 export default router;

@@ -1,11 +1,6 @@
-import {
-  Response,
-  NextFunction,
-} from "express";
+import { Response, NextFunction } from "express";
 
-import {
-  AuthRequest,
-} from "../types/custom";
+import { AuthRequest } from "../types/custom";
 
 import Task from "../models/task.models";
 import TaskComment from "../models/taskComment.models";
@@ -17,958 +12,646 @@ import {
   updateTaskService,
   deleteTaskService,
   getKanbanService,
+  requireTaskProjectAccess,
 } from "../services/task.service";
 
 import * as aiService from "../services/gemini.service";
 
-
-// =====================================================
+// ============================================================
 // CREATE TASK
-// =====================================================
+// ============================================================
 
 export const createTask = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
+    const userId = req.user?.id;
 
-    const {
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+
+      return;
+    }
+
+    const { project, title, description, assignedTo, dueDate, priority } =
+      req.body;
+
+    if (!project || !title) {
+      res.status(400).json({
+        success: false,
+        message: "Project and Task title are required.",
+      });
+
+      return;
+    }
+
+    const task = await createTaskService({
       project,
       title,
       description,
       assignedTo,
       dueDate,
       priority,
-    } = req.body;
-
-
-    if (!project || !title) {
-
-      res.status(400).json({
-        success: false,
-        message:
-          "Project and Task title are required.",
-      });
-
-      return;
-    }
-
-
-    const task =
-      await createTaskService({
-        project,
-        title,
-        description,
-        assignedTo,
-        dueDate,
-        priority,
-        createdBy:
-          req.user?.id,
-      });
-
+      createdBy: userId,
+    });
 
     res.status(201).json({
       success: true,
-      message:
-        "Task created successfully.",
+      message: "Task created successfully.",
       data: task,
     });
-
-  } catch (err: any) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-
-// =====================================================
+// ============================================================
 // GET TASKS
-// =====================================================
+// ============================================================
 
 export const getTasks = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
+    const projectId = req.query.project as string | undefined;
 
-    const projectId =
-      req.query.project as
-        | string
-        | undefined;
-
-
-    const userId =
-      req.user?.id;
-
+    const userId = req.user?.id;
 
     if (!projectId) {
-
       res.status(400).json({
         success: false,
-        message:
-          "Project ID is required.",
+        message: "Project ID is required.",
       });
 
       return;
     }
-
 
     if (!userId) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Unauthorized.",
+        message: "Unauthorized.",
       });
 
       return;
     }
 
-
-    /**
-     * The service now checks whether
-     * this user belongs to the project.
-     */
-
-    const tasks =
-      await getTasksService(
-        projectId,
-        userId,
-      );
-
+    const tasks = await getTasksService(projectId, userId);
 
     res.status(200).json({
       success: true,
-      count:
-        tasks.length,
+      count: tasks.length,
       data: tasks,
     });
-
-  } catch (err: any) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-
-// =====================================================
+// ============================================================
 // GET SINGLE TASK
-// =====================================================
+// ============================================================
 
 export const getTaskById = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
-
-    const userId =
-      req.user?.id;
-
-
-    const userRole =
-      req.user?.role;
-
+    const userId = req.user?.id;
 
     if (!userId) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
 
       return;
     }
 
-
-    const task =
-      await getTaskByIdService(
-        req.params.id,
-        userId,
-        userRole as string,
-      );
-
+    const task = await getTaskByIdService(
+      req.params.id,
+      userId,
+      req.user?.role,
+    );
 
     if (!task) {
-
       res.status(404).json({
         success: false,
-        message:
-          "Task not found.",
+        message: "Task not found.",
       });
 
       return;
     }
-
 
     res.status(200).json({
       success: true,
       data: task,
     });
-
-  } catch (err: any) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-
-// =====================================================
+// ============================================================
 // UPDATE TASK
-// =====================================================
+// ============================================================
 
 export const updateTask = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
-
-    const userId =
-      req.user?.id;
-
+    const userId = req.user?.id;
 
     if (!userId) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Unauthorized.",
+        message: "Unauthorized.",
       });
 
       return;
     }
 
-
-    const updated =
-      await updateTaskService(
-        req.params.id,
-        req.body,
-        userId,
-      );
-
+    const updated = await updateTaskService(req.params.id, req.body, userId);
 
     if (!updated) {
-
       res.status(404).json({
         success: false,
-        message:
-          "Task not found.",
+        message: "Task not found.",
       });
 
       return;
     }
-
 
     res.status(200).json({
       success: true,
-      message:
-        "Task updated successfully.",
+      message: "Task updated successfully.",
       data: updated,
     });
-
-  } catch (err: any) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-
-// =====================================================
+// ============================================================
 // DELETE TASK
-// =====================================================
+// ============================================================
 
 export const deleteTask = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
-
-    const userId =
-      req.user?.id;
-
+    const userId = req.user?.id;
 
     if (!userId) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Unauthorized.",
+        message: "Unauthorized.",
       });
 
       return;
     }
 
-
-    const deleted =
-      await deleteTaskService(
-        req.params.id,
-        userId,
-      );
-
+    const deleted = await deleteTaskService(req.params.id, userId);
 
     if (!deleted) {
-
       res.status(404).json({
         success: false,
-        message:
-          "Task not found.",
+        message: "Task not found.",
       });
 
       return;
     }
 
-
+    // Delete task comments
     await TaskComment.deleteMany({
-      task:
-        req.params.id,
+      task: req.params.id,
     });
-
 
     res.status(200).json({
       success: true,
-      message:
-        "Task deleted successfully.",
+      message: "Task deleted successfully.",
     });
-
-  } catch (err: any) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-
-// =====================================================
+// ============================================================
 // UPDATE KANBAN STATUS
-// =====================================================
+// ============================================================
 
-export const updateKanbanStatus =
-  async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
+export const updateKanbanStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
 
-    try {
-
-      const userId =
-        req.user?.id;
-
-
-      if (!userId) {
-
-        res.status(401).json({
-          success: false,
-          message:
-            "Unauthorized.",
-        });
-
-        return;
-      }
-
-
-      const {
-        status,
-      } = req.body;
-
-
-      if (
-        ![
-          "Todo",
-          "In Progress",
-          "Completed",
-        ].includes(status)
-      ) {
-
-        res.status(400).json({
-          success: false,
-          message:
-            "Invalid task status.",
-        });
-
-        return;
-      }
-
-
-      const task =
-        await Task.findById(
-          req.params.id,
-        );
-
-
-      if (!task) {
-
-        res.status(404).json({
-          success: false,
-          message:
-            "Task not found.",
-        });
-
-        return;
-      }
-
-
-      /**
-       * Project access check.
-       */
-
-      const {
-        requireTaskProjectAccess,
-      } = await import(
-        "../services/task.service"
-      );
-
-
-      await requireTaskProjectAccess(
-        task.project.toString(),
-        userId,
-      );
-
-
-      /**
-       * Only task creator or assignee
-       * can change status.
-       */
-
-      if (
-        task.createdBy.toString() !==
-          userId &&
-        task.assignedTo?.toString() !==
-          userId
-      ) {
-
-        res.status(403).json({
-          success: false,
-          message:
-            "You are not allowed to modify this task.",
-        });
-
-        return;
-      }
-
-
-      task.status =
-        status;
-
-
-      await task.save();
-
-
-      res.status(200).json({
-        success: true,
-        message:
-          "Task status updated successfully.",
-        data: task,
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
       });
 
-    } catch (err) {
-
-      next(err);
+      return;
     }
-  };
 
+    const { status } = req.body;
 
-// =====================================================
+    const allowedStatuses = ["Todo", "In Progress", "Completed"];
+
+    if (!allowedStatuses.includes(status)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid task status.",
+      });
+
+      return;
+    }
+
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+
+      return;
+    }
+
+    await requireTaskProjectAccess(task.project.toString(), userId);
+
+    const isCreator = task.createdBy.toString() === userId;
+
+    const isAssignee = task.assignedTo?.toString() === userId;
+
+    if (!isCreator && !isAssignee) {
+      res.status(403).json({
+        success: false,
+        message: "You are not allowed to modify this task.",
+      });
+
+      return;
+    }
+
+    task.status = status;
+
+    await task.save();
+
+    await task.populate([
+      {
+        path: "assignedTo",
+        select: "firstName lastName email role",
+      },
+      {
+        path: "createdBy",
+        select: "firstName lastName email role",
+      },
+      {
+        path: "project",
+        select: "name description",
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Task status updated successfully.",
+      data: task,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
 // GET KANBAN
-// =====================================================
+// ============================================================
 
 export const getKanban = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
-
-    const userId =
-      req.user?.id;
-
+    const userId = req.user?.id;
 
     if (!userId) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Unauthorized.",
+        message: "Unauthorized.",
       });
 
       return;
     }
 
-
-    const board =
-      await getKanbanService(
-        req.params.projectId,
-        userId,
-      );
-
+    const board = await getKanbanService(req.params.projectId, userId);
 
     res.status(200).json({
       success: true,
       data: board,
     });
-
-  } catch (err) {
-
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
+// ============================================================
+// ADD COMMENT
+// ============================================================
 
-// =====================================================
-// ADD TASK COMMENT
-// =====================================================
+export const addTaskComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
 
-export const addTaskComment =
-  async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
-
-    try {
-
-      const task =
-        await Task.findById(
-          req.params.id,
-        );
-
-
-      if (!task) {
-
-        res.status(404).json({
-          success: false,
-          message:
-            "Task not found.",
-        });
-
-        return;
-      }
-
-
-      const userId =
-        req.user?.id;
-
-
-      if (!userId) {
-
-        res.status(401).json({
-          success: false,
-          message:
-            "Unauthorized.",
-        });
-
-        return;
-      }
-
-
-      const {
-        requireTaskProjectAccess,
-      } = await import(
-        "../services/task.service"
-      );
-
-
-      await requireTaskProjectAccess(
-        task.project.toString(),
-        userId,
-      );
-
-
-      if (
-        !req.body.text?.trim()
-      ) {
-
-        res.status(400).json({
-          success: false,
-          message:
-            "Comment text is required.",
-        });
-
-        return;
-      }
-
-
-      const comment =
-        await TaskComment.create({
-          task:
-            task._id,
-
-          user:
-            userId,
-
-          text:
-            req.body.text,
-        });
-
-
-      const populated =
-        await comment.populate(
-          "user",
-          "firstName lastName email role",
-        );
-
-
-      res.status(201).json({
-        success: true,
-        message:
-          "Comment added successfully.",
-        data: populated,
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
       });
 
-    } catch (err) {
-
-      next(err);
+      return;
     }
-  };
 
+    const task = await Task.findById(req.params.id);
 
-// =====================================================
-// GET TASK COMMENTS
-// =====================================================
-
-export const getTaskComments =
-  async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
-
-    try {
-
-      const task =
-        await Task.findById(
-          req.params.id,
-        );
-
-
-      if (!task) {
-
-        res.status(404).json({
-          success: false,
-          message:
-            "Task not found.",
-        });
-
-        return;
-      }
-
-
-      const userId =
-        req.user?.id;
-
-
-      if (!userId) {
-
-        res.status(401).json({
-          success: false,
-          message:
-            "Unauthorized.",
-        });
-
-        return;
-      }
-
-
-      const {
-        requireTaskProjectAccess,
-      } = await import(
-        "../services/task.service"
-      );
-
-
-      await requireTaskProjectAccess(
-        task.project.toString(),
-        userId,
-      );
-
-
-      const comments =
-        await TaskComment.find({
-          task:
-            req.params.id,
-        })
-          .populate(
-            "user",
-            "firstName lastName email role",
-          )
-          .sort({
-            createdAt: 1,
-          });
-
-
-      res.status(200).json({
-        success: true,
-        count:
-          comments.length,
-        data:
-          comments,
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
       });
 
-    } catch (err) {
-
-      next(err);
+      return;
     }
-  };
 
+    await requireTaskProjectAccess(task.project.toString(), userId);
 
-// =====================================================
-// DELETE TASK COMMENT
-// =====================================================
+    const text = req.body.text?.trim();
 
-export const deleteTaskComment =
-  async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
-
-    try {
-
-      const comment =
-        await TaskComment.findById(
-          req.params.commentId,
-        );
-
-
-      if (!comment) {
-
-        res.status(404).json({
-          success: false,
-          message:
-            "Comment not found.",
-        });
-
-        return;
-      }
-
-
-      if (
-        comment.user.toString() !==
-        req.user?.id
-      ) {
-
-        res.status(403).json({
-          success: false,
-          message:
-            "Not allowed to delete this comment.",
-        });
-
-        return;
-      }
-
-
-      const task =
-        await Task.findById(
-          comment.task,
-        );
-
-
-      if (!task) {
-
-        res.status(404).json({
-          success: false,
-          message:
-            "Task not found.",
-        });
-
-        return;
-      }
-
-
-      const userId =
-        req.user?.id;
-
-
-      if (!userId) {
-
-        res.status(401).json({
-          success: false,
-          message:
-            "Unauthorized.",
-        });
-
-        return;
-      }
-
-
-      const {
-        requireTaskProjectAccess,
-      } = await import(
-        "../services/task.service"
-      );
-
-
-      await requireTaskProjectAccess(
-        task.project.toString(),
-        userId,
-      );
-
-
-      await comment.deleteOne();
-
-
-      res.status(200).json({
-        success: true,
-        message:
-          "Comment deleted successfully.",
+    if (!text) {
+      res.status(400).json({
+        success: false,
+        message: "Comment text is required.",
       });
 
-    } catch (err) {
-
-      next(err);
+      return;
     }
-  };
 
+    const comment = await TaskComment.create({
+      task: task._id,
+      user: userId,
+      text,
+    });
 
-// =====================================================
-// AI TASK PRIORITIZATION
-// =====================================================
+    await comment.populate("user", "firstName lastName email role");
 
-export const autoPrioritizeTask =
-  async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
+    res.status(201).json({
+      success: true,
+      message: "Comment added successfully.",
+      data: comment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    try {
+// ============================================================
+// GET COMMENTS
+// ============================================================
 
-      const task =
-        await Task.findById(
-          req.params.id,
-        );
+export const getTaskComments = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
 
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
 
-      if (!task) {
+      return;
+    }
 
-        res.status(404).json({
-          success: false,
-          message:
-            "Task not found.",
-        });
+    const task = await Task.findById(req.params.id);
 
-        return;
-      }
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
 
+      return;
+    }
 
-      const userId =
-        req.user?.id;
+    await requireTaskProjectAccess(task.project.toString(), userId);
 
+    const comments = await TaskComment.find({
+      task: task._id,
+    })
+      .populate("user", "firstName lastName email role")
+      .sort({
+        createdAt: 1,
+      });
 
-      if (!userId) {
+    res.status(200).json({
+      success: true,
+      count: comments.length,
+      data: comments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-        res.status(401).json({
-          success: false,
-          message:
-            "Unauthorized.",
-        });
+// ============================================================
+// DELETE COMMENT
+// ============================================================
 
-        return;
-      }
+export const deleteTaskComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
 
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
 
-      const {
-        requireTaskProjectAccess,
-      } = await import(
-        "../services/task.service"
-      );
+      return;
+    }
 
+    const comment = await TaskComment.findById(req.params.commentId);
 
-      await requireTaskProjectAccess(
-        task.project.toString(),
-        userId,
-      );
+    if (!comment) {
+      res.status(404).json({
+        success: false,
+        message: "Comment not found.",
+      });
 
+      return;
+    }
 
-      const taskContext = `
+    const task = await Task.findById(comment.task);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+
+      return;
+    }
+
+    await requireTaskProjectAccess(task.project.toString(), userId);
+
+    if (comment.user.toString() !== userId) {
+      res.status(403).json({
+        success: false,
+        message: "Not allowed to delete this comment.",
+      });
+
+      return;
+    }
+
+    await comment.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// AI PRIORITIZATION
+// ============================================================
+
+export const autoPrioritizeTask = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+
+      return;
+    }
+
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+
+      return;
+    }
+
+    await requireTaskProjectAccess(task.project.toString(), userId);
+
+    const taskContext = `
 Task Title: ${task.title}
-Description: ${
-  task.description ||
-  "No description provided"
-}
-Due Date: ${
-  task.dueDate
-    ? new Date(
-        task.dueDate,
-      ).toISOString()
-    : "No due date"
-}
-Status: ${
-  task.status ||
-  "Not specified"
-}
-Current Priority: ${
-  task.priority ||
-  "Not assigned"
-}
+
+Description:
+${task.description || "No description provided"}
+
+Due Date:
+${task.dueDate ? new Date(task.dueDate).toISOString() : "No due date"}
+
+Status:
+${task.status}
+
+Current Priority:
+${task.priority}
 `;
 
+    const aiPriority = await aiService.generateTaskPriority(taskContext);
 
-      const aiPriority =
-        await aiService.generateTaskPriority(
-          taskContext,
-        );
+    const normalizedPriority =
+      String(aiPriority)
+        .trim()
+        .replace(/[^a-zA-Z]/g, "")
+        .charAt(0)
+        .toUpperCase() +
+      String(aiPriority)
+        .trim()
+        .replace(/[^a-zA-Z]/g, "")
+        .slice(1)
+        .toLowerCase();
 
+    const allowedPriorities = ["Low", "Medium", "High", "Critical"];
 
-      const normalizedPriority =
-        aiPriority.charAt(0)
-          .toUpperCase() +
-        aiPriority
-          .slice(1)
-          .toLowerCase();
-
-
-      if (
-        ![
-          "Low",
-          "Medium",
-          "High",
-          "Critical",
-        ].includes(
-          normalizedPriority,
-        )
-      ) {
-
-        res.status(500).json({
-          success: false,
-          message:
-            "AI returned an invalid task priority.",
-        });
-
-        return;
-      }
-
-
-      task.priority =
-        normalizedPriority as
-          | "Low"
-          | "Medium"
-          | "High"
-          | "Critical";
-
-
-      await task.save();
-
-
-      res.status(200).json({
-        success: true,
-        message:
-          `Task priority auto-updated to ${aiPriority}`,
-        data: task,
+    if (!allowedPriorities.includes(normalizedPriority)) {
+      res.status(500).json({
+        success: false,
+        message: "AI returned an invalid task priority.",
       });
 
-    } catch (err) {
-
-      next(err);
+      return;
     }
-  };
+
+    task.priority = normalizedPriority as
+      | "Low"
+      | "Medium"
+      | "High"
+      | "Critical";
+
+    await task.save();
+
+    await task.populate([
+      {
+        path: "assignedTo",
+        select: "firstName lastName email role",
+      },
+      {
+        path: "createdBy",
+        select: "firstName lastName email role",
+      },
+      {
+        path: "project",
+        select: "name description",
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: `Task priority auto-updated to ${normalizedPriority}.`,
+      data: task,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

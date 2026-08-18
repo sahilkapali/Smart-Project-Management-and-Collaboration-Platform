@@ -1,4 +1,4 @@
-import type { UserRole } from "./user.types"; 
+import type { UserRole } from "./user.types";
 
 export interface TeamMember {
   _id: string;

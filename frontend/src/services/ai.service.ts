@@ -1,251 +1,212 @@
 import api from "./api";
 
-/**
- * =========================================================
- * AI SERVICE
- * =========================================================
- *
- * Existing backend endpoints:
- *
- * POST  /api/ai/insight
- * GET   /api/ai/project/:projectId
- * GET   /api/ai/task/:taskId
- * GET   /api/ai/meeting/:meetingId
- *
- * PATCH /api/tasks/:id/ai-prioritize
- * PATCH /api/meetings/:id/ai-summary
- * PATCH /api/meetings/:id/action-items
- *
- * No backend changes are required.
- */
-
-// =========================================================
+// ============================================================
 // TYPES
-// =========================================================
+// ============================================================
 
-/**
- * Generic AI response returned by the backend.
- *
- * The backend may return additional fields depending on
- * which AI operation was executed, so the response type
- * intentionally allows additional properties.
- */
 export interface AIDataResponse<T> {
   success?: boolean;
+
   message?: string;
+
   data?: T;
+
   result?: T;
+
   output?: T;
 
   [key: string]: unknown;
 }
 
-/**
- * Generic AI output.
- *
- * Different AI operations can return different structures,
- * therefore the common fields are optional.
- */
 export interface AIOutput {
   id?: string;
+
   _id?: string;
 
   type?: string;
+
   category?: string;
 
   title?: string;
+
   summary?: string;
+
   content?: string;
+
   description?: string;
 
   projectId?: string;
+
   taskId?: string;
+
   meetingId?: string;
 
   createdAt?: string;
+
   updatedAt?: string;
 
   [key: string]: unknown;
 }
 
-/**
- * AI-prioritized task response.
- */
 export interface AIPrioritizedTask {
   id?: string;
+
   _id?: string;
 
   taskId?: string;
 
   priority?: string;
+
   score?: number;
 
   reason?: string;
+
   explanation?: string;
 
   title?: string;
+
   description?: string;
 
   [key: string]: unknown;
 }
 
-// =========================================================
-// HELPERS
-// =========================================================
+// ============================================================
+// VALIDATION
+// ============================================================
 
 const validateId = (value: string, label: string): string => {
-  const trimmedValue = value?.trim();
+  const id = value?.trim();
 
-  if (!trimmedValue) {
+  if (!id) {
     throw new Error(`${label} is required.`);
   }
 
-  return trimmedValue;
+  return id;
 };
 
-// =========================================================
+// ============================================================
 // AI SERVICE
-// =========================================================
+// ============================================================
 
 const aiService = {
-  // =======================================================
-  // PROJECT AI INSIGHT
-  //
-  // POST /api/ai/insight
-  // =======================================================
+  // ==========================================================
+  // PROJECT INSIGHT
+  // ==========================================================
 
   getProjectInsight: async (
     projectId: string,
   ): Promise<AIDataResponse<AIOutput>> => {
-    const validProjectId = validateId(projectId, "Project ID");
+    const id = validateId(projectId, "Project ID");
 
     const response = await api.post<AIDataResponse<AIOutput>>("/ai/insight", {
-      projectId: validProjectId,
+      projectId: id,
     });
 
     return response.data;
   },
 
-  // =======================================================
-  // GET PROJECT AI OUTPUTS
-  //
-  // GET /api/ai/project/:projectId
-  // =======================================================
+  // ==========================================================
+  // PROJECT AI OUTPUTS
+  // ==========================================================
 
   getProjectAIOutputs: async (
     projectId: string,
   ): Promise<AIDataResponse<AIOutput[]>> => {
-    const validProjectId = validateId(projectId, "Project ID");
+    const id = validateId(projectId, "Project ID");
 
     const response = await api.get<AIDataResponse<AIOutput[]>>(
-      `/ai/project/${validProjectId}`,
+      `/ai/project/${id}`,
     );
 
     return response.data;
   },
 
-  // =======================================================
-  // GET TASK AI OUTPUTS
-  //
-  // GET /api/ai/task/:taskId
-  // =======================================================
+  // ==========================================================
+  // TASK AI OUTPUTS
+  // ==========================================================
 
   getTaskAIOutputs: async (
     taskId: string,
   ): Promise<AIDataResponse<AIOutput[]>> => {
-    const validTaskId = validateId(taskId, "Task ID");
+    const id = validateId(taskId, "Task ID");
 
     const response = await api.get<AIDataResponse<AIOutput[]>>(
-      `/ai/task/${validTaskId}`,
+      `/ai/task/${id}`,
     );
 
     return response.data;
   },
 
-  // =======================================================
-  // GET MEETING AI OUTPUTS
-  //
-  // GET /api/ai/meeting/:meetingId
-  // =======================================================
+  // ==========================================================
+  // MEETING AI OUTPUTS
+  // ==========================================================
 
   getMeetingAIOutputs: async (
     meetingId: string,
   ): Promise<AIDataResponse<AIOutput[]>> => {
-    const validMeetingId = validateId(meetingId, "Meeting ID");
+    const id = validateId(meetingId, "Meeting ID");
 
     const response = await api.get<AIDataResponse<AIOutput[]>>(
-      `/ai/meeting/${validMeetingId}`,
+      `/ai/meeting/${id}`,
     );
 
     return response.data;
   },
 
-  // =======================================================
-  // AI TASK PRIORITIZATION
-  //
-  // PATCH /api/tasks/:id/ai-prioritize
-  // =======================================================
+  // ==========================================================
+  // TASK PRIORITIZATION
+  // ==========================================================
 
   prioritizeTask: async (
     taskId: string,
   ): Promise<AIDataResponse<AIPrioritizedTask>> => {
-    const validTaskId = validateId(taskId, "Task ID");
+    const id = validateId(taskId, "Task ID");
 
     const response = await api.patch<AIDataResponse<AIPrioritizedTask>>(
-      `/tasks/${validTaskId}/ai-prioritize`,
+      `/tasks/${id}/ai-prioritize`,
       {},
     );
 
     return response.data;
   },
 
-  // =======================================================
-  // MEETING AI SUMMARY
-  //
-  // PATCH /api/meetings/:id/ai-summary
-  // =======================================================
+  // ==========================================================
+  // MEETING SUMMARY
+  // ==========================================================
 
   summarizeMeeting: async (
     meetingId: string,
   ): Promise<AIDataResponse<AIOutput>> => {
-    const validMeetingId = validateId(meetingId, "Meeting ID");
+    const id = validateId(meetingId, "Meeting ID");
 
     const response = await api.patch<AIDataResponse<AIOutput>>(
-      `/meetings/${validMeetingId}/ai-summary`,
+      `/meetings/${id}/ai-summary`,
       {},
     );
 
     return response.data;
   },
 
-  // =======================================================
-  // MEETING ACTION ITEMS
-  //
-  // PATCH /api/meetings/:id/action-items
-  // =======================================================
+  // ==========================================================
+  // ACTION ITEMS
+  // ==========================================================
 
   extractActionItems: async (
     meetingId: string,
   ): Promise<AIDataResponse<AIOutput>> => {
-    const validMeetingId = validateId(meetingId, "Meeting ID");
+    const id = validateId(meetingId, "Meeting ID");
 
     const response = await api.patch<AIDataResponse<AIOutput>>(
-      `/meetings/${validMeetingId}/action-items`,
+      `/meetings/${id}/action-items`,
       {},
     );
 
     return response.data;
   },
 
-  // =======================================================
+  // ==========================================================
   // BACKWARD COMPATIBILITY
-  //
-  // Some existing frontend components may call:
-  //
-  // aiService.autoPrioritizeTask(taskId)
-  //
-  // Keep this alias so those components continue working.
-  // =======================================================
+  // ==========================================================
 
   autoPrioritizeTask: async (
     taskId: string,

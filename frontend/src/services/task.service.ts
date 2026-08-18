@@ -12,13 +12,9 @@ import type {
   TaskCommentsResponse,
 } from "../types/task.types";
 
-// ============================================================
-// TASK SERVICE
-// ============================================================
-
 const taskService = {
   // ==========================================================
-  // GET ALL TASKS
+  // GET TASKS
   // GET /tasks?project=PROJECT_ID
   // ==========================================================
 
@@ -37,7 +33,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // GET TASK BY ID
+  // GET TASK
   // GET /tasks/:id
   // ==========================================================
 
@@ -91,7 +87,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // UPDATE TASK STATUS
+  // UPDATE STATUS
   // PATCH /tasks/:id/status
   // ==========================================================
 
@@ -104,21 +100,11 @@ const taskService = {
       status,
     });
 
-    /*
-     * Backend returns:
-     *
-     * {
-     *   success: true,
-     *   message: "...",
-     *   data: task
-     * }
-     */
-
     return response.data.data;
   },
 
   // ==========================================================
-  // GET KANBAN BOARD
+  // KANBAN
   // GET /tasks/project/:projectId/kanban
   // ==========================================================
 
@@ -135,7 +121,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // ADD TASK COMMENT
+  // ADD COMMENT
   // POST /tasks/:id/comments
   // ==========================================================
 
@@ -144,36 +130,25 @@ const taskService = {
       throw new Error("Task ID is required.");
     }
 
-    if (!text.trim()) {
+    const cleanText = text.trim();
+
+    if (!cleanText) {
       throw new Error("Comment text is required.");
     }
-
-    /*
-     * Backend returns:
-     *
-     * {
-     *   success: true,
-     *   message: "Comment added successfully.",
-     *   data: populatedComment
-     * }
-     *
-     * Therefore we use a dedicated response type
-     * instead of TaskResponse.
-     */
 
     const response = await api.post<{
       success: boolean;
       message?: string;
       data: TaskComment;
     }>(`/tasks/${taskId}/comments`, {
-      text: text.trim(),
+      text: cleanText,
     });
 
     return response.data.data;
   },
 
   // ==========================================================
-  // GET TASK COMMENTS
+  // GET COMMENTS
   // GET /tasks/:id/comments
   // ==========================================================
 
@@ -190,7 +165,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // DELETE TASK COMMENT
+  // DELETE COMMENT
   // DELETE /tasks/:taskId/comments/:commentId
   // ==========================================================
 
@@ -207,7 +182,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // AI AUTO PRIORITIZE
+  // AI PRIORITIZE
   // PATCH /tasks/:id/ai-prioritize
   // ==========================================================
 

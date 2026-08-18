@@ -1,54 +1,85 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
+  Alert,
+  Avatar,
   Box,
-  Typography,
-  Paper,
   Chip,
   CircularProgress,
-  Alert,
-  Stack,
-  Avatar,
-  IconButton,
-  TextField,
-  InputAdornment,
-  MenuItem,
-  Select,
   FormControl,
-  InputLabel
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SearchIcon from '@mui/icons-material/Search';
-import BugReportIcon from '@mui/icons-material/BugReport';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import CommentIcon from '@mui/icons-material/Comment';
-import FolderIcon from '@mui/icons-material/Folder';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import EditIcon from '@mui/icons-material/Edit';
-import HistoryIcon from '@mui/icons-material/History';
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
-import { getActivities } from '../../services/activity.service';
-import type { ActivityItem, ActivityAction } from '../../types/activity.types';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SearchIcon from "@mui/icons-material/Search";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import CommentIcon from "@mui/icons-material/Comment";
+import FolderIcon from "@mui/icons-material/Folder";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import GroupIcon from "@mui/icons-material/Group";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
+import EventIcon from "@mui/icons-material/Event";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import HistoryIcon from "@mui/icons-material/History";
+
+import { getActivities } from "../../services/activity.service";
+
+import type {
+  ActivityAction,
+  ActivityEntityType,
+  ActivityItem,
+} from "../../types/activity.types";
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 const ActivityFeedPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [entityFilter, setEntityFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [entityFilter, setEntityFilter] = useState<ActivityEntityType | "ALL">(
+    "ALL",
+  );
+
+  // ===================================================
+  // FETCH ACTIVITIES
+  // ===================================================
 
   const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getActivities();
+
+      const data = await getActivities(100);
+
       setActivities(data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load activity log.');
+      console.error("Failed to fetch activities:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load activity feed.",
+      );
     } finally {
       setLoading(false);
     }
@@ -58,163 +89,541 @@ const ActivityFeedPage: React.FC = () => {
     fetchActivities();
   }, [fetchActivities]);
 
+  // ===================================================
+  // ACTION TEXT
+  // ===================================================
+
+  const getActionText = (action: ActivityAction): string => {
+    switch (action) {
+      case "PROJECT_CREATED":
+        return "created project";
+
+      case "PROJECT_UPDATED":
+        return "updated project";
+
+      case "PROJECT_DELETED":
+        return "deleted project";
+
+      case "TASK_CREATED":
+        return "created task";
+
+      case "TASK_UPDATED":
+        return "updated task";
+
+      case "TASK_ASSIGNED":
+        return "assigned a task";
+
+      case "TASK_COMPLETED":
+        return "completed task";
+
+      case "TASK_DELETED":
+        return "deleted task";
+
+      case "COMMENT_ADDED":
+        return "added a comment";
+
+      case "ISSUE_CREATED":
+        return "created issue";
+
+      case "ISSUE_UPDATED":
+        return "updated issue";
+
+      case "ISSUE_CLOSED":
+        return "closed issue";
+
+      case "ISSUE_DELETED":
+        return "deleted issue";
+
+      case "REPOSITORY_CREATED":
+        return "created repository";
+
+      case "REPOSITORY_UPDATED":
+        return "updated repository";
+
+      case "REPOSITORY_DELETED":
+        return "deleted repository";
+
+      case "TEAM_CREATED":
+        return "created team";
+
+      case "MEMBER_ADDED":
+        return "added a member";
+
+      case "MEMBER_REMOVED":
+        return "removed a member";
+
+      case "MEETING_CREATED":
+        return "created meeting";
+
+      case "MEETING_UPDATED":
+        return "updated meeting";
+
+      case "MEETING_CANCELLED":
+        return "cancelled meeting";
+
+      case "SYSTEM_ACTIVITY":
+        return "performed a system activity";
+
+      default:
+        return "performed an activity";
+    }
+  };
+
+  // ===================================================
+  // ACTION ICON
+  // ===================================================
+
   const getActionIcon = (action: ActivityAction) => {
     switch (action) {
-      case 'issue_created':
-        return <BugReportIcon fontSize="small" sx={{ color: '#ef4444' }} />;
-      case 'issue_updated':
-        return <EditIcon fontSize="small" sx={{ color: '#f59e0b' }} />;
-      case 'issue_resolved':
-        return <CheckCircleIcon fontSize="small" sx={{ color: '#10b981' }} />;
-      case 'version_uploaded':
-        return <CloudUploadIcon fontSize="small" sx={{ color: '#8b5cf6' }} />;
-      case 'repo_created':
-        return <FolderIcon fontSize="small" sx={{ color: '#3b82f6' }} />;
-      case 'comment_added':
-        return <CommentIcon fontSize="small" sx={{ color: '#06b6d4' }} />;
+      case "PROJECT_CREATED":
+      case "TASK_CREATED":
+      case "ISSUE_CREATED":
+      case "REPOSITORY_CREATED":
+      case "TEAM_CREATED":
+      case "MEETING_CREATED":
+        return <AddCircleOutlineIcon fontSize="small" />;
+
+      case "PROJECT_UPDATED":
+      case "TASK_UPDATED":
+      case "ISSUE_UPDATED":
+      case "REPOSITORY_UPDATED":
+      case "MEETING_UPDATED":
+        return <EditIcon fontSize="small" />;
+
+      case "PROJECT_DELETED":
+      case "TASK_DELETED":
+      case "ISSUE_DELETED":
+      case "REPOSITORY_DELETED":
+        return <DeleteIcon fontSize="small" />;
+
+      case "TASK_ASSIGNED":
+        return <AssignmentIcon fontSize="small" />;
+
+      case "TASK_COMPLETED":
+        return <CheckCircleIcon fontSize="small" />;
+
+      case "COMMENT_ADDED":
+        return <CommentIcon fontSize="small" />;
+
+      case "ISSUE_CLOSED":
+        return <BugReportIcon fontSize="small" />;
+
+      case "MEMBER_ADDED":
+        return <PersonAddIcon fontSize="small" />;
+
+      case "MEMBER_REMOVED":
+        return <PersonRemoveIcon fontSize="small" />;
+
+      case "MEETING_CANCELLED":
+        return <EventIcon fontSize="small" />;
+
+      case "SYSTEM_ACTIVITY":
+        return <HistoryIcon fontSize="small" />;
+
       default:
-        return <HistoryIcon fontSize="small" sx={{ color: '#9ca3af' }} />;
+        return <HistoryIcon fontSize="small" />;
     }
   };
 
-  const getActionText = (action: ActivityAction) => {
-    switch (action) {
-      case 'issue_created': return 'created an issue';
-      case 'issue_updated': return 'updated issue';
-      case 'issue_resolved': return 'resolved issue';
-      case 'version_uploaded': return 'released version';
-      case 'repo_created': return 'created repository';
-      case 'comment_added': return 'commented on';
-      case 'project_updated': return 'updated project';
-      default: return 'performed an action on';
+  // ===================================================
+  // ENTITY LABEL
+  // ===================================================
+
+  const getEntityLabel = (entityType?: ActivityEntityType): string => {
+    if (!entityType) {
+      return "EVENT";
+    }
+
+    return entityType;
+  };
+
+  // ===================================================
+  // ENTITY ICON
+  // ===================================================
+
+  const getEntityIcon = (entityType?: ActivityEntityType) => {
+    switch (entityType) {
+      case "PROJECT":
+        return <FolderIcon fontSize="small" />;
+
+      case "TASK":
+        return <AssignmentIcon fontSize="small" />;
+
+      case "ISSUE":
+        return <BugReportIcon fontSize="small" />;
+
+      case "REPOSITORY":
+        return <CloudUploadIcon fontSize="small" />;
+
+      case "COMMENT":
+        return <CommentIcon fontSize="small" />;
+
+      case "TEAM":
+        return <GroupIcon fontSize="small" />;
+
+      case "MEETING":
+        return <EventIcon fontSize="small" />;
+
+      default:
+        return <HistoryIcon fontSize="small" />;
     }
   };
 
-  const filteredActivities = activities.filter((act) => {
-    const matchesSearch =
-      (act.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (act.entityName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (act.details || '').toLowerCase().includes(searchQuery.toLowerCase());
+  // ===================================================
+  // FILTER ACTIVITIES
+  // ===================================================
 
-    const matchesEntity = entityFilter === 'all' || act.entityType === entityFilter;
+  const filteredActivities = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-    return matchesSearch && matchesEntity;
-  });
+    return activities.filter((activity) => {
+      const userName = activity.user?.name?.toLowerCase() || "";
+      const description = activity.description?.toLowerCase() || "";
+      const projectName = activity.project?.name?.toLowerCase() || "";
+      const action = activity.action.toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        userName.includes(query) ||
+        description.includes(query) ||
+        projectName.includes(query) ||
+        action.includes(query);
+
+      const matchesEntity =
+        entityFilter === "ALL" || activity.entityType === entityFilter;
+
+      return matchesSearch && matchesEntity;
+    });
+  }, [activities, searchQuery, entityFilter]);
+
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1000, mx: 'auto' }}>
-      {/* HEADER */}
+    <Box
+      sx={{
+        p: {
+          xs: 2,
+          sm: 3,
+          md: 4,
+        },
+        maxWidth: 1100,
+        mx: "auto",
+      }}
+    >
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
       <Stack direction="row" alignItems="center" spacing={2} mb={4}>
-        <IconButton onClick={() => navigate(-1)} color="primary">
+        <IconButton
+          onClick={() => navigate(-1)}
+          color="primary"
+          aria-label="Go back"
+        >
           <ArrowBackIcon />
         </IconButton>
+
         <Box>
-          <Typography variant="h4" fontWeight="bold">
-            Activity Feed & Audit Log
+          <Typography variant="h4" fontWeight={700}>
+            Activity Feed
           </Typography>
+
           <Typography variant="body2" color="text.secondary">
-            Real-time audit trail of all project events and developer actions
+            Track project events and team activities
           </Typography>
         </Box>
       </Stack>
 
-      {/* FILTER BAR */}
-      <Paper variant="outlined" sx={{ p: 2, mb: 4, borderRadius: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+      {/* =================================================
+          FILTERS
+      ================================================= */}
+
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: 2,
+        }}
+      >
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
+          }}
+          spacing={2}
+        >
           <TextField
             fullWidth
             size="small"
-            placeholder="Search by user, entity name, or details..."
+            placeholder="Search activities..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   <SearchIcon color="action" />
                 </InputAdornment>
-              )
+              ),
             }}
           />
-          <FormControl size="small" sx={{ minWidth: 180 }}>
+
+          <FormControl
+            size="small"
+            sx={{
+              minWidth: {
+                xs: "100%",
+                sm: 180,
+              },
+            }}
+          >
             <InputLabel>Event Type</InputLabel>
+
             <Select
               value={entityFilter}
               label="Event Type"
-              onChange={(e) => setEntityFilter(e.target.value)}
+              onChange={(event) =>
+                setEntityFilter(
+                  event.target.value as ActivityEntityType | "ALL",
+                )
+              }
             >
-              <MenuItem value="all">All Events</MenuItem>
-              <MenuItem value="issue">Issues</MenuItem>
-              <MenuItem value="repository">Repositories</MenuItem>
-              <MenuItem value="comment">Comments</MenuItem>
+              <MenuItem value="ALL">All Events</MenuItem>
+
+              <MenuItem value="PROJECT">Projects</MenuItem>
+
+              <MenuItem value="TASK">Tasks</MenuItem>
+
+              <MenuItem value="ISSUE">Issues</MenuItem>
+
+              <MenuItem value="REPOSITORY">Repositories</MenuItem>
+
+              <MenuItem value="COMMENT">Comments</MenuItem>
+
+              <MenuItem value="TEAM">Teams</MenuItem>
+
+              <MenuItem value="MEETING">Meetings</MenuItem>
             </Select>
           </FormControl>
         </Stack>
       </Paper>
 
-      {/* FEED CONTENT */}
-      {loading ? (
+      {/* =================================================
+          LOADING
+      ================================================= */}
+
+      {loading && (
         <Box display="flex" justifyContent="center" py={10}>
           <CircularProgress />
         </Box>
-      ) : error ? (
-        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
-      ) : filteredActivities.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
-          <HistoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+      )}
+
+      {/* =================================================
+          ERROR
+      ================================================= */}
+
+      {!loading && error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Typography
+              component="button"
+              onClick={fetchActivities}
+              sx={{
+                border: 0,
+                background: "transparent",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Retry
+            </Typography>
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* =================================================
+          EMPTY STATE
+      ================================================= */}
+
+      {!loading && !error && filteredActivities.length === 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 6,
+            textAlign: "center",
+            borderRadius: 3,
+          }}
+        >
+          <HistoryIcon
+            sx={{
+              fontSize: 50,
+              color: "text.secondary",
+              mb: 1,
+            }}
+          />
+
           <Typography variant="h6" color="text.secondary">
             No activity records found
           </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Try changing your search or event filter.
+          </Typography>
         </Paper>
-      ) : (
+      )}
+
+      {/* =================================================
+          ACTIVITY LIST
+      ================================================= */}
+
+      {!loading && !error && filteredActivities.length > 0 && (
         <Stack spacing={2}>
-          {filteredActivities.map((item, index) => (
+          {filteredActivities.map((item) => (
             <Paper
-              key={item.id || item._id || index}
+              key={item._id}
               variant="outlined"
-              onClick={() => item.targetUrl && navigate(item.targetUrl)}
               sx={{
-                p: 2.5,
+                p: {
+                  xs: 2,
+                  sm: 2.5,
+                },
                 borderRadius: 3,
-                cursor: item.targetUrl ? 'pointer' : 'default',
-                transition: 'background-color 0.2s',
-                '&:hover': item.targetUrl ? { bgcolor: 'action.hover' } : {}
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  boxShadow: 2,
+                  transform: "translateY(-1px)",
+                },
               }}
             >
               <Stack direction="row" spacing={2} alignItems="flex-start">
-                <Avatar sx={{ bgcolor: '#5e35b1', width: 40, height: 40 }}>
-                  {(item.user?.name || 'U')[0].toUpperCase()}
+                {/* USER AVATAR */}
+
+                <Avatar
+                  src={item.user?.avatar || undefined}
+                  alt={item.user?.name || "User"}
+                  sx={{
+                    width: 42,
+                    height: 42,
+                  }}
+                >
+                  {(item.user?.name || "U").charAt(0).toUpperCase()}
                 </Avatar>
 
-                <Box flex={1}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
-                    <Box>
-                      <Typography variant="body1" component="span" fontWeight="bold">
-                        {item.user?.name || 'User'}{' '}
-                      </Typography>
-                      <Typography variant="body1" component="span" color="text.secondary">
-                        {getActionText(item.action)}{' '}
-                      </Typography>
-                      <Typography variant="body1" component="span" fontWeight="bold" color="primary">
-                        {item.entityName}
-                      </Typography>
-                    </Box>
+                {/* CONTENT */}
 
-                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'N/A'}
+                <Box flex={1} minWidth={0}>
+                  <Stack
+                    direction={{
+                      xs: "column",
+                      md: "row",
+                    }}
+                    justifyContent="space-between"
+                    alignItems={{
+                      xs: "flex-start",
+                      md: "center",
+                    }}
+                    spacing={1}
+                  >
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      <Typography component="span" fontWeight={700}>
+                        {item.user?.name || "Unknown User"}
+                      </Typography>{" "}
+                      <Typography component="span" color="text.secondary">
+                        {getActionText(item.action)}
+                      </Typography>
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.createdAt
+                        ? new Date(item.createdAt).toLocaleString()
+                        : "Unknown time"}
                     </Typography>
                   </Stack>
 
-                  {item.details && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, bgcolor: 'action.hover', p: 1.5, borderRadius: 1.5 }}>
-                      {item.details}
+                  {/* PROJECT CONTEXT */}
+
+                  {item.project?.name && (
+                    <Typography
+                      variant="body2"
+                      color="primary"
+                      fontWeight={600}
+                      sx={{ mt: 0.5 }}
+                    >
+                      Project: {item.project.name}
                     </Typography>
                   )}
 
-                  <Stack direction="row" spacing={1} alignItems="center" mt={1.5}>
-                    <Box display="flex" alignItems="center" mr={0.5}>
-                      {getActionIcon(item.action)}
+                  {/* DESCRIPTION */}
+
+                  {item.description && (
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: "action.hover",
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        {item.description}
+                      </Typography>
                     </Box>
-                    <Chip label={(item.entityType || 'event').toUpperCase()} size="small" variant="outlined" />
+                  )}
+
+                  {/* META */}
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    flexWrap="wrap"
+                    sx={{ mt: 1.5 }}
+                  >
+                    <Chip
+                      icon={getActionIcon(item.action)}
+                      label={getActionText(item.action)}
+                      size="small"
+                      variant="outlined"
+                    />
+
+                    <Chip
+                      icon={getEntityIcon(item.entityType)}
+                      label={getEntityLabel(item.entityType)}
+                      size="small"
+                      variant="outlined"
+                    />
+
+                    {item.entityId && (
+                      <Chip
+                        label={`ID: ${item.entityId}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          maxWidth: 220,
+                          "& .MuiChip-label": {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          },
+                        }}
+                      />
+                    )}
                   </Stack>
                 </Box>
               </Stack>

@@ -1,4 +1,5 @@
 import api from "./api";
+
 import type {
   CreateMeetingData,
   MeetingResponse,
@@ -7,79 +8,79 @@ import type {
 } from "../types/meeting.types";
 
 const meetingService = {
-  /**
-   * Create a meeting
-   * POST /api/meetings
-   */
-  createMeeting: async (
-    data: CreateMeetingData,
-  ): Promise<MeetingResponse> => {
-    const response = await api.post<MeetingResponse>(
-      "/meetings",
-      data,
-    );
+  // ============================================================
+  // CREATE MEETING
+  // POST /api/meetings
+  // ============================================================
+
+  createMeeting: async (data: CreateMeetingData): Promise<MeetingResponse> => {
+    const response = await api.post<MeetingResponse>("/meetings", data);
 
     return response.data;
   },
 
-  /**
-   * Get meetings for a project
-   * GET /api/meetings/project/:projectId
-   */
+  // ============================================================
+  // GET PROJECT MEETINGS
+  // GET /api/meetings/project/:projectId
+  // ============================================================
+
   getProjectMeetings: async (
     projectId: string,
   ): Promise<MeetingListResponse> => {
+    if (!projectId?.trim()) {
+      throw new Error("Project ID is required.");
+    }
+
     const response = await api.get<MeetingListResponse>(
-      `/meetings/project/${projectId}`,
+      `/meetings/project/${projectId.trim()}`,
     );
 
     return response.data;
   },
 
-  /**
-   * Get one meeting
-   * GET /api/meetings/:id
-   */
-  getMeetingById: async (
-    id: string,
-  ): Promise<MeetingResponse> => {
-    const response = await api.get<MeetingResponse>(
-      `/meetings/${id}`,
-    );
+  // ============================================================
+  // GET MEETING BY ID
+  // GET /api/meetings/:id
+  // ============================================================
+
+  getMeetingById: async (id: string): Promise<MeetingResponse> => {
+    if (!id?.trim()) {
+      throw new Error("Meeting ID is required.");
+    }
+
+    const response = await api.get<MeetingResponse>(`/meetings/${id.trim()}`);
 
     return response.data;
   },
 
-  /**
-   * Update meeting
-   * PUT /api/meetings/:id
-   */
+  // ============================================================
+  // UPDATE MEETING
+  // PUT /api/meetings/:id
+  // ============================================================
+
   updateMeeting: async (
     id: string,
     data: UpdateMeetingData,
   ): Promise<MeetingResponse> => {
-    const response = await api.put<MeetingResponse>(
-      `/meetings/${id}`,
-      data,
-    );
+    const response = await api.put<MeetingResponse>(`/meetings/${id}`, data);
 
     return response.data;
   },
 
-  /**
-   * Delete meeting
-   * DELETE /api/meetings/:id
-   */
-  deleteMeeting: async (
-    id: string,
-  ): Promise<void> => {
+  // ============================================================
+  // DELETE MEETING
+  // DELETE /api/meetings/:id
+  // ============================================================
+
+  deleteMeeting: async (id: string): Promise<void> => {
     await api.delete(`/meetings/${id}`);
   },
 
-  /**
-   * Add meeting notes
-   * POST /api/meetings/:id/notes
-   */
+  // ============================================================
+  // ADD NOTES
+  // POST /api/meetings/:id/notes
+  // ============================================================
+
   addMeetingNotes: async (
     meetingId: string,
     notes: string,
@@ -94,10 +95,11 @@ const meetingService = {
     return response.data;
   },
 
-  /**
-   * Update meeting notes
-   * PUT /api/meetings/:id/notes
-   */
+  // ============================================================
+  // UPDATE NOTES
+  // PUT /api/meetings/:id/notes
+  // ============================================================
+
   updateMeetingNotes: async (
     meetingId: string,
     noteId: string,
@@ -114,10 +116,11 @@ const meetingService = {
     return response.data;
   },
 
-  /**
-   * Partially update meeting notes
-   * PATCH /api/meetings/:id/notes
-   */
+  // ============================================================
+  // PATCH NOTES
+  // PATCH /api/meetings/:id/notes
+  // ============================================================
+
   patchMeetingNotes: async (
     meetingId: string,
     noteId: string,
@@ -134,33 +137,24 @@ const meetingService = {
     return response.data;
   },
 
-  /**
-   * Generate AI summary for a meeting note
-   * PATCH /api/meetings/:id/ai-summary
-   */
-  summarizeMeeting: async (
-    meetingId: string,
-    noteId?: string,
-  ): Promise<MeetingResponse> => {
-    const response = await api.patch<MeetingResponse>(
-      `/meetings/${meetingId}/ai-summary`,
-      noteId ? { noteId } : {},
-    );
+  // ============================================================
+  // AI SUMMARY
+  // PATCH /api/meetings/:id/ai-summary
+  // ============================================================
+
+  summarizeMeeting: async (meetingId: string) => {
+    const response = await api.patch(`/meetings/${meetingId}/ai-summary`, {});
 
     return response.data;
   },
 
-  /**
-   * Extract action items from meeting notes
-   * PATCH /api/meetings/:id/action-items
-   */
-  extractActionItems: async (
-    meetingId: string,
-  ): Promise<MeetingResponse> => {
-    const response = await api.patch<MeetingResponse>(
-      `/meetings/${meetingId}/action-items`,
-      {},
-    );
+  // ============================================================
+  // AI ACTION ITEMS
+  // PATCH /api/meetings/:id/action-items
+  // ============================================================
+
+  extractActionItems: async (meetingId: string) => {
+    const response = await api.patch(`/meetings/${meetingId}/action-items`, {});
 
     return response.data;
   },

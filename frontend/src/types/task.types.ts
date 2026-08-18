@@ -2,18 +2,39 @@ export type TaskStatus = "Todo" | "In Progress" | "Completed";
 
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 
+// ============================================================
+// USER
+// ============================================================
+
 export interface TaskUser {
   _id: string;
-  name: string;
+
+  firstName?: string;
+
+  lastName?: string;
+
+  name?: string;
+
   email: string;
+
   role?: string;
 }
 
+// ============================================================
+// PROJECT
+// ============================================================
+
 export interface TaskProject {
   _id: string;
+
   name: string;
+
   description?: string;
 }
+
+// ============================================================
+// TASK
+// ============================================================
 
 export interface Task {
   _id?: string;
@@ -43,6 +64,10 @@ export interface Task {
   updatedAt?: string;
 }
 
+// ============================================================
+// CREATE
+// ============================================================
+
 export interface CreateTaskPayload {
   project: string;
 
@@ -57,6 +82,10 @@ export interface CreateTaskPayload {
   priority?: TaskPriority;
 }
 
+// ============================================================
+// UPDATE
+// ============================================================
+
 export interface UpdateTaskPayload {
   title?: string;
 
@@ -66,15 +95,26 @@ export interface UpdateTaskPayload {
 
   priority?: TaskPriority;
 
-  assignedTo?: string;
+  assignedTo?: string | null;
 
-  dueDate?: string;
+  dueDate?: string | null;
 }
+
+// ============================================================
+// COMMENTS
+// ============================================================
 
 export interface TaskCommentUser {
   _id: string;
-  name: string;
+
+  firstName?: string;
+
+  lastName?: string;
+
+  name?: string;
+
   email: string;
+
   role?: string;
 }
 
@@ -91,6 +131,10 @@ export interface TaskComment {
 
   updatedAt?: string;
 }
+
+// ============================================================
+// RESPONSES
+// ============================================================
 
 export interface TaskResponse {
   success: boolean;

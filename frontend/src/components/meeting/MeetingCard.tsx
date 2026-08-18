@@ -1,21 +1,20 @@
-import type { FC } from "react";
 import {
+  Avatar,
+  AvatarGroup,
+  Box,
+  Button,
   Card,
   CardContent,
-  CardActions,
-  Typography,
-  Button,
   Chip,
+  Divider,
   Stack,
-  Avatar,
-  Box,
+  Typography,
 } from "@mui/material";
+
 import {
   CalendarMonth,
-  AccessTime,
-  VideoCall,
-  Person,
-  Visibility,
+  OpenInNew,
+  People,
 } from "@mui/icons-material";
 
 import type { Meeting } from "../../types/meeting.types";
@@ -25,41 +24,96 @@ interface MeetingCardProps {
   onView: (meeting: Meeting) => void;
 }
 
-const MeetingCard: FC<MeetingCardProps> = ({
+const getUserName = (user: any): string => {
+  if (!user) {
+    return "Unknown User";
+  }
+
+  if (typeof user === "string") {
+    return user;
+  }
+
+  if (user.name) {
+    return user.name;
+  }
+
+  const firstName = user.firstName ?? "";
+  const lastName = user.lastName ?? "";
+
+  const fullName =
+    `${firstName} ${lastName}`.trim();
+
+  return (
+    fullName ||
+    user.email ||
+    "Unknown User"
+  );
+};
+
+const MeetingCard = ({
   meeting,
   onView,
-}) => {
-  const startDate = new Date(meeting.startTime);
-
-  const formattedDate = startDate.toLocaleDateString(
-    undefined,
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }
+}: MeetingCardProps) => {
+  const startTime = new Date(
+    meeting.startTime,
   );
 
-  const formattedTime = startDate.toLocaleTimeString(
-    undefined,
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  const endTime = meeting.endTime
+    ? new Date(meeting.endTime)
+    : null;
 
-  const participantCount =
-    meeting.participants?.length ?? 0;
+  const formattedDate =
+    startTime.toLocaleDateString(
+      undefined,
+      {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      },
+    );
+
+  const formattedStart =
+    startTime.toLocaleTimeString(
+      undefined,
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    );
+
+  const formattedEnd = endTime
+    ? endTime.toLocaleTimeString(
+        undefined,
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+        },
+      )
+    : null;
 
   const creatorName =
-    typeof meeting.createdBy === "object" &&
-    meeting.createdBy
-      ? `${meeting.createdBy.firstName ?? ""} ${
-          meeting.createdBy.lastName ?? ""
-        }`.trim() ||
-        meeting.createdBy.email ||
-        "Unknown"
-      : "Unknown";
+    getUserName(meeting.createdBy);
+
+  const participants =
+    meeting.participants ?? [];
+
+  const handleView = () => {
+    /*
+     * Never navigate with an undefined ID.
+     */
+
+    if (!meeting._id) {
+      console.error(
+        "Meeting ID is missing:",
+        meeting,
+      );
+
+      return;
+    }
+
+    onView(meeting);
+  };
 
   return (
     <Card
@@ -68,209 +122,236 @@ const MeetingCard: FC<MeetingCardProps> = ({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
-        transition: "all 0.2s ease",
+        borderRadius: 3,
+        transition:
+          "transform 0.2s ease, box-shadow 0.2s ease",
         "&:hover": {
-          transform: "translateY(-3px)",
+          transform:
+            "translateY(-3px)",
           boxShadow: 4,
-          borderColor: "primary.main",
         },
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        {/* Header */}
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="flex-start"
-          spacing={2}
-        >
-          <Box>
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              sx={{
-                wordBreak: "break-word",
-              }}
-            >
-              {meeting.title}
-            </Typography>
+      <CardContent
+        sx={{
+          p: 3,
+          flex: 1,
+        }}
+      >
+        {/* ===================================================
+            TITLE
+        =================================================== */}
 
+        <Stack
+          spacing={1.5}
+        >
+          <Typography
+            variant="h6"
+            fontWeight={800}
+            sx={{
+              wordBreak: "break-word",
+            }}
+          >
+            {meeting.title}
+          </Typography>
+
+          {meeting.description && (
             <Typography
               variant="body2"
               color="text.secondary"
-              sx={{ mt: 0.5 }}
+              sx={{
+                display:
+                  "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient:
+                  "vertical",
+                overflow: "hidden",
+              }}
             >
-              Created by {creatorName}
+              {meeting.description}
             </Typography>
-          </Box>
-
-          <Chip
-            label="Meeting"
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
+          )}
         </Stack>
 
-        {/* Description */}
-        {meeting.description && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              mt: 2,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {meeting.description}
-          </Typography>
-        )}
+        <Divider
+          sx={{ my: 2 }}
+        />
 
-        {/* Meeting information */}
-        <Stack spacing={1.5} sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+        {/* ===================================================
+            DATE / TIME
+        =================================================== */}
+
+        <Stack spacing={1.5}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+          >
             <CalendarMonth
               fontSize="small"
               color="primary"
             />
 
-            <Typography variant="body2">
+            <Typography
+              variant="body2"
+              fontWeight={600}
+            >
               {formattedDate}
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <AccessTime
-              fontSize="small"
-              color="primary"
-            />
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ pl: 3.5 }}
+          >
+            {formattedStart}
 
-            <Typography variant="body2">
-              {formattedTime}
-            </Typography>
-          </Stack>
-
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Person
-              fontSize="small"
-              color="primary"
-            />
-
-            <Typography variant="body2">
-              {participantCount} participant
-              {participantCount !== 1 ? "s" : ""}
-            </Typography>
-          </Stack>
-
-          {meeting.meetingLink && (
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-            >
-              <VideoCall
-                fontSize="small"
-                color="primary"
-              />
-
-              <Typography
-                variant="body2"
-                color="primary"
-                sx={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Online meeting
-              </Typography>
-            </Stack>
-          )}
+            {formattedEnd &&
+              ` – ${formattedEnd}`}
+          </Typography>
         </Stack>
 
-        {/* Participant avatars */}
-        {meeting.participants &&
-          meeting.participants.length > 0 && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={1}
-              sx={{ mt: 3 }}
-            >
-              <Stack direction="row">
-                {meeting.participants
-                  .slice(0, 4)
-                  .map((participant, index) => {
-                    const name =
-                      typeof participant === "object"
-                        ? `${participant.firstName ?? ""} ${
-                            participant.lastName ?? ""
-                          }`.trim()
-                        : "User";
+        {/* ===================================================
+            PARTICIPANTS
+        =================================================== */}
 
-                    return (
-                      <Avatar
-                        key={
-                          typeof participant === "string"
-                            ? participant
-                            : participant._id ?? index
-                        }
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          fontSize: 13,
-                          ml: index === 0 ? 0 : -1,
-                          border: "2px solid white",
-                          bgcolor:
-                            "primary.main",
-                        }}
-                      >
-                        {name
-                          ? name.charAt(0).toUpperCase()
-                          : "U"}
-                      </Avatar>
-                    );
-                  })}
-              </Stack>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ mt: 2 }}
+        >
+          <People
+            fontSize="small"
+            color="action"
+          />
 
-              {meeting.participants.length > 4 && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                >
-                  +{meeting.participants.length - 4} more
-                </Typography>
-              )}
-            </Stack>
-          )}
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            {participants.length}{" "}
+            participant
+            {participants.length !== 1
+              ? "s"
+              : ""}
+          </Typography>
+        </Stack>
+
+        {participants.length > 0 && (
+          <AvatarGroup
+            max={5}
+            sx={{
+              justifyContent:
+                "flex-start",
+              mt: 1.5,
+            }}
+          >
+            {participants.map(
+              (participant, index) => {
+                const name =
+                  getUserName(
+                    participant,
+                  );
+
+                return (
+                  <Avatar
+                    key={
+                      typeof participant ===
+                      "string"
+                        ? participant
+                        : participant?._id ??
+                          index
+                    }
+                    alt={name}
+                    src={
+                      typeof participant !==
+                        "string"
+                        ? participant?.avatar
+                        : undefined
+                    }
+                  >
+                    {name
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Avatar>
+                );
+              },
+            )}
+          </AvatarGroup>
+        )}
+
+        {/* ===================================================
+            CREATOR
+        =================================================== */}
+
+        <Box sx={{ mt: 2 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+          >
+            Created by
+          </Typography>
+
+          <Typography
+            variant="body2"
+            fontWeight={600}
+          >
+            {creatorName}
+          </Typography>
+        </Box>
       </CardContent>
 
-      <CardActions
-        sx={{
-          px: 3,
-          pb: 3,
-        }}
-      >
+      {/* =====================================================
+          ACTIONS
+      ===================================================== */}
+
+      <Box sx={{ p: 2, pt: 0 }}>
         <Button
           fullWidth
           variant="contained"
-          startIcon={<Visibility />}
-          onClick={() => onView(meeting)}
+          startIcon={<OpenInNew />}
+          onClick={handleView}
+          disabled={!meeting._id}
           sx={{
             borderRadius: 2,
             textTransform: "none",
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
           View Meeting
         </Button>
-      </CardActions>
+
+        {meeting.meetingLink && (
+          <Button
+            fullWidth
+            variant="outlined"
+            component="a"
+            href={meeting.meetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              mt: 1,
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            Join Meeting
+          </Button>
+        )}
+
+        <Chip
+          size="small"
+          label="Meeting"
+          sx={{
+            mt: 1.5,
+          }}
+        />
+      </Box>
     </Card>
   );
 };

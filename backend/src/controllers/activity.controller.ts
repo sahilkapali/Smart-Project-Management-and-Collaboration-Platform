@@ -1,12 +1,20 @@
-import {
-  Request,
-  Response,
-  NextFunction
-} from 'express';
+import { Request, Response, NextFunction } from "express";
 
-import * as activityService
-  from '../services/activity.service';
+import * as activityService from "../services/activity.service";
 
+// =====================================================
+// NORMALIZE ROUTE PARAMETER
+// =====================================================
+
+const getStringParam = (
+  value: string | string[] | undefined,
+): string | undefined => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+};
 
 // =====================================================
 // GET ALL ACTIVITIES
@@ -15,21 +23,26 @@ import * as activityService
 export const getActivities = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const activities =
-      await activityService.getActivitiesService();
+    const requestedLimit = Number(req.query.limit);
+
+    const limit =
+      Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 100)
+        : 100;
+
+    const activities = await activityService.getActivitiesService(limit);
 
     return res.status(200).json({
       success: true,
-      data: activities
+      data: activities,
     });
   } catch (error) {
     next(error);
   }
 };
-
 
 // =====================================================
 // GET PROJECT ACTIVITIES
@@ -38,25 +51,59 @@ export const getActivities = async (
 export const getProjectActivities = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const projectId = req.params.projectId as string;
+    const projectId = getStringParam(req.params.projectId);
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Project ID is required",
+      });
+    }
 
     const activities =
-      await activityService.getProjectActivitiesService(
-        projectId
-      );
+      await activityService.getProjectActivitiesService(projectId);
 
     return res.status(200).json({
       success: true,
-      data: activities
+      data: activities,
     });
   } catch (error) {
     next(error);
   }
 };
 
+// =====================================================
+// GET USER ACTIVITIES
+// =====================================================
+
+export const getUserActivities = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = getStringParam(req.params.userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const activities = await activityService.getUserActivitiesService(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: activities,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // =====================================================
 // GET ACTIVITY BY ID
@@ -65,32 +112,35 @@ export const getProjectActivities = async (
 export const getActivityById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const activityId = req.params.id as string;
+    const activityId = getStringParam(req.params.id);
 
-    const activity =
-      await activityService.getActivityByIdService(
-        activityId
-      );
+    if (!activityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Activity ID is required",
+      });
+    }
+
+    const activity = await activityService.getActivityByIdService(activityId);
 
     if (!activity) {
       return res.status(404).json({
         success: false,
-        message: 'Activity not found'
+        message: "Activity not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: activity
+      data: activity,
     });
   } catch (error) {
     next(error);
   }
 };
-
 
 // =====================================================
 // DELETE ACTIVITY
@@ -99,26 +149,30 @@ export const getActivityById = async (
 export const deleteActivity = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const activityId = req.params.id as string;
+    const activityId = getStringParam(req.params.id);
 
-    const deleted =
-      await activityService.deleteActivityService(
-        activityId
-      );
+    if (!activityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Activity ID is required",
+      });
+    }
+
+    const deleted = await activityService.deleteActivityService(activityId);
 
     if (!deleted) {
       return res.status(404).json({
         success: false,
-        message: 'Activity not found'
+        message: "Activity not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Activity deleted successfully'
+      message: "Activity deleted successfully",
     });
   } catch (error) {
     next(error);

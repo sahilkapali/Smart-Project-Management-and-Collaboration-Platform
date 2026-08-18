@@ -1,93 +1,163 @@
-import { Types } from 'mongoose';
+import { Types } from "mongoose";
 
-import Activity from '../models/activity.models';
+import Activity from "../models/activity.models";
 
-import {
-  ActivityAction,
-  ActivityEntityType
-} from '../types/activity.types';
+import { ActivityAction, ActivityEntityType } from "../types/activity.types";
 
-
-// =====================================================
-// CREATE ACTIVITY
-// =====================================================
-
-export const createActivityService = async (data: {
+interface CreateActivityData {
   user: string;
   project?: string;
   action: ActivityAction;
   description: string;
   entityType?: ActivityEntityType;
   entityId?: string;
-}) => {
-  return await Activity.create({
+}
+
+// =====================================================
+// OBJECT ID VALIDATION
+// =====================================================
+
+const isValidObjectId = (id: string): boolean => {
+  return Types.ObjectId.isValid(id);
+};
+
+// =====================================================
+// CREATE ACTIVITY
+// =====================================================
+
+export const createActivityService = async (data: CreateActivityData) => {
+  if (!data.user) {
+    throw new Error("User ID is required");
+  }
+
+  if (!isValidObjectId(data.user)) {
+    throw new Error("Invalid user ID");
+  }
+
+  if (data.project && !isValidObjectId(data.project)) {
+    throw new Error("Invalid project ID");
+  }
+
+  if (data.entityId && !isValidObjectId(data.entityId)) {
+    throw new Error("Invalid entity ID");
+  }
+
+  if (!data.description?.trim()) {
+    throw new Error("Activity description is required");
+  }
+
+  return Activity.create({
     user: new Types.ObjectId(data.user),
 
-    project: data.project
-      ? new Types.ObjectId(data.project)
-      : undefined,
+    project: data.project ? new Types.ObjectId(data.project) : undefined,
 
     action: data.action,
 
-    description: data.description,
+    description: data.description.trim(),
 
     entityType: data.entityType,
 
-    entityId: data.entityId
-      ? new Types.ObjectId(data.entityId)
-      : undefined
+    entityId: data.entityId ? new Types.ObjectId(data.entityId) : undefined,
   });
 };
-
 
 // =====================================================
 // GET ALL ACTIVITIES
 // =====================================================
 
-export const getActivitiesService = async () => {
-  return await Activity.find()
-    .populate('user', 'name email avatar')
-    .populate('project', 'name')
-    .sort({ createdAt: -1 })
-    .limit(100);
-};
+export const getActivitiesService = async (limit = 100) => {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 100);
 
+  return Activity.find()
+    .populate("user", "name email avatar")
+    .populate("project", "name")
+    .sort({
+      createdAt: -1,
+    })
+    .limit(safeLimit)
+    .lean();
+};
 
 // =====================================================
 // GET ACTIVITIES BY PROJECT
 // =====================================================
 
-export const getProjectActivitiesService = async (
-  projectId: string
-) => {
-  return await Activity.find({
-    project: projectId
+export const getProjectActivitiesService = async (projectId: string) => {
+  if (!projectId) {
+    throw new Error("Project ID is required");
+  }
+
+  if (!isValidObjectId(projectId)) {
+    throw new Error("Invalid project ID");
+  }
+
+  return Activity.find({
+    project: new Types.ObjectId(projectId),
   })
-    .populate('user', 'name email avatar')
-    .populate('project', 'name')
-    .sort({ createdAt: -1 });
+    .populate("user", "name email avatar")
+    .populate("project", "name")
+    .sort({
+      createdAt: -1,
+    })
+    .lean();
 };
 
+// =====================================================
+// GET ACTIVITIES BY USER
+// =====================================================
+
+export const getUserActivitiesService = async (userId: string) => {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  if (!isValidObjectId(userId)) {
+    throw new Error("Invalid user ID");
+  }
+
+  return Activity.find({
+    user: new Types.ObjectId(userId),
+  })
+    .populate("user", "name email avatar")
+    .populate("project", "name")
+    .sort({
+      createdAt: -1,
+    })
+    .limit(100)
+    .lean();
+};
 
 // =====================================================
 // GET ACTIVITY BY ID
 // =====================================================
 
-export const getActivityByIdService = async (
-  activityId: string
-) => {
-  return await Activity.findById(activityId)
-    .populate('user', 'name email avatar')
-    .populate('project', 'name');
-};
+export const getActivityByIdService = async (activityId: string) => {
+  if (!activityId) {
+    throw new Error("Activity ID is required");
+  }
 
+  if (!isValidObjectId(activityId)) {
+    throw new Error("Invalid activity ID");
+  }
+
+  return Activity.findById(new Types.ObjectId(activityId))
+    .populate("user", "name email avatar")
+    .populate("project", "name")
+    .lean();
+};
 
 // =====================================================
 // DELETE ACTIVITY
 // =====================================================
 
-export const deleteActivityService = async (
-  activityId: string
-) => {
-  return await Activity.findByIdAndDelete(activityId);
+export const deleteActivityService = async (activityId: string) => {
+  if (!activityId) {
+    throw new Error("Activity ID is required");
+  }
+
+  if (!isValidObjectId(activityId)) {
+    throw new Error("Invalid activity ID");
+  }
+
+  return Activity.findByIdAndDelete(new Types.ObjectId(activityId));
 };

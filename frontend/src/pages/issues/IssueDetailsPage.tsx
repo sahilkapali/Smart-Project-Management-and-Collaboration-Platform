@@ -39,13 +39,8 @@ import type {
   IssueStatus,
 } from "../../types/issue.types";
 
-// ============================================================
-// COMPONENT
-// ============================================================
-
 const IssueDetailsPage = () => {
   const navigate = useNavigate();
-
   const { id } = useParams<{ id: string }>();
 
   // ============================================================
@@ -57,24 +52,24 @@ const IssueDetailsPage = () => {
   const [comments, setComments] = useState<IssueComment[]>([]);
 
   const [loading, setLoading] = useState(true);
-
   const [commentsLoading, setCommentsLoading] = useState(false);
 
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [savingAssignee, setSavingAssignee] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [sendingComment, setSendingComment] = useState(false);
 
   const [error, setError] = useState("");
 
   const [commentText, setCommentText] = useState("");
 
   const [isEditingAssignee, setIsEditingAssignee] = useState(false);
-
   const [assigneeInput, setAssigneeInput] = useState("");
 
   // ============================================================
-  // SAFE ERROR MESSAGE
+  // ERROR MESSAGE
   // ============================================================
 
-  const getErrorMessage = (err: any, fallback: string) => {
+  const getErrorMessage = (err: any, fallback: string): string => {
     return (
       err?.response?.data?.message ||
       err?.response?.data?.error ||
@@ -88,16 +83,7 @@ const IssueDetailsPage = () => {
   // ============================================================
 
   const getUserId = (
-    user:
-      | string
-      | {
-          _id?: string;
-          name?: string;
-          email?: string;
-          role?: string;
-        }
-      | null
-      | undefined,
+    user: Issue["assignedTo"] | Issue["createdBy"],
   ): string => {
     if (!user) {
       return "";
@@ -107,7 +93,7 @@ const IssueDetailsPage = () => {
       return user;
     }
 
-    return user?._id || "";
+    return user._id || "";
   };
 
   // ============================================================
@@ -115,16 +101,7 @@ const IssueDetailsPage = () => {
   // ============================================================
 
   const getUserName = (
-    user:
-      | string
-      | {
-          _id?: string;
-          name?: string;
-          email?: string;
-          role?: string;
-        }
-      | null
-      | undefined,
+    user: Issue["assignedTo"] | Issue["createdBy"],
   ): string => {
     if (!user) {
       return "Unassigned";
@@ -134,24 +111,14 @@ const IssueDetailsPage = () => {
       return user || "Unassigned";
     }
 
-    return user?.name || user?.email || "User";
+    return user.name || user.email || "User";
   };
 
   // ============================================================
   // GET REPOSITORY NAME
   // ============================================================
 
-  const getRepositoryName = (
-    repository:
-      | string
-      | {
-          _id?: string;
-          name?: string;
-          description?: string;
-        }
-      | null
-      | undefined,
-  ): string => {
+  const getRepositoryName = (repository: Issue["repository"]): string => {
     if (!repository) {
       return "N/A";
     }
@@ -160,7 +127,7 @@ const IssueDetailsPage = () => {
       return repository || "N/A";
     }
 
-    return repository?.name || repository?._id || "N/A";
+    return repository.name || repository._id || "N/A";
   };
 
   // ============================================================
@@ -187,8 +154,6 @@ const IssueDetailsPage = () => {
       }
 
       setIssue(data);
-
-      // Safely initialize assignee input.
       setAssigneeInput(getUserId(data.assignedTo));
     } catch (err: any) {
       console.error("Failed to load issue:", err);
@@ -217,9 +182,8 @@ const IssueDetailsPage = () => {
 
       setComments(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      console.error("Failed to load comments:", err);
+      console.error("Failed to load issue comments:", err);
 
-      // Don't destroy the issue page if comments fail.
       setComments([]);
     } finally {
       setCommentsLoading(false);
@@ -286,7 +250,7 @@ const IssueDetailsPage = () => {
   };
 
   // ============================================================
-  // UPDATE ASSIGNEE
+  // SAVE ASSIGNEE
   // ============================================================
 
   const handleSaveAssignee = async () => {
@@ -295,22 +259,22 @@ const IssueDetailsPage = () => {
     }
 
     try {
-      setIsUpdating(true);
+      setSavingAssignee(true);
       setError("");
 
       const trimmedAssignee = assigneeInput.trim();
 
-      const updated = await updateIssue(id, {
+      const updatedIssue = await updateIssue(id, {
         assignedTo: trimmedAssignee || undefined,
       });
 
-      if (!updated) {
+      if (!updatedIssue) {
         throw new Error("Server returned an invalid issue.");
       }
 
-      setIssue(updated);
+      setIssue(updatedIssue);
 
-      setAssigneeInput(getUserId(updated.assignedTo));
+      setAssigneeInput(getUserId(updatedIssue.assignedTo));
 
       setIsEditingAssignee(false);
     } catch (err: any) {
@@ -318,7 +282,7 @@ const IssueDetailsPage = () => {
 
       setError(getErrorMessage(err, "Failed to update assignee."));
     } finally {
-      setIsUpdating(false);
+      setSavingAssignee(false);
     }
   };
 
@@ -342,6 +306,7 @@ const IssueDetailsPage = () => {
 
   const handleDelete = async () => {
     if (!id) {
+      setError("Issue ID is missing.");
       return;
     }
 
@@ -354,7 +319,7 @@ const IssueDetailsPage = () => {
     }
 
     try {
-      setIsUpdating(true);
+      setDeleting(true);
       setError("");
 
       await deleteIssue(id);
@@ -367,7 +332,7 @@ const IssueDetailsPage = () => {
 
       setError(getErrorMessage(err, "Failed to delete issue."));
     } finally {
-      setIsUpdating(false);
+      setDeleting(false);
     }
   };
 
@@ -388,7 +353,7 @@ const IssueDetailsPage = () => {
     }
 
     try {
-      setIsUpdating(true);
+      setSendingComment(true);
       setError("");
 
       const comment = await addIssueComment(id, trimmedComment);
@@ -403,12 +368,12 @@ const IssueDetailsPage = () => {
 
       setError(getErrorMessage(err, "Failed to add comment."));
     } finally {
-      setIsUpdating(false);
+      setSendingComment(false);
     }
   };
 
   // ============================================================
-  // ENTER KEY FOR COMMENT
+  // COMMENT KEYBOARD SHORTCUT
   // ============================================================
 
   const handleCommentKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -473,7 +438,7 @@ const IssueDetailsPage = () => {
   }
 
   // ============================================================
-  // SAFE DISPLAY VALUES
+  // DISPLAY VALUES
   // ============================================================
 
   const repositoryName = getRepositoryName(issue.repository);
@@ -499,7 +464,7 @@ const IssueDetailsPage = () => {
     >
       {/* ======================================================
           HEADER
-      ======================================================= */}
+      ====================================================== */}
 
       <Stack
         direction={{
@@ -540,11 +505,13 @@ const IssueDetailsPage = () => {
         </Stack>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {/* EDIT */}
+
           <Button
             variant="outlined"
             startIcon={<EditRoundedIcon />}
             onClick={() => navigate(`/issues/${id}/edit`)}
-            disabled={isUpdating}
+            disabled={deleting}
             sx={{
               textTransform: "none",
               borderRadius: 2,
@@ -553,25 +520,33 @@ const IssueDetailsPage = () => {
             Edit
           </Button>
 
+          {/* DELETE */}
+
           <Button
             variant="outlined"
             color="error"
-            startIcon={<DeleteOutlineRoundedIcon />}
+            startIcon={
+              deleting ? (
+                <CircularProgress size={18} />
+              ) : (
+                <DeleteOutlineRoundedIcon />
+              )
+            }
             onClick={() => void handleDelete()}
-            disabled={isUpdating}
+            disabled={deleting}
             sx={{
               textTransform: "none",
               borderRadius: 2,
             }}
           >
-            Delete
+            {deleting ? "Deleting..." : "Delete"}
           </Button>
         </Stack>
       </Stack>
 
       {/* ======================================================
           ERROR
-      ======================================================= */}
+      ====================================================== */}
 
       {error && (
         <Alert
@@ -587,8 +562,8 @@ const IssueDetailsPage = () => {
       )}
 
       {/* ======================================================
-          MAIN ISSUE CARD
-      ======================================================= */}
+          ISSUE CARD
+      ====================================================== */}
 
       <Card
         elevation={0}
@@ -635,7 +610,7 @@ const IssueDetailsPage = () => {
 
             <Divider />
 
-            {/* STATUS / PRIORITY */}
+            {/* STATUS + PRIORITY */}
 
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Chip
@@ -652,7 +627,7 @@ const IssueDetailsPage = () => {
             <Divider />
 
             {/* ==================================================
-                DETAILS
+                ISSUE DETAILS
             ================================================== */}
 
             <Stack spacing={2}>
@@ -739,7 +714,7 @@ const IssueDetailsPage = () => {
 
                         setAssigneeInput(getUserId(issue.assignedTo));
                       }}
-                      disabled={isUpdating}
+                      disabled={savingAssignee || deleting}
                       aria-label="Edit assignee"
                     >
                       <EditRoundedIcon fontSize="small" />
@@ -763,16 +738,16 @@ const IssueDetailsPage = () => {
                       onChange={(event) => setAssigneeInput(event.target.value)}
                       placeholder="Enter user ID"
                       label="User ID"
-                      disabled={isUpdating}
+                      disabled={savingAssignee}
                     />
 
                     <IconButton
                       color="primary"
                       onClick={() => void handleSaveAssignee()}
-                      disabled={isUpdating}
+                      disabled={savingAssignee}
                       aria-label="Save assignee"
                     >
-                      {isUpdating ? (
+                      {savingAssignee ? (
                         <CircularProgress size={20} />
                       ) : (
                         <SaveRoundedIcon />
@@ -782,7 +757,7 @@ const IssueDetailsPage = () => {
                     <IconButton
                       color="inherit"
                       onClick={handleCancelAssigneeEdit}
-                      disabled={isUpdating}
+                      disabled={savingAssignee}
                       aria-label="Cancel assignee edit"
                     >
                       <CloseRoundedIcon />
@@ -790,6 +765,52 @@ const IssueDetailsPage = () => {
                   </Stack>
                 )}
               </Stack>
+
+              {/* CREATED DATE */}
+
+              {issue.createdAt && (
+                <>
+                  <Divider />
+
+                  <Stack
+                    direction={{
+                      xs: "column",
+                      sm: "row",
+                    }}
+                    justifyContent="space-between"
+                    spacing={1}
+                  >
+                    <Typography color="text.secondary">Created</Typography>
+
+                    <Typography fontWeight={600}>
+                      {new Date(issue.createdAt).toLocaleString()}
+                    </Typography>
+                  </Stack>
+                </>
+              )}
+
+              {/* UPDATED DATE */}
+
+              {issue.updatedAt && (
+                <>
+                  <Divider />
+
+                  <Stack
+                    direction={{
+                      xs: "column",
+                      sm: "row",
+                    }}
+                    justifyContent="space-between"
+                    spacing={1}
+                  >
+                    <Typography color="text.secondary">Last Updated</Typography>
+
+                    <Typography fontWeight={600}>
+                      {new Date(issue.updatedAt).toLocaleString()}
+                    </Typography>
+                  </Stack>
+                </>
+              )}
             </Stack>
           </Stack>
         </CardContent>
@@ -797,7 +818,7 @@ const IssueDetailsPage = () => {
 
       {/* ======================================================
           COMMENTS
-      ======================================================= */}
+      ====================================================== */}
 
       <Card
         elevation={0}
@@ -825,7 +846,7 @@ const IssueDetailsPage = () => {
             Comments
           </Typography>
 
-          {/* COMMENTS LOADING */}
+          {/* COMMENTS */}
 
           {commentsLoading ? (
             <Box
@@ -856,7 +877,8 @@ const IssueDetailsPage = () => {
               {comments.map((comment, index) => {
                 const userName = getUserName(comment.user);
 
-                const commentId = comment._id || `${id}-comment-${index}`;
+                const commentId =
+                  comment._id || comment.id || `${id}-comment-${index}`;
 
                 return (
                   <Box
@@ -868,6 +890,8 @@ const IssueDetailsPage = () => {
                     }}
                   >
                     <Stack direction="row" spacing={1.5}>
+                      {/* AVATAR */}
+
                       <Avatar
                         sx={{
                           width: 40,
@@ -876,6 +900,8 @@ const IssueDetailsPage = () => {
                       >
                         {(userName || "U").charAt(0).toUpperCase()}
                       </Avatar>
+
+                      {/* COMMENT */}
 
                       <Box
                         sx={{
@@ -887,14 +913,13 @@ const IssueDetailsPage = () => {
 
                         <Typography
                           variant="body2"
-                          color="text.primary"
                           sx={{
                             mt: 0.5,
                             whiteSpace: "pre-wrap",
                             wordBreak: "break-word",
                           }}
                         >
-                          {comment.text || ""}
+                          {comment.text}
                         </Typography>
 
                         {comment.createdAt && (
@@ -943,21 +968,21 @@ const IssueDetailsPage = () => {
               value={commentText}
               onChange={(event) => setCommentText(event.target.value)}
               onKeyDown={handleCommentKeyDown}
-              disabled={isUpdating}
+              disabled={sendingComment || deleting}
               helperText="Press Ctrl + Enter to send"
             />
 
             <Button
               variant="contained"
               endIcon={
-                isUpdating ? (
+                sendingComment ? (
                   <CircularProgress size={18} color="inherit" />
                 ) : (
                   <SendRoundedIcon />
                 )
               }
               onClick={() => void handleAddComment()}
-              disabled={isUpdating || !commentText.trim()}
+              disabled={sendingComment || deleting || !commentText.trim()}
               sx={{
                 minWidth: 120,
                 textTransform: "none",
@@ -968,7 +993,7 @@ const IssueDetailsPage = () => {
                 },
               }}
             >
-              {isUpdating ? "Sending..." : "Send"}
+              {sendingComment ? "Sending..." : "Send"}
             </Button>
           </Stack>
         </CardContent>

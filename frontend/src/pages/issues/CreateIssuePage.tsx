@@ -51,13 +51,20 @@ const CreateIssuePage = () => {
   // ============================================================
   // GET REPOSITORY ID FROM URL
   // ============================================================
+  //
+  // IMPORTANT:
+  // repositoryId must be a Repository MongoDB ID.
+  //
+  // DO NOT use projectId here.
+  //
+  // Example:
+  // /issues/create?repositoryId=64abc123...
+  //
+  // ============================================================
 
   useEffect(() => {
     const urlRepositoryId =
-      searchParams.get("repositoryId") ||
-      searchParams.get("repository") ||
-      searchParams.get("projectId") ||
-      "";
+      searchParams.get("repositoryId") || searchParams.get("repository") || "";
 
     if (urlRepositoryId) {
       setRepositoryId(urlRepositoryId);
@@ -75,7 +82,9 @@ const CreateIssuePage = () => {
     // VALIDATE REPOSITORY
     // ----------------------------------------------------------
 
-    if (!repositoryId.trim()) {
+    const trimmedRepositoryId = repositoryId.trim();
+
+    if (!trimmedRepositoryId) {
       setError("Repository ID is required.");
       return;
     }
@@ -84,15 +93,29 @@ const CreateIssuePage = () => {
     // VALIDATE TITLE
     // ----------------------------------------------------------
 
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
       setError("Issue title is required.");
       return;
     }
 
-    if (title.trim().length < 3) {
+    if (trimmedTitle.length < 3) {
       setError("Issue title must be at least 3 characters.");
       return;
     }
+
+    // ----------------------------------------------------------
+    // VALIDATE DESCRIPTION
+    // ----------------------------------------------------------
+
+    const trimmedDescription = description.trim();
+
+    // ----------------------------------------------------------
+    // VALIDATE ASSIGNED USER
+    // ----------------------------------------------------------
+
+    const trimmedAssignedTo = assignedTo.trim();
 
     try {
       setLoading(true);
@@ -102,11 +125,15 @@ const CreateIssuePage = () => {
       // --------------------------------------------------------
 
       const payload: CreateIssuePayload = {
-        repository: repositoryId.trim(),
-        title: title.trim(),
-        description: description.trim() || undefined,
+        repository: trimmedRepositoryId,
+
+        title: trimmedTitle,
+
+        description: trimmedDescription || undefined,
+
         priority,
-        assignedTo: assignedTo.trim() || undefined,
+
+        assignedTo: trimmedAssignedTo || undefined,
       };
 
       console.log("Creating issue with payload:", payload);
@@ -120,22 +147,35 @@ const CreateIssuePage = () => {
       console.log("Issue created successfully:", createdIssue);
 
       // --------------------------------------------------------
-      // NAVIGATE TO CREATED ISSUE
+      // GET CREATED ISSUE ID
       // --------------------------------------------------------
 
-      if (createdIssue?._id) {
-        navigate(`/issues/${createdIssue._id}`);
-      } else if (createdIssue?.id) {
-        navigate(`/issues/${createdIssue.id}`);
+      const createdIssueId = createdIssue._id || createdIssue.id || "";
+
+      // --------------------------------------------------------
+      // NAVIGATE
+      // --------------------------------------------------------
+
+      if (createdIssueId) {
+        navigate(`/issues/${createdIssueId}`);
       } else {
         navigate("/issues");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Create issue failed:", err);
 
+      const axiosError = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
+
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        axiosError.response?.data?.message ||
+          axiosError.message ||
           "Failed to create issue.",
       );
     } finally {
@@ -189,7 +229,7 @@ const CreateIssuePage = () => {
       </Stack>
 
       {/* ======================================================
-          FORM
+          FORM CARD
       ====================================================== */}
 
       <Card
@@ -213,7 +253,7 @@ const CreateIssuePage = () => {
             )}
 
             {/* ==================================================
-                REPOSITORY ID
+                REPOSITORY
             ================================================== */}
 
             <TextField
@@ -225,12 +265,12 @@ const CreateIssuePage = () => {
                 setRepositoryId(event.target.value);
               }}
               required
+              disabled={loading}
               helperText={
                 repositoryId.trim()
-                  ? "Repository ID entered."
-                  : "Enter the MongoDB repository ID."
+                  ? "Repository selected."
+                  : "Enter the MongoDB ID of the repository."
               }
-              disabled={loading}
             />
 
             {/* ==================================================
@@ -240,7 +280,7 @@ const CreateIssuePage = () => {
             <TextField
               fullWidth
               label="Issue Title"
-              placeholder="Enter issue title"
+              placeholder="e.g. Login button is not working"
               value={title}
               onChange={(event) => {
                 setTitle(event.target.value);
@@ -248,6 +288,12 @@ const CreateIssuePage = () => {
               required
               autoFocus
               disabled={loading}
+              error={title.length > 0 && title.trim().length < 3}
+              helperText={
+                title.length > 0 && title.trim().length < 3
+                  ? "Title must be at least 3 characters."
+                  : "Provide a short and descriptive issue title."
+              }
             />
 
             {/* ==================================================
@@ -257,7 +303,7 @@ const CreateIssuePage = () => {
             <TextField
               fullWidth
               label="Description"
-              placeholder="Describe the issue"
+              placeholder="Describe the problem, expected behavior, and any relevant details."
               value={description}
               onChange={(event) => {
                 setDescription(event.target.value);
@@ -265,6 +311,7 @@ const CreateIssuePage = () => {
               multiline
               minRows={5}
               disabled={loading}
+              helperText="Optional"
             />
 
             {/* ==================================================
@@ -303,15 +350,22 @@ const CreateIssuePage = () => {
               onChange={(event) => {
                 setAssignedTo(event.target.value);
               }}
-              helperText="Optional"
               disabled={loading}
+              helperText="Optional. Leave empty if the issue is not assigned yet."
             />
 
             {/* ==================================================
                 ACTIONS
             ================================================== */}
 
-            <Stack direction="row" justifyContent="flex-end" spacing={2}>
+            <Stack
+              direction={{
+                xs: "column-reverse",
+                sm: "row",
+              }}
+              justifyContent="flex-end"
+              spacing={2}
+            >
               <Button
                 variant="outlined"
                 onClick={handleCancel}
@@ -319,6 +373,7 @@ const CreateIssuePage = () => {
                 sx={{
                   textTransform: "none",
                   borderRadius: 2,
+                  minWidth: 120,
                 }}
               >
                 Cancel
@@ -330,7 +385,12 @@ const CreateIssuePage = () => {
                 onClick={() => {
                   void handleSubmit();
                 }}
-                disabled={loading || !repositoryId.trim() || !title.trim()}
+                disabled={
+                  loading ||
+                  !repositoryId.trim() ||
+                  !title.trim() ||
+                  title.trim().length < 3
+                }
                 sx={{
                   textTransform: "none",
                   borderRadius: 2,

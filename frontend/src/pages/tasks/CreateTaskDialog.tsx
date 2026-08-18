@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import {
   Alert,
@@ -37,67 +37,90 @@ const CreateTaskDialog = ({
   onCreated,
 }: CreateTaskDialogProps) => {
   const [title, setTitle] = useState("");
-
   const [description, setDescription] = useState("");
-
   const [priority, setPriority] = useState<TaskPriority>("Medium");
-
   const [assignedTo, setAssignedTo] = useState("");
-
   const [dueDate, setDueDate] = useState("");
 
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // RESET FORM
-  // ==========================================================
+  // ----------------------------------------------------------
 
   useEffect(() => {
     if (!open) {
-      setTitle("");
-      setDescription("");
-      setPriority("Medium");
-      setAssignedTo("");
-      setDueDate("");
-      setError("");
-      setLoading(false);
-    }
-  }, [open]);
-
-  // ==========================================================
-  // SUBMIT
-  // ==========================================================
-
-  const handleSubmit = async () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
       return;
     }
 
-    if (!title.trim()) {
+    setTitle("");
+    setDescription("");
+    setPriority("Medium");
+    setAssignedTo("");
+    setDueDate("");
+    setError("");
+    setLoading(false);
+  }, [open]);
+
+  // ----------------------------------------------------------
+  // CLOSE
+  // ----------------------------------------------------------
+
+  const handleClose = () => {
+    if (loading) {
+      return;
+    }
+
+    onClose();
+  };
+
+  // ----------------------------------------------------------
+  // CREATE TASK
+  // ----------------------------------------------------------
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setError("");
+
+    const trimmedTitle = title.trim();
+
+    if (!projectId) {
+      setError("Project ID is required.");
+      return;
+    }
+
+    if (!trimmedTitle) {
       setError("Task title is required.");
       return;
     }
 
-    if (title.trim().length < 3) {
-      setError("Task title must be at least 3 characters.");
+    if (trimmedTitle.length < 2) {
+      setError("Task title must contain at least 2 characters.");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
 
       const payload: CreateTaskPayload = {
         project: projectId,
-        title: title.trim(),
-        description: description.trim() || undefined,
+        title: trimmedTitle,
         priority,
-        assignedTo: assignedTo.trim() || undefined,
-        dueDate: dueDate || undefined,
       };
+
+      if (description.trim()) {
+        payload.description = description.trim();
+      }
+
+      if (assignedTo.trim()) {
+        payload.assignedTo = assignedTo.trim();
+      }
+
+      if (dueDate) {
+        payload.dueDate = new Date(dueDate).toISOString();
+      }
 
       const createdTask = await taskService.createTask(payload);
 
@@ -105,7 +128,7 @@ const CreateTaskDialog = ({
 
       onClose();
     } catch (err: any) {
-      console.error("Create task failed:", err);
+      console.error("Creating task failed:", err);
 
       setError(
         err?.response?.data?.message ||
@@ -117,120 +140,116 @@ const CreateTaskDialog = ({
     }
   };
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
-
   return (
-    <Dialog
-      open={open}
-      onClose={loading ? undefined : onClose}
-      fullWidth
-      maxWidth="sm"
-    >
-      <DialogTitle>Create New Task</DialogTitle>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>Create New Task</DialogTitle>
 
-      <DialogContent>
-        <Stack
-          spacing={2.5}
-          sx={{
-            pt: 1,
-          }}
-        >
-          {error && <Alert severity="error">{error}</Alert>}
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
 
-          <TextField
-            fullWidth
-            label="Task Title"
-            placeholder="Enter task title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            required
-            autoFocus
-          />
+            {/* TITLE */}
 
-          <TextField
-            fullWidth
-            label="Description"
-            placeholder="Enter task description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            multiline
-            minRows={4}
-          />
+            <TextField
+              label="Task Title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              fullWidth
+              required
+              autoFocus
+              disabled={loading}
+              placeholder="Enter task title"
+            />
 
-          <FormControl fullWidth>
-            <InputLabel>Priority</InputLabel>
+            {/* DESCRIPTION */}
 
-            <Select
-              value={priority}
-              label="Priority"
-              onChange={(event) =>
-                setPriority(event.target.value as TaskPriority)
-              }
-            >
-              <MenuItem value="Low">Low</MenuItem>
+            <TextField
+              label="Description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              fullWidth
+              multiline
+              minRows={4}
+              disabled={loading}
+              placeholder="Describe the task..."
+            />
 
-              <MenuItem value="Medium">Medium</MenuItem>
+            {/* PRIORITY */}
 
-              <MenuItem value="High">High</MenuItem>
+            <FormControl fullWidth disabled={loading}>
+              <InputLabel>Priority</InputLabel>
 
-              <MenuItem value="Critical">Critical</MenuItem>
-            </Select>
-          </FormControl>
+              <Select
+                value={priority}
+                label="Priority"
+                onChange={(event) =>
+                  setPriority(event.target.value as TaskPriority)
+                }
+              >
+                <MenuItem value="Low">Low</MenuItem>
 
-          <TextField
-            fullWidth
-            label="Assigned User ID"
-            placeholder="Enter user ID"
-            value={assignedTo}
-            onChange={(event) => setAssignedTo(event.target.value)}
-            helperText="Optional"
-          />
+                <MenuItem value="Medium">Medium</MenuItem>
 
-          <TextField
-            fullWidth
-            label="Due Date"
-            type="date"
-            value={dueDate}
-            onChange={(event) => setDueDate(event.target.value)}
-            InputLabelProps={{
-              shrink: true,
+                <MenuItem value="High">High</MenuItem>
+
+                <MenuItem value="Critical">Critical</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* ASSIGNED TO */}
+
+            <TextField
+              label="Assigned User ID"
+              value={assignedTo}
+              onChange={(event) => setAssignedTo(event.target.value)}
+              fullWidth
+              disabled={loading}
+              placeholder="Enter user ID"
+              helperText="Leave empty if the task is unassigned."
+            />
+
+            {/* DUE DATE */}
+
+            <TextField
+              label="Due Date"
+              type="datetime-local"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              fullWidth
+              disabled={loading}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={handleClose}
+            disabled={loading}
+            sx={{
+              textTransform: "none",
             }}
-            helperText="Optional"
-          />
-        </Stack>
-      </DialogContent>
+          >
+            Cancel
+          </Button>
 
-      <DialogActions
-        sx={{
-          px: 3,
-          pb: 2,
-        }}
-      >
-        <Button
-          onClick={onClose}
-          disabled={loading}
-          sx={{
-            textTransform: "none",
-          }}
-        >
-          Cancel
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={() => void handleSubmit()}
-          disabled={loading}
-          sx={{
-            textTransform: "none",
-            borderRadius: 2,
-            minWidth: 120,
-          }}
-        >
-          {loading ? "Creating..." : "Create Task"}
-        </Button>
-      </DialogActions>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+              minWidth: 120,
+            }}
+          >
+            {loading ? "Creating..." : "Create Task"}
+          </Button>
+        </DialogActions>
+      </form>
     </Dialog>
   );
 };

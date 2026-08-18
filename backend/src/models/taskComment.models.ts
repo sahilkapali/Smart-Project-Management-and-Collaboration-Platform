@@ -1,14 +1,12 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-export interface ITaskComment extends Document {
+interface ITaskComment {
   task: mongoose.Types.ObjectId;
   user: mongoose.Types.ObjectId;
   text: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-const TaskCommentSchema = new Schema(
+const taskCommentSchema = new Schema<ITaskComment>(
   {
     task: {
       type: Schema.Types.ObjectId,
@@ -25,14 +23,19 @@ const TaskCommentSchema = new Schema(
 
     text: {
       type: String,
-      required: true,
+      required: [true, "Comment text is required"],
       trim: true,
+      maxlength: [2000, "Comment cannot exceed 2000 characters"],
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  },
 );
 
-export default mongoose.model<ITaskComment>(
-  "TaskComment",
-  TaskCommentSchema
-);
+taskCommentSchema.index({
+  task: 1,
+  createdAt: 1,
+});
+
+export default mongoose.model<ITaskComment>("TaskComment", taskCommentSchema);

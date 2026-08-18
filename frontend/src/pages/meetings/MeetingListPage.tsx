@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -13,11 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import {
-  Add,
-  CalendarMonth,
-  Refresh,
-} from "@mui/icons-material";
+import { Add, CalendarMonth, Refresh } from "@mui/icons-material";
 
 import MeetingCard from "../../components/meeting/MeetingCard";
 import meetingService from "../../services/meeting.service";
@@ -31,18 +27,23 @@ const MeetingListPage = () => {
 
   const navigate = useNavigate();
 
-  const [meetings, setMeetings] = useState<Meeting[]>(
-    []
-  );
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
 
-  const loadMeetings = async () => {
-    if (!projectId) {
-      setError("Project ID is missing.");
+  // ============================================================
+  // LOAD PROJECT MEETINGS
+  // ============================================================
+
+  const loadMeetings = useCallback(async () => {
+    if (!projectId?.trim()) {
+      setError("Project ID is missing. Please open meetings from a project.");
+
+      setMeetings([]);
       setLoading(false);
+
       return;
     }
 
@@ -50,52 +51,112 @@ const MeetingListPage = () => {
       setLoading(true);
       setError("");
 
-      const response =
-        await meetingService.getProjectMeetings(
-          projectId
-        );
+      console.log("Loading meetings for project:", projectId);
 
-      if (response.success) {
-        setMeetings(response.data ?? []);
+      const response = await meetingService.getProjectMeetings(projectId);
+
+      console.log("Meeting API response:", response);
+
+      if (response?.success) {
+        setMeetings(Array.isArray(response.data) ? response.data : []);
       } else {
-        setError(
-          response.message ||
-            "Unable to load meetings."
-        );
+        setMeetings([]);
+
+        setError(response?.message || "Unable to load meetings.");
       }
     } catch (err: any) {
-      console.error(
-        "Failed to load meetings:",
-        err
-      );
+      console.error("Failed to load meetings:", err);
+
+      setMeetings([]);
 
       setError(
         err?.response?.data?.message ||
-          "Unable to load meetings."
+          err?.response?.data?.error ||
+          err?.message ||
+          "Unable to load meetings.",
       );
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
+
+  // ============================================================
+  // LOAD WHEN PROJECT CHANGES
+  // ============================================================
 
   useEffect(() => {
     loadMeetings();
-  }, [projectId]);
+  }, [loadMeetings]);
+
+  // ============================================================
+  // CREATE MEETING
+  // ============================================================
 
   const handleCreateMeeting = () => {
-    if (!projectId) {
+    if (!projectId?.trim()) {
       setError("Project ID is missing.");
+
       return;
     }
 
-    navigate(
-      `/projects/${projectId}/meetings/create`
-    );
+    navigate(`/projects/${projectId}/meetings/create`);
   };
 
+  // ============================================================
+  // VIEW MEETING
+  // ============================================================
+
   const handleViewMeeting = (meeting: Meeting) => {
+    if (!meeting?._id) {
+      setError("Meeting ID is missing.");
+
+      return;
+    }
+
     navigate(`/meetings/${meeting._id}`);
   };
+
+  // ============================================================
+  // NO PROJECT ID
+  // ============================================================
+
+  if (!projectId?.trim()) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "background.default",
+          py: 5,
+        }}
+      >
+        <Container maxWidth="lg">
+          <Alert
+            severity="error"
+            sx={{
+              borderRadius: 2,
+            }}
+          >
+            Project ID is missing. Please open the Meetings page from a project.
+          </Alert>
+
+          <Button
+            variant="outlined"
+            sx={{
+              mt: 2,
+              textTransform: "none",
+            }}
+            onClick={() => navigate("/projects")}
+          >
+            Back to Projects
+          </Button>
+        </Container>
+      </Box>
+    );
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <Box
@@ -106,7 +167,10 @@ const MeetingListPage = () => {
       }}
     >
       <Container maxWidth="xl">
-        {/* Page Header */}
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
+
         <Stack
           direction={{
             xs: "column",
@@ -129,23 +193,18 @@ const MeetingListPage = () => {
             >
               <CalendarMonth
                 color="primary"
-                sx={{ fontSize: 32 }}
+                sx={{
+                  fontSize: 32,
+                }}
               />
 
-              <Typography
-                variant="h3"
-                fontWeight={800}
-              >
+              <Typography variant="h3" fontWeight={800}>
                 Meetings
               </Typography>
             </Stack>
 
-            <Typography
-              variant="body1"
-              color="text.secondary"
-            >
-              View and manage your project
-              meetings.
+            <Typography color="text.secondary">
+              View, manage and join meetings for this project.
             </Typography>
           </Box>
 
@@ -166,7 +225,10 @@ const MeetingListPage = () => {
           </Button>
         </Stack>
 
-        {/* Error */}
+        {/* ====================================================
+            ERROR
+        ==================================================== */}
+
         {error && (
           <Alert
             severity="error"
@@ -189,12 +251,15 @@ const MeetingListPage = () => {
           </Alert>
         )}
 
-        {/* Loading */}
+        {/* ====================================================
+            LOADING
+        ==================================================== */}
+
         {loading ? (
           <Paper
             elevation={0}
             sx={{
-              minHeight: 300,
+              minHeight: 350,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -203,21 +268,19 @@ const MeetingListPage = () => {
               borderColor: "divider",
             }}
           >
-            <Stack
-              alignItems="center"
-              spacing={2}
-            >
+            <Stack alignItems="center" spacing={2}>
               <CircularProgress />
 
-              <Typography
-                color="text.secondary"
-              >
+              <Typography color="text.secondary">
                 Loading meetings...
               </Typography>
             </Stack>
           </Paper>
         ) : meetings.length === 0 ? (
-          /* Empty state */
+          /* ==================================================
+             EMPTY STATE
+          ================================================== */
+
           <Paper
             elevation={0}
             sx={{
@@ -232,11 +295,7 @@ const MeetingListPage = () => {
               p: 4,
             }}
           >
-            <Stack
-              alignItems="center"
-              spacing={2}
-              maxWidth={500}
-            >
+            <Stack alignItems="center" spacing={2} maxWidth={500}>
               <CalendarMonth
                 sx={{
                   fontSize: 64,
@@ -245,19 +304,12 @@ const MeetingListPage = () => {
                 }}
               />
 
-              <Typography
-                variant="h5"
-                fontWeight={700}
-              >
+              <Typography variant="h5" fontWeight={700}>
                 No meetings yet
               </Typography>
 
-              <Typography
-                color="text.secondary"
-              >
-                Schedule your first meeting for
-                this project and invite your team
-                members.
+              <Typography color="text.secondary">
+                Create the first meeting for this project.
               </Typography>
 
               <Button
@@ -271,16 +323,16 @@ const MeetingListPage = () => {
                   fontWeight: 600,
                 }}
               >
-                Create Your First Meeting
+                Create Meeting
               </Button>
             </Stack>
           </Paper>
         ) : (
-          /* Meeting cards */
-          <Grid
-            container
-            spacing={3}
-          >
+          /* ==================================================
+             MEETING CARDS
+          ================================================== */
+
+          <Grid container spacing={3}>
             {meetings.map((meeting) => (
               <Grid
                 key={meeting._id}
@@ -290,10 +342,7 @@ const MeetingListPage = () => {
                   lg: 4,
                 }}
               >
-                <MeetingCard
-                  meeting={meeting}
-                  onView={handleViewMeeting}
-                />
+                <MeetingCard meeting={meeting} onView={handleViewMeeting} />
               </Grid>
             ))}
           </Grid>

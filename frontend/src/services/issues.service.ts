@@ -29,13 +29,13 @@ const normalizeIssue = (issue: Issue): Issue => {
 export const getIssues = async (): Promise<Issue[]> => {
   const response = await api.get<IssuesResponse>("/issues");
 
-  const data = response.data?.data;
+  const issues = response.data?.data;
 
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(issues)) {
     return [];
   }
 
-  return data.map(normalizeIssue);
+  return issues.map(normalizeIssue);
 };
 
 // ============================================================
@@ -44,11 +44,17 @@ export const getIssues = async (): Promise<Issue[]> => {
 // ============================================================
 
 export const getIssueById = async (issueId: string): Promise<Issue> => {
-  if (!issueId) {
+  const id = issueId?.trim();
+
+  if (!id) {
     throw new Error("Issue ID is required.");
   }
 
-  const response = await api.get<IssueResponse>(`/issues/${issueId}`);
+  const response = await api.get<IssueResponse>(`/issues/${id}`);
+
+  if (!response.data?.data) {
+    throw new Error("Issue data was not returned by the server.");
+  }
 
   return normalizeIssue(response.data.data);
 };
@@ -59,7 +65,38 @@ export const getIssueById = async (issueId: string): Promise<Issue> => {
 // ============================================================
 
 export const createIssue = async (data: CreateIssuePayload): Promise<Issue> => {
-  const response = await api.post<IssueResponse>("/issues", data);
+  const repository = data.repository?.trim();
+  const title = data.title?.trim();
+
+  if (!repository) {
+    throw new Error("Repository is required.");
+  }
+
+  if (!title) {
+    throw new Error("Issue title is required.");
+  }
+
+  if (title.length < 3) {
+    throw new Error("Issue title must be at least 3 characters.");
+  }
+
+  const payload: CreateIssuePayload = {
+    repository,
+
+    title,
+
+    description: data.description?.trim() || undefined,
+
+    priority: data.priority ?? "Medium",
+
+    assignedTo: data.assignedTo?.trim() || undefined,
+  };
+
+  const response = await api.post<IssueResponse>("/issues", payload);
+
+  if (!response.data?.data) {
+    throw new Error("Issue was created but no issue data was returned.");
+  }
 
   return normalizeIssue(response.data.data);
 };
@@ -73,11 +110,28 @@ export const updateIssue = async (
   issueId: string,
   data: UpdateIssuePayload,
 ): Promise<Issue> => {
-  if (!issueId) {
+  const id = issueId?.trim();
+
+  if (!id) {
     throw new Error("Issue ID is required.");
   }
 
-  const response = await api.put<IssueResponse>(`/issues/${issueId}`, data);
+  const payload: UpdateIssuePayload = {
+    ...data,
+
+    title: data.title !== undefined ? data.title.trim() : undefined,
+
+    description:
+      data.description !== undefined ? data.description.trim() : undefined,
+
+    assignedTo: data.assignedTo === "" ? null : data.assignedTo,
+  };
+
+  const response = await api.put<IssueResponse>(`/issues/${id}`, payload);
+
+  if (!response.data?.data) {
+    throw new Error("Issue was updated but no issue data was returned.");
+  }
 
   return normalizeIssue(response.data.data);
 };
@@ -88,11 +142,13 @@ export const updateIssue = async (
 // ============================================================
 
 export const deleteIssue = async (issueId: string): Promise<void> => {
-  if (!issueId) {
+  const id = issueId?.trim();
+
+  if (!id) {
     throw new Error("Issue ID is required.");
   }
 
-  await api.delete(`/issues/${issueId}`);
+  await api.delete(`/issues/${id}`);
 };
 
 // ============================================================
@@ -103,15 +159,23 @@ export const deleteIssue = async (issueId: string): Promise<void> => {
 export const getIssueComments = async (
   issueId: string,
 ): Promise<IssueComment[]> => {
-  if (!issueId) {
+  const id = issueId?.trim();
+
+  if (!id) {
     throw new Error("Issue ID is required.");
   }
 
   const response = await api.get<IssueCommentsResponse>(
-    `/issues/${issueId}/comments`,
+    `/issues/${id}/comments`,
   );
 
-  return Array.isArray(response.data?.data) ? response.data.data : [];
+  const comments = response.data?.data;
+
+  if (!Array.isArray(comments)) {
+    return [];
+  }
+
+  return comments;
 };
 
 // ============================================================
@@ -123,11 +187,14 @@ export const addIssueComment = async (
   issueId: string,
   text: string,
 ): Promise<IssueComment> => {
-  if (!issueId) {
+  const id = issueId?.trim();
+  const commentText = text?.trim();
+
+  if (!id) {
     throw new Error("Issue ID is required.");
   }
 
-  if (!text.trim()) {
+  if (!commentText) {
     throw new Error("Comment text is required.");
   }
 
@@ -135,9 +202,13 @@ export const addIssueComment = async (
     success: boolean;
     message?: string;
     data: IssueComment;
-  }>(`/issues/${issueId}/comments`, {
-    text: text.trim(),
+  }>(`/issues/${id}/comments`, {
+    text: commentText,
   });
+
+  if (!response.data?.data) {
+    throw new Error("Comment was added but no comment data was returned.");
+  }
 
   return response.data.data;
 };

@@ -1,52 +1,69 @@
 import axios from "axios";
 
-import { getToken, removeToken } from "../utils/auth";
+/**
+ * Backend API URL
+ *
+ * VITE_API_URL should normally be:
+ *
+ * http://localhost:8080/api
+ *
+ * If it is not defined, the application will use
+ * the local backend URL above.
+ */
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
-// ============================================================
-// AXIOS API CLIENT
-// ============================================================
-
+/**
+ * Axios API client
+ */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080/api",
+  baseURL: API_URL,
 
+  /*
+   * Keep this enabled because the backend supports
+   * credentials/cookies as well.
+   */
   withCredentials: true,
 
-  timeout: 15000,
+  timeout: 30000,
+
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// ============================================================
-// REQUEST INTERCEPTOR
-// ============================================================
-//
-// Automatically attaches JWT:
-//
-// Authorization: Bearer <token>
-//
-// ============================================================
-
+/**
+ * ============================================================
+ * REQUEST INTERCEPTOR
+ * ============================================================
+ *
+ * IMPORTANT:
+ *
+ * AuthContext stores the JWT using:
+ *
+ *     localStorage.setItem("accessToken", token)
+ *
+ * Therefore we MUST read "accessToken" here.
+ *
+ * The previous implementation incorrectly read:
+ *
+ *     localStorage.getItem("token")
+ *
+ * which caused authenticated requests to be sent without
+ * the Authorization header.
+ */
 api.interceptors.request.use(
   (config) => {
-    const token = getToken();
-
-    // --------------------------------------------------------
-    // Attach JWT
-    // --------------------------------------------------------
+    const token = localStorage.getItem("accessToken");
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // --------------------------------------------------------
-    // Content-Type
-    // --------------------------------------------------------
-    //
-    // Do not manually set Content-Type for FormData.
-    // Axios/browser automatically creates the correct
-    // multipart boundary.
-    //
-
-    if (config.data && !(config.data instanceof FormData)) {
-      config.headers["Content-Type"] = "application/json";
+      /*
+       * Axios 1.x supports AxiosHeaders.set().
+       *
+       * We also make sure headers exists before setting it.
+       */
+      if (config.headers) {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      }
     }
 
     return config;
@@ -57,69 +74,56 @@ api.interceptors.request.use(
   },
 );
 
-// ============================================================
-// RESPONSE INTERCEPTOR
-// ============================================================
-//
-// 401 = authentication failure
-//
-// 403 = authenticated but unauthorized
-//
-// We only clear authentication on 401.
-//
-// ============================================================
-
+/**
+ * ============================================================
+ * RESPONSE INTERCEPTOR
+ * ============================================================
+ *
+ * Handles expired/invalid authentication.
+ */
 api.interceptors.response.use(
   (response) => {
     return response;
   },
 
   (error) => {
-    const status = error.response?.status;
-
-    // ========================================================
-    // 401 UNAUTHORIZED
-    // ========================================================
+    const status = error?.response?.status;
 
     if (status === 401) {
-      removeToken();
-
-      localStorage.removeItem("user");
+      console.warn(
+        "Authentication failed: JWT is missing, invalid, or expired.",
+      );
 
       const currentPath = window.location.pathname;
 
-      const publicRoutes = [
+      const authPages = [
         "/login",
         "/register",
         "/forgot-password",
         "/reset-password",
       ];
 
-      // ------------------------------------------------------
-      // Prevent redirect loop
-      // ------------------------------------------------------
+      const isAuthPage = authPages.includes(currentPath);
 
-      if (!publicRoutes.includes(currentPath)) {
+      if (!isAuthPage) {
+        /*
+         * Remove BOTH keys.
+         *
+         * "accessToken" is the current correct key.
+         *
+         * "token" is removed as a compatibility cleanup in
+         * case an older version of the application stored it.
+         */
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
         window.location.href = "/login";
       }
     }
 
-    // ========================================================
-    // 403 FORBIDDEN
-    // ========================================================
-    //
-    // Do NOT remove token.
-    //
-    // The user is authenticated but doesn't have
-    // permission for the requested operation.
-    //
-
     return Promise.reject(error);
   },
 );
-
-// ============================================================
-// EXPORT
-// ============================================================
 
 export default api;

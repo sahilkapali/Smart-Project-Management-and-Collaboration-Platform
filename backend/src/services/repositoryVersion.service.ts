@@ -1,27 +1,121 @@
+import Repository from "../models/repository.models";
 import RepositoryVersion from "../models/repositoryVersion.models";
+import * as repositoryService from "./repository.service";
 
-// Create Repository Version
-export const createVersionService = async (data: any) => {
-  return await RepositoryVersion.create(data);
+interface CreateVersionData {
+  repository: string;
+  versionNumber: string;
+  title: string;
+  changelog?: string;
+  commitHash?: string;
+  file?: string;
+  uploadedBy: string;
+}
+
+export const createVersionService = async (data: CreateVersionData) => {
+  const repository = await Repository.findById(data.repository);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  await repositoryService.checkProjectAccess(
+    repository.project.toString(),
+    data.uploadedBy,
+    "MANAGE",
+  );
+
+  const existingVersion = await RepositoryVersion.findOne({
+    repository: data.repository,
+    versionNumber: data.versionNumber.trim(),
+  });
+
+  if (existingVersion) {
+    throw new Error("VERSION_ALREADY_EXISTS");
+  }
+
+  const version = await RepositoryVersion.create({
+    repository: data.repository,
+    versionNumber: data.versionNumber.trim(),
+    title: data.title.trim(),
+    changelog: data.changelog?.trim() || "",
+    commitHash: data.commitHash?.trim() || "",
+    file: data.file || "",
+    uploadedBy: data.uploadedBy,
+  });
+
+  return await RepositoryVersion.findById(version._id)
+    .populate("repository", "name description project")
+    .populate("uploadedBy", "name email avatar");
 };
 
-// Get all versions of a repository
-export const getVersionsService = async (repositoryId: string) => {
+export const getVersionsService = async (
+  repositoryId: string,
+  userId: string,
+) => {
+  const repository = await Repository.findById(repositoryId);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  await repositoryService.checkProjectAccess(
+    repository.project.toString(),
+    userId,
+    "VIEW",
+  );
+
   return await RepositoryVersion.find({
     repository: repositoryId,
   })
-    .populate("uploadedBy", "name email")
-    .sort({ createdAt: -1 });
+    .populate("uploadedBy", "name email avatar")
+    .sort({
+      createdAt: -1,
+    });
 };
 
-// Get version by ID
-export const getVersionByIdService = async (versionId: string) => {
-  return await RepositoryVersion.findById(versionId)
-    .populate("uploadedBy", "name email")
-    .populate("repository");
+export const getVersionByIdService = async (
+  repositoryId: string,
+  versionId: string,
+  userId: string,
+) => {
+  const repository = await Repository.findById(repositoryId);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  await repositoryService.checkProjectAccess(
+    repository.project.toString(),
+    userId,
+    "VIEW",
+  );
+
+  return await RepositoryVersion.findOne({
+    _id: versionId,
+    repository: repositoryId,
+  }).populate("uploadedBy", "name email avatar");
 };
 
-// Delete version
-export const deleteVersionService = async (versionId: string) => {
-  return await RepositoryVersion.findByIdAndDelete(versionId);
+export const deleteVersionService = async (
+  repositoryId: string,
+  versionId: string,
+  userId: string,
+) => {
+  const repository = await Repository.findById(repositoryId);
+
+  if (!repository) {
+    throw new Error("REPOSITORY_NOT_FOUND");
+  }
+
+  await repositoryService.checkProjectAccess(
+    repository.project.toString(),
+    userId,
+    "MANAGE",
+  );
+
+  return await RepositoryVersion.findOneAndDelete({
+    _id: versionId,
+    repository: repositoryId,
+  });
 };

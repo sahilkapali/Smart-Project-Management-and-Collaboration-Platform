@@ -1,4 +1,8 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
+
+// ============================================================
+// ISSUE COMMENT INTERFACE
+// ============================================================
 
 export interface IIssueComment extends Document {
   issue: mongoose.Types.ObjectId;
@@ -8,8 +12,16 @@ export interface IIssueComment extends Document {
   updatedAt: Date;
 }
 
-const IssueCommentSchema = new Schema<IIssueComment>(
+// ============================================================
+// ISSUE COMMENT SCHEMA
+// ============================================================
+
+const issueCommentSchema = new Schema<IIssueComment>(
   {
+    // ========================================================
+    // ISSUE
+    // ========================================================
+
     issue: {
       type: Schema.Types.ObjectId,
       ref: "Issue",
@@ -17,17 +29,27 @@ const IssueCommentSchema = new Schema<IIssueComment>(
       index: true,
     },
 
+    // ========================================================
+    // USER
+    // ========================================================
+
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
+
+    // ========================================================
+    // COMMENT TEXT
+    // ========================================================
 
     text: {
       type: String,
       required: true,
       trim: true,
       minlength: 1,
+      maxlength: 5000,
     },
   },
   {
@@ -35,7 +57,13 @@ const IssueCommentSchema = new Schema<IIssueComment>(
   },
 );
 
-export default mongoose.model<IIssueComment>(
+// ============================================================
+// MODEL
+// ============================================================
+
+const IssueComment = mongoose.model<IIssueComment>(
   "IssueComment",
-  IssueCommentSchema,
+  issueCommentSchema,
 );
+
+export default IssueComment;

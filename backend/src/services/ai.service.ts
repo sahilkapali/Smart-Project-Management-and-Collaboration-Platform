@@ -168,6 +168,54 @@ export const prioritizeTaskByAI = async (taskId: string, userId: string) => {
 };
 
 // =====================================================
+// MEETING NOTES -> TEXT
+// =====================================================
+
+const getMeetingText = (meeting: any): string => {
+  /*
+   * Meeting notes are stored as an array:
+   *
+   * notes: [
+   *   {
+   *     content: "...",
+   *     aiGeneratedSummary: "..."
+   *   }
+   * ]
+   *
+   * Gemini expects a string, so convert all note
+   * contents into one text block.
+   */
+
+  if (Array.isArray(meeting.notes)) {
+    return meeting.notes
+      .map((note: any) => {
+        if (!note) {
+          return "";
+        }
+
+        if (typeof note.content === "string") {
+          return note.content.trim();
+        }
+
+        return "";
+      })
+      .filter((content: string) => content.length > 0)
+      .join("\n\n---\n\n");
+  }
+
+  /*
+   * Keep transcript support in case your Meeting model
+   * contains a transcript field.
+   */
+
+  if (typeof meeting.transcript === "string") {
+    return meeting.transcript.trim();
+  }
+
+  return "";
+};
+
+// =====================================================
 // MEETING SUMMARY
 // =====================================================
 
@@ -181,7 +229,15 @@ export const summarizeMeeting = async (meetingId: string, userId: string) => {
     throw new Error("MEETING_NOT_FOUND");
   }
 
-  const meetingText = meeting.notes || (meeting as any).transcript || "";
+  /*
+   * IMPORTANT:
+   * meeting.notes is a Mongoose DocumentArray.
+   * It cannot be passed directly to .trim() or Gemini.
+   *
+   * Convert it into a plain string first.
+   */
+
+  const meetingText = getMeetingText(meeting);
 
   if (!meetingText.trim()) {
     throw new Error("MEETING_NOTES_REQUIRED");
@@ -217,7 +273,12 @@ export const extractMeetingActionItems = async (
     throw new Error("MEETING_NOT_FOUND");
   }
 
-  const meetingText = meeting.notes || (meeting as any).transcript || "";
+  /*
+   * Convert the meeting notes array into a string
+   * before sending it to Gemini.
+   */
+
+  const meetingText = getMeetingText(meeting);
 
   if (!meetingText.trim()) {
     throw new Error("MEETING_NOTES_REQUIRED");
