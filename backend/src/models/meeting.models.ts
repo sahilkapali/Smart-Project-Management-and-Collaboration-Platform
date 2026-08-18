@@ -1,5 +1,4 @@
-import { Schema, model } from "mongoose";
-import { IMeeting } from "../types/meeting.types";
+import mongoose, { Schema } from "mongoose";
 
 // =====================================================
 // MEETING NOTE SCHEMA
@@ -15,11 +14,11 @@ const meetingNoteSchema = new Schema(
 
     aiGeneratedSummary: {
       type: String,
+      default: "",
       trim: true,
     },
   },
   {
-    _id: true,
     timestamps: true,
   },
 );
@@ -28,23 +27,26 @@ const meetingNoteSchema = new Schema(
 // MEETING SCHEMA
 // =====================================================
 
-const meetingSchema = new Schema<IMeeting>(
+const meetingSchema = new Schema(
   {
     title: {
       type: String,
       required: true,
       trim: true,
       minlength: 3,
+      maxlength: 100,
     },
 
     description: {
       type: String,
       trim: true,
+      default: "",
     },
 
     meetingLink: {
       type: String,
       trim: true,
+      default: "",
     },
 
     startTime: {
@@ -54,6 +56,7 @@ const meetingSchema = new Schema<IMeeting>(
 
     endTime: {
       type: Date,
+      required: false,
     },
 
     projectId: {
@@ -76,14 +79,15 @@ const meetingSchema = new Schema<IMeeting>(
       },
     ],
 
-    notes: [meetingNoteSchema],
+    notes: {
+      type: [meetingNoteSchema],
+      default: [],
+    },
 
-    actionItems: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    actionItems: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -91,9 +95,18 @@ const meetingSchema = new Schema<IMeeting>(
 );
 
 // =====================================================
+// INDEX
+// =====================================================
+
+meetingSchema.index({
+  projectId: 1,
+  startTime: 1,
+});
+
+// =====================================================
 // MODEL
 // =====================================================
 
-const Meeting = model<IMeeting>("Meeting", meetingSchema);
+const Meeting = mongoose.model("Meeting", meetingSchema);
 
 export default Meeting;

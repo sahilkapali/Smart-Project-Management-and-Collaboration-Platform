@@ -1,9 +1,12 @@
 // ============================================================
-// ISSUE TYPES
-// Matches the backend Issue model
+// ISSUE STATUS
 // ============================================================
 
 export type IssueStatus = "Open" | "In Progress" | "Resolved" | "Closed";
+
+// ============================================================
+// ISSUE PRIORITY
+// ============================================================
 
 export type IssuePriority = "Low" | "Medium" | "High" | "Critical";
 
@@ -13,8 +16,8 @@ export type IssuePriority = "Low" | "Medium" | "High" | "Critical";
 
 export interface IssueUser {
   _id: string;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   role?: string;
 }
 
@@ -24,9 +27,20 @@ export interface IssueUser {
 
 export interface IssueRepository {
   _id: string;
-  name?: string;
+  name: string;
   description?: string;
-  url?: string;
+  githubUrl?: string;
+  project?: string | IssueProject | null;
+}
+
+// ============================================================
+// PROJECT
+// ============================================================
+
+export interface IssueProject {
+  _id: string;
+  name: string;
+  description?: string;
 }
 
 // ============================================================
@@ -41,7 +55,7 @@ export interface Issue {
 
   title: string;
 
-  description?: string;
+  description?: string | null;
 
   status: IssueStatus;
 
@@ -57,7 +71,7 @@ export interface Issue {
 }
 
 // ============================================================
-// CREATE ISSUE
+// CREATE ISSUE PAYLOAD
 // ============================================================
 
 export interface CreateIssuePayload {
@@ -73,7 +87,7 @@ export interface CreateIssuePayload {
 }
 
 // ============================================================
-// UPDATE ISSUE
+// UPDATE ISSUE PAYLOAD
 // ============================================================
 
 export interface UpdateIssuePayload {
@@ -85,7 +99,7 @@ export interface UpdateIssuePayload {
 
   priority?: IssuePriority;
 
-  assignedTo?: string;
+  assignedTo?: string | null;
 }
 
 // ============================================================
@@ -95,9 +109,9 @@ export interface UpdateIssuePayload {
 export interface IssueCommentUser {
   _id: string;
 
-  name: string;
+  name?: string;
 
-  email: string;
+  email?: string;
 
   role?: string;
 }
@@ -123,7 +137,7 @@ export interface IssueComment {
 }
 
 // ============================================================
-// API RESPONSES
+// API RESPONSE
 // ============================================================
 
 export interface IssueResponse {
@@ -134,16 +148,28 @@ export interface IssueResponse {
   data: Issue;
 }
 
+// ============================================================
+// ISSUES RESPONSE
+// ============================================================
+
 export interface IssuesResponse {
   success: boolean;
+
+  message?: string;
 
   count?: number;
 
   data: Issue[];
 }
 
+// ============================================================
+// ISSUE COMMENTS RESPONSE
+// ============================================================
+
 export interface IssueCommentsResponse {
   success: boolean;
+
+  message?: string;
 
   count?: number;
 

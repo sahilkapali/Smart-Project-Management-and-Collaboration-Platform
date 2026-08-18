@@ -16,21 +16,19 @@ const isValidObjectId = (id: unknown): id is string => {
 };
 
 const isValidUrl = (urlString: unknown): boolean => {
-  if (typeof urlString !== "string") {
+  if (typeof urlString !== "string" || !urlString.trim()) {
     return false;
   }
 
   try {
-    new URL(urlString);
-    return true;
+    const url = new URL(urlString);
+
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
   }
 };
 
-/**
- * Get authenticated user ID.
- */
 const getAuthenticatedUserId = (req: Request): string | null => {
   const userId = req.user?.id;
 
@@ -41,9 +39,6 @@ const getAuthenticatedUserId = (req: Request): string | null => {
   return String(userId);
 };
 
-/**
- * Get route parameter safely as a string.
- */
 const getParam = (value: string | string[] | undefined): string => {
   if (Array.isArray(value)) {
     return value[0] || "";
@@ -90,22 +85,31 @@ export const createMeeting = async (
     // =================================================
 
     if (
-      !title ||
       typeof title !== "string" ||
       title.trim().length < 3 ||
       title.trim().length > 100
     ) {
-      errors.push(
-        "Meeting title must be a string between 3 and 100 characters.",
-      );
+      errors.push("Meeting title must be between 3 and 100 characters.");
     }
 
     // =================================================
-    // PROJECT ID
+    // PROJECT
     // =================================================
 
     if (!projectId || !isValidObjectId(projectId)) {
       errors.push("Invalid or missing projectId.");
+    }
+
+    // =================================================
+    // DESCRIPTION
+    // =================================================
+
+    if (
+      description !== undefined &&
+      description !== null &&
+      typeof description !== "string"
+    ) {
+      errors.push("Description must be a string.");
     }
 
     // =================================================
@@ -117,7 +121,7 @@ export const createMeeting = async (
       meetingLink !== null &&
       meetingLink !== ""
     ) {
-      if (typeof meetingLink !== "string" || !isValidUrl(meetingLink)) {
+      if (!isValidUrl(meetingLink)) {
         errors.push("Invalid meeting link URL.");
       }
     }
@@ -126,7 +130,7 @@ export const createMeeting = async (
     // PARTICIPANTS
     // =================================================
 
-    const parsedParticipants = participants || [];
+    const parsedParticipants = participants ?? [];
 
     if (!Array.isArray(parsedParticipants)) {
       errors.push("Participants must be an array.");
@@ -151,7 +155,7 @@ export const createMeeting = async (
     } else {
       const parsedStart = new Date(startTime);
 
-      if (isNaN(parsedStart.getTime())) {
+      if (Number.isNaN(parsedStart.getTime())) {
         errors.push("Start time must be a valid date.");
       } else {
         start = parsedStart;
@@ -164,12 +168,10 @@ export const createMeeting = async (
 
     let end: Date | undefined;
 
-    if (!endTime) {
-      errors.push("End time is required.");
-    } else {
+    if (endTime) {
       const parsedEnd = new Date(endTime);
 
-      if (isNaN(parsedEnd.getTime())) {
+      if (Number.isNaN(parsedEnd.getTime())) {
         errors.push("End time must be a valid date.");
       } else {
         end = parsedEnd;
@@ -177,7 +179,7 @@ export const createMeeting = async (
     }
 
     // =================================================
-    // DATE COMPARISON
+    // DATE VALIDATION
     // =================================================
 
     if (start && end && start >= end) {
@@ -194,19 +196,17 @@ export const createMeeting = async (
       } else {
         const invalidNotes = notes.some(
           (note: any) =>
-            !note ||
-            typeof note.content !== "string" ||
-            note.content.trim().length === 0,
+            !note || typeof note.content !== "string" || !note.content.trim(),
         );
 
         if (invalidNotes) {
-          errors.push("Each note must contain a non-empty content field.");
+          errors.push("Each note must contain non-empty content.");
         }
       }
     }
 
     // =================================================
-    // VALIDATION RESPONSE
+    // VALIDATION
     // =================================================
 
     if (errors.length > 0) {
@@ -218,21 +218,31 @@ export const createMeeting = async (
     }
 
     // =================================================
-    // MEETING DATA
+    // CREATE DATA
     // =================================================
 
     const meetingData = {
       title: title.trim(),
+
       description:
-        typeof description === "string" ? description.trim() : description,
+        typeof description === "string" ? description.trim() : undefined,
+
       meetingLink:
-        typeof meetingLink === "string" ? meetingLink.trim() : meetingLink,
+        typeof meetingLink === "string" ? meetingLink.trim() : undefined,
+
       projectId,
+
       participants: parsedParticipants,
+
       startTime: start,
+
       endTime: end,
-      notes,
-      createdBy: userId,
+
+      notes: Array.isArray(notes)
+        ? notes.map((note: any) => ({
+            content: note.content.trim(),
+          }))
+        : [],
     };
 
     // =================================================
@@ -297,16 +307,13 @@ export const updateMeeting = async (
     // TITLE
     // =================================================
 
-    if (title !== undefined) {
-      if (
-        typeof title !== "string" ||
+    if (
+      title !== undefined &&
+      (typeof title !== "string" ||
         title.trim().length < 3 ||
-        title.trim().length > 100
-      ) {
-        errors.push(
-          "Meeting title must be a string between 3 and 100 characters.",
-        );
-      }
+        title.trim().length > 100)
+    ) {
+      errors.push("Meeting title must be between 3 and 100 characters.");
     }
 
     // =================================================
@@ -318,7 +325,7 @@ export const updateMeeting = async (
     }
 
     // =================================================
-    // MEETING LINK
+    // LINK
     // =================================================
 
     if (
@@ -326,7 +333,7 @@ export const updateMeeting = async (
       meetingLink !== null &&
       meetingLink !== ""
     ) {
-      if (typeof meetingLink !== "string" || !isValidUrl(meetingLink)) {
+      if (!isValidUrl(meetingLink)) {
         errors.push("Invalid meeting link URL.");
       }
     }
@@ -359,7 +366,7 @@ export const updateMeeting = async (
     if (startTime !== undefined) {
       const parsedStart = new Date(startTime);
 
-      if (isNaN(parsedStart.getTime())) {
+      if (Number.isNaN(parsedStart.getTime())) {
         errors.push("Start time must be a valid date.");
       } else {
         start = parsedStart;
@@ -369,7 +376,7 @@ export const updateMeeting = async (
     if (endTime !== undefined) {
       const parsedEnd = new Date(endTime);
 
-      if (isNaN(parsedEnd.getTime())) {
+      if (Number.isNaN(parsedEnd.getTime())) {
         errors.push("End time must be a valid date.");
       } else {
         end = parsedEnd;
@@ -390,19 +397,17 @@ export const updateMeeting = async (
       } else {
         const invalidNotes = notes.some(
           (note: any) =>
-            !note ||
-            typeof note.content !== "string" ||
-            note.content.trim().length === 0,
+            !note || typeof note.content !== "string" || !note.content.trim(),
         );
 
         if (invalidNotes) {
-          errors.push("Each note must contain a non-empty content field.");
+          errors.push("Each note must contain non-empty content.");
         }
       }
     }
 
     // =================================================
-    // VALIDATION RESPONSE
+    // VALIDATION
     // =================================================
 
     if (errors.length > 0) {
@@ -414,7 +419,7 @@ export const updateMeeting = async (
     }
 
     // =================================================
-    // PREPARE UPDATE DATA
+    // UPDATE DATA
     // =================================================
 
     const updateData: Record<string, any> = {};
@@ -438,7 +443,7 @@ export const updateMeeting = async (
     }
 
     if (participants !== undefined) {
-      updateData.participants = participants;
+      updateData.participants = [...new Set(participants.map(String))];
     }
 
     if (start !== undefined) {
@@ -450,7 +455,11 @@ export const updateMeeting = async (
     }
 
     if (notes !== undefined) {
-      updateData.notes = notes;
+      updateData.notes = notes.map((note: any) => ({
+        _id: note._id,
+        content: note.content.trim(),
+        aiGeneratedSummary: note.aiGeneratedSummary || "",
+      }));
     }
 
     // =================================================
@@ -525,7 +534,6 @@ export const getProjectMeetings = async (
 
 // =====================================================
 // GET MEETING BY ID
-// GET /api/meetings/:id
 // =====================================================
 
 export const getMeetingById = async (
@@ -572,7 +580,6 @@ export const getMeetingById = async (
 
 // =====================================================
 // DELETE MEETING
-// DELETE /api/meetings/:id
 // =====================================================
 
 export const deleteMeeting = async (
@@ -618,7 +625,7 @@ export const deleteMeeting = async (
 };
 
 // =====================================================
-// ADD MEETING NOTES
+// ADD MEETING NOTE
 // POST /api/meetings/:id/notes
 // =====================================================
 
@@ -641,10 +648,6 @@ export const addMeetingNotes = async (
 
     const { content } = req.body;
 
-    // =================================================
-    // MEETING ID
-    // =================================================
-
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -652,24 +655,12 @@ export const addMeetingNotes = async (
       });
     }
 
-    // =================================================
-    // CONTENT
-    // =================================================
-
-    if (
-      !content ||
-      typeof content !== "string" ||
-      content.trim().length === 0
-    ) {
+    if (typeof content !== "string" || !content.trim()) {
       return res.status(400).json({
         success: false,
         message: "Note content is required.",
       });
     }
-
-    // =================================================
-    // ADD NOTE
-    // =================================================
 
     const meeting = await meetingService.addMeetingNotes(
       id,
@@ -695,7 +686,7 @@ export const addMeetingNotes = async (
 };
 
 // =====================================================
-// UPDATE MEETING NOTES
+// UPDATE MEETING NOTE
 // PUT /api/meetings/:id/notes
 // =====================================================
 
@@ -718,10 +709,6 @@ export const updateMeetingNotes = async (
 
     const { noteId, content } = req.body;
 
-    // =================================================
-    // MEETING ID
-    // =================================================
-
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -729,35 +716,19 @@ export const updateMeetingNotes = async (
       });
     }
 
-    // =================================================
-    // NOTE ID
-    // =================================================
-
-    if (!noteId || !isValidObjectId(noteId)) {
+    if (!isValidObjectId(noteId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid note ID.",
       });
     }
 
-    // =================================================
-    // CONTENT
-    // =================================================
-
-    if (
-      !content ||
-      typeof content !== "string" ||
-      content.trim().length === 0
-    ) {
+    if (typeof content !== "string" || !content.trim()) {
       return res.status(400).json({
         success: false,
         message: "Note content is required.",
       });
     }
-
-    // =================================================
-    // UPDATE NOTE
-    // =================================================
 
     const meeting = await meetingService.updateMeetingNotes(
       id,
@@ -791,8 +762,7 @@ export const updateMeetingNotes = async (
 };
 
 // =====================================================
-// PATCH MEETING NOTES
-// PATCH /api/meetings/:id/notes
+// PATCH MEETING NOTE
 // =====================================================
 
 export const patchMeetingNotes = async (
@@ -814,10 +784,6 @@ export const patchMeetingNotes = async (
 
     const { noteId, content } = req.body;
 
-    // =================================================
-    // MEETING ID
-    // =================================================
-
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
@@ -825,34 +791,22 @@ export const patchMeetingNotes = async (
       });
     }
 
-    // =================================================
-    // NOTE ID
-    // =================================================
-
-    if (!noteId || !isValidObjectId(noteId)) {
+    if (!isValidObjectId(noteId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid note ID.",
       });
     }
 
-    // =================================================
-    // CONTENT
-    // =================================================
-
     if (
       content !== undefined &&
-      (typeof content !== "string" || content.trim().length === 0)
+      (typeof content !== "string" || !content.trim())
     ) {
       return res.status(400).json({
         success: false,
         message: "Note content must be a non-empty string.",
       });
     }
-
-    // =================================================
-    // PATCH NOTE
-    // =================================================
 
     const meeting = await meetingService.patchMeetingNotes(
       id,
@@ -909,20 +863,12 @@ export const autoSummarizeMeeting = async (
 
     const { noteId } = req.body;
 
-    // =================================================
-    // VALIDATE ID
-    // =================================================
-
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid meeting ID.",
       });
     }
-
-    // =================================================
-    // GET MEETING
-    // =================================================
 
     const meeting = await meetingService.getMeetingById(id, userId);
 
@@ -933,24 +879,16 @@ export const autoSummarizeMeeting = async (
       });
     }
 
-    const meetingData = meeting as any;
+    const notes = meeting.notes || [];
 
-    // =================================================
-    // CHECK NOTES
-    // =================================================
-
-    if (!meetingData.notes || meetingData.notes.length === 0) {
+    if (notes.length === 0) {
       return res.status(400).json({
         success: false,
         message: "No meeting notes available to summarize.",
       });
     }
 
-    // =================================================
-    // FIND TARGET NOTE
-    // =================================================
-
-    let targetNoteIndex = -1;
+    let targetIndex = notes.length - 1;
 
     if (noteId) {
       if (!isValidObjectId(noteId)) {
@@ -960,45 +898,28 @@ export const autoSummarizeMeeting = async (
         });
       }
 
-      targetNoteIndex = meetingData.notes.findIndex(
+      targetIndex = notes.findIndex(
         (note: any) => note._id?.toString() === noteId,
       );
-    } else {
-      targetNoteIndex = meetingData.notes.length - 1;
     }
 
-    // =================================================
-    // VALIDATE TARGET NOTE
-    // =================================================
-
-    if (
-      targetNoteIndex === -1 ||
-      !meetingData.notes[targetNoteIndex]?.content
-    ) {
+    if (targetIndex === -1 || !notes[targetIndex]?.content?.trim()) {
       return res.status(400).json({
         success: false,
         message: "Could not find valid note content to summarize.",
       });
     }
 
-    const rawContent = meetingData.notes[targetNoteIndex].content;
-
-    // =================================================
-    // GEMINI SUMMARY
-    // =================================================
+    const rawContent = notes[targetIndex].content;
 
     const aiSummary = await aiService.generateMeetingSummary(rawContent);
 
-    meetingData.notes[targetNoteIndex].aiGeneratedSummary = aiSummary;
-
-    // =================================================
-    // SAVE
-    // =================================================
+    notes[targetIndex].aiGeneratedSummary = aiSummary;
 
     const updatedMeeting = await meetingService.updateMeeting(
       id,
       {
-        notes: meetingData.notes,
+        notes,
       },
       userId,
     );
@@ -1012,6 +933,16 @@ export const autoSummarizeMeeting = async (
     next(error);
   }
 };
+
+// =====================================================
+// EXTRACT ACTION ITEMS
+// PATCH /api/meetings/:id/action-items
+// =====================================================
+
+// =====================================================
+// EXTRACT ACTION ITEMS
+// PATCH /api/meetings/:id/action-items
+// =====================================================
 
 // =====================================================
 // EXTRACT ACTION ITEMS
@@ -1059,13 +990,13 @@ export const extractMeetingActionItems = async (
       });
     }
 
-    const meetingData = meeting as any;
-
     // =================================================
     // CHECK NOTES
     // =================================================
 
-    if (!meetingData.notes || meetingData.notes.length === 0) {
+    const notes = Array.isArray(meeting.notes) ? meeting.notes : [];
+
+    if (notes.length === 0) {
       return res.status(400).json({
         success: false,
         message: "No meeting notes available to analyze.",
@@ -1076,9 +1007,15 @@ export const extractMeetingActionItems = async (
     // COMBINE NOTES
     // =================================================
 
-    const combinedNotes = meetingData.notes
-      .map((note: any) => note.content)
-      .filter((content: string) => Boolean(content && content.trim()))
+    const combinedNotes = notes
+      .map((note: any) => {
+        if (note && typeof note.content === "string") {
+          return note.content.trim();
+        }
+
+        return "";
+      })
+      .filter((content: string) => Boolean(content))
       .join("\n\n---\n\n");
 
     if (!combinedNotes) {

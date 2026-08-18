@@ -32,7 +32,7 @@ const TeamSchema = new Schema<ITeam>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model<ITeam>("Team", TeamSchema);

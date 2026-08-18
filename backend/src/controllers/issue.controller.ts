@@ -11,8 +11,10 @@ import {
   getIssuesService,
   getIssueByIdService,
   updateIssueService,
-  deleteIssueService,
+  deleteIssueService
 } from "../services/issue.service";
+
+import { ROLE } from "../types/enum.types";
 
 // ============================================================
 // CREATE ISSUE
@@ -26,19 +28,19 @@ export const createIssue = async (
     const { repository, title, description, priority, assignedTo } = req.body;
 
     // --------------------------------------------------------
-    // Validate authenticated user
+    // Authentication
     // --------------------------------------------------------
 
     if (!req.user?.id) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
       return;
     }
 
     // --------------------------------------------------------
-    // Validate repository
+    // Repository validation
     // --------------------------------------------------------
 
     if (!repository) {
@@ -58,10 +60,10 @@ export const createIssue = async (
     }
 
     // --------------------------------------------------------
-    // Validate title
+    // Title validation
     // --------------------------------------------------------
 
-    if (!title || !title.trim()) {
+    if (typeof title !== "string" || !title.trim()) {
       res.status(400).json({
         success: false,
         message: "Issue title is required.",
@@ -69,7 +71,9 @@ export const createIssue = async (
       return;
     }
 
-    if (title.trim().length < 3) {
+    const cleanTitle = title.trim();
+
+    if (cleanTitle.length < 3) {
       res.status(400).json({
         success: false,
         message: "Issue title must be at least 3 characters.",
@@ -78,7 +82,7 @@ export const createIssue = async (
     }
 
     // --------------------------------------------------------
-    // Validate assigned user
+    // Assigned user validation
     // --------------------------------------------------------
 
     if (assignedTo && !mongoose.Types.ObjectId.isValid(assignedTo)) {
@@ -95,12 +99,18 @@ export const createIssue = async (
 
     const issue = await createIssueService({
       repository: new mongoose.Types.ObjectId(repository),
-      title: title.trim(),
-      description: description?.trim(),
+
+      title: cleanTitle,
+
+      description:
+        typeof description === "string" ? description.trim() : undefined,
+
       priority,
+
       assignedTo: assignedTo
         ? new mongoose.Types.ObjectId(assignedTo)
         : undefined,
+
       createdBy: new mongoose.Types.ObjectId(req.user.id),
     });
 
@@ -109,12 +119,12 @@ export const createIssue = async (
       message: "Issue created successfully.",
       data: issue,
     });
-  } catch (err: any) {
-    console.error("Create issue error:", err);
+  } catch (error: any) {
+    console.error("Create issue error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to create issue.",
+      message: error.message || "Failed to create issue.",
     });
   }
 };
@@ -131,7 +141,7 @@ export const getIssues = async (
     if (!req.user?.id) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
       return;
     }
@@ -143,12 +153,12 @@ export const getIssues = async (
       count: issues.length,
       data: issues,
     });
-  } catch (err: any) {
-    console.error("Get issues error:", err);
+  } catch (error: any) {
+    console.error("Get issues error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to retrieve issues.",
+      message: error.message || "Failed to retrieve issues.",
     });
   }
 };
@@ -186,12 +196,12 @@ export const getIssueById = async (
       success: true,
       data: issue,
     });
-  } catch (err: any) {
-    console.error("Get issue by ID error:", err);
+  } catch (error: any) {
+    console.error("Get issue by ID error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to retrieve issue.",
+      message: error.message || "Failed to retrieve issue.",
     });
   }
 };
@@ -214,13 +224,13 @@ export const updateIssue = async (
     if (!req.user?.id) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
       return;
     }
 
     // --------------------------------------------------------
-    // Validate issue ID
+    // Validate ID
     // --------------------------------------------------------
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -247,20 +257,15 @@ export const updateIssue = async (
 
     // --------------------------------------------------------
     // Authorization
-    //
-    // ADMIN can modify any issue.
-    // Issue creator can modify their issue.
-    // Assigned user can modify their issue.
     // --------------------------------------------------------
 
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    const currentUserId = req.user.id;
 
-    const isAdmin = userRole === "ADMIN";
+    const isAdmin = req.user.role === ROLE.ADMIN;
 
-    const isCreator = issue.createdBy.toString() === userId;
+    const isCreator = issue.createdBy.toString() === currentUserId;
 
-    const isAssignedUser = issue.assignedTo?.toString() === userId;
+    const isAssignedUser = issue.assignedTo?.toString() === currentUserId;
 
     if (!isAdmin && !isCreator && !isAssignedUser) {
       res.status(403).json({
@@ -271,22 +276,38 @@ export const updateIssue = async (
     }
 
     // --------------------------------------------------------
-    // Prevent changing protected ownership fields
+    // WHITELIST update fields
     // --------------------------------------------------------
 
-    const updateData = {
-      ...req.body,
-    };
+    const updateData: Record<string, unknown> = {};
 
-    delete updateData.createdBy;
+    if (req.body.title !== undefined) {
+      updateData.title = req.body.title;
+    }
+
+    if (req.body.description !== undefined) {
+      updateData.description = req.body.description;
+    }
+
+    if (req.body.status !== undefined) {
+      updateData.status = req.body.status;
+    }
+
+    if (req.body.priority !== undefined) {
+      updateData.priority = req.body.priority;
+    }
+
+    if (req.body.assignedTo !== undefined) {
+      updateData.assignedTo = req.body.assignedTo;
+    }
 
     // --------------------------------------------------------
-    // Validate assignedTo
+    // Assigned user validation
     // --------------------------------------------------------
 
     if (
       updateData.assignedTo &&
-      !mongoose.Types.ObjectId.isValid(updateData.assignedTo)
+      !mongoose.Types.ObjectId.isValid(updateData.assignedTo.toString())
     ) {
       res.status(400).json({
         success: false,
@@ -314,12 +335,12 @@ export const updateIssue = async (
       message: "Issue updated successfully.",
       data: updatedIssue,
     });
-  } catch (err: any) {
-    console.error("Update issue error:", err);
+  } catch (error: any) {
+    console.error("Update issue error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to update issue.",
+      message: error.message || "Failed to update issue.",
     });
   }
 };
@@ -342,13 +363,13 @@ export const deleteIssue = async (
     if (!req.user?.id) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
       return;
     }
 
     // --------------------------------------------------------
-    // Validate issue ID
+    // Validate ID
     // --------------------------------------------------------
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -375,11 +396,9 @@ export const deleteIssue = async (
 
     // --------------------------------------------------------
     // Authorization
-    //
-    // ADMIN or creator can delete.
     // --------------------------------------------------------
 
-    const isAdmin = req.user.role === "ADMIN";
+    const isAdmin = req.user.role === ROLE.ADMIN;
 
     const isCreator = issue.createdBy.toString() === req.user.id;
 
@@ -392,7 +411,7 @@ export const deleteIssue = async (
     }
 
     // --------------------------------------------------------
-    // Delete associated comments
+    // Delete comments
     // --------------------------------------------------------
 
     await IssueComment.deleteMany({
@@ -409,12 +428,12 @@ export const deleteIssue = async (
       success: true,
       message: "Issue deleted successfully.",
     });
-  } catch (err: any) {
-    console.error("Delete issue error:", err);
+  } catch (error: any) {
+    console.error("Delete issue error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to delete issue.",
+      message: error.message || "Failed to delete issue.",
     });
   }
 };
@@ -437,7 +456,7 @@ export const addIssueComment = async (
     if (!req.user?.id) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized. User information not found.",
+        message: "Unauthorized.",
       });
       return;
     }
@@ -455,7 +474,7 @@ export const addIssueComment = async (
     }
 
     // --------------------------------------------------------
-    // Find issue
+    // Check issue
     // --------------------------------------------------------
 
     const issue = await Issue.findById(id);
@@ -492,6 +511,10 @@ export const addIssueComment = async (
       text,
     });
 
+    // --------------------------------------------------------
+    // Populate user
+    // --------------------------------------------------------
+
     const populatedComment = await comment.populate("user", "name email role");
 
     res.status(201).json({
@@ -499,12 +522,12 @@ export const addIssueComment = async (
       message: "Issue comment added successfully.",
       data: populatedComment,
     });
-  } catch (err: any) {
-    console.error("Add issue comment error:", err);
+  } catch (error: any) {
+    console.error("Add issue comment error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to add issue comment.",
+      message: error.message || "Failed to add issue comment.",
     });
   }
 };
@@ -533,7 +556,7 @@ export const getIssueComments = async (
     }
 
     // --------------------------------------------------------
-    // Make sure issue exists
+    // Check issue
     // --------------------------------------------------------
 
     const issue = await Issue.findById(id);
@@ -561,12 +584,12 @@ export const getIssueComments = async (
       count: comments.length,
       data: comments,
     });
-  } catch (err: any) {
-    console.error("Get issue comments error:", err);
+  } catch (error: any) {
+    console.error("Get issue comments error:", error);
 
     res.status(500).json({
       success: false,
-      message: err.message || "Failed to retrieve issue comments.",
+      message: error.message || "Failed to retrieve issue comments.",
     });
   }
 };

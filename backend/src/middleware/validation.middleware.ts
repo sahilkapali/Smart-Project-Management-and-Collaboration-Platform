@@ -1,77 +1,142 @@
-import { Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
-import { ERROR_CODES } from '../types/error.types';
+import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
+
+import { ERROR_CODES } from "../types/error.types";
+
+// ============================================================
+// VALIDATION RULE
+// ============================================================
 
 export interface ValidationRule {
   field: string;
-  location: 'body' | 'params' | 'query';
+  location: "body" | "params" | "query";
+
   required?: boolean;
+
   isObjectId?: boolean;
+
   isDate?: boolean;
+
   enum?: string[];
+
   minLength?: number;
 }
 
+// ============================================================
+// VALIDATE MIDDLEWARE
+// ============================================================
+
 export const validate = (rules: ValidationRule[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const errors: { field: string; message: string }[] = [];
+    const errors: {
+      field: string;
+      message: string;
+    }[] = [];
+
+    // ========================================================
+    // PROCESS RULES
+    // ========================================================
 
     rules.forEach((rule) => {
       const target = req[rule.location];
+
       const value = target?.[rule.field];
 
-      // 1. Required field validation
+      // ======================================================
+      // REQUIRED VALIDATION
+      // ======================================================
+
       if (
         rule.required &&
-        (value === undefined || value === null || value === '')
+        (value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === ""))
       ) {
         errors.push({
           field: rule.field,
           message: `${rule.field} is required.`,
         });
+
         return;
       }
 
-      // Skip optional empty values
-      if (value === undefined || value === null || value === '') {
+      // ======================================================
+      // OPTIONAL EMPTY VALUES
+      // ======================================================
+
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && value.trim() === "")
+      ) {
         return;
       }
 
-      // 2. ObjectId validation
+      // ======================================================
+      // OBJECT ID VALIDATION
+      // ======================================================
+
       if (rule.isObjectId) {
-        if (
-          typeof value !== 'string' ||
-          !mongoose.Types.ObjectId.isValid(value)
-        ) {
+        const isValidObjectId =
+          typeof value === "string" &&
+          mongoose.Types.ObjectId.isValid(value.trim());
+
+        if (!isValidObjectId) {
           errors.push({
             field: rule.field,
             message: `${rule.field} must be a valid ObjectId.`,
           });
+
+          return;
+        }
+
+        // Normalize ObjectId string
+        if (typeof value === "string") {
+          target[rule.field] = value.trim();
         }
       }
 
-      // 3. Enum validation (Case-Insensitive & Auto-Normalizing)
+      // ======================================================
+      // ENUM VALIDATION
+      // ======================================================
+
       if (rule.enum) {
-        const strVal = String(value).trim().toLowerCase();
+        if (typeof value !== "string") {
+          errors.push({
+            field: rule.field,
+            message: `${rule.field} must be a valid value.`,
+          });
+
+          return;
+        }
+
+        const normalizedValue = value.trim().toLowerCase();
+
         const matchedEnum = rule.enum.find(
-          (item) => item.toLowerCase() === strVal
+          (item) => item.toLowerCase() === normalizedValue,
         );
 
         if (!matchedEnum) {
           errors.push({
             field: rule.field,
-            message: `${rule.field} must be one of: ${rule.enum.join(', ')}.`,
+            message:
+              `${rule.field} must be one of: ` + `${rule.enum.join(", ")}.`,
           });
-        } else {
-          target[rule.field] = matchedEnum;
+
+          return;
         }
+
+        // Normalize enum value
+        target[rule.field] = matchedEnum;
       }
 
-      // 4. Date validation
+      // ======================================================
+      // DATE VALIDATION
+      // ======================================================
+
       if (rule.isDate) {
         const isValidDate =
-          typeof value === 'string' &&
-          !isNaN(Date.parse(value));
+          typeof value === "string" && !Number.isNaN(Date.parse(value));
 
         if (!isValidDate) {
           errors.push({
@@ -81,31 +146,53 @@ export const validate = (rules: ValidationRule[]) => {
         }
       }
 
-      // 5. Minimum string length
-      if (
-        rule.minLength !== undefined &&
-        typeof value === 'string' &&
-        value.length < rule.minLength
-      ) {
-        errors.push({
-          field: rule.field,
-          message: `${rule.field} must be at least ${rule.minLength} characters long.`,
-        });
+      // ======================================================
+      // MINIMUM LENGTH
+      // ======================================================
+
+      if (rule.minLength !== undefined) {
+        if (typeof value !== "string") {
+          errors.push({
+            field: rule.field,
+            message: `${rule.field} must be a string.`,
+          });
+
+          return;
+        }
+
+        const trimmedValue = value.trim();
+
+        if (trimmedValue.length < rule.minLength) {
+          errors.push({
+            field: rule.field,
+            message:
+              `${rule.field} must be at least ` +
+              `${rule.minLength} characters long.`,
+          });
+        }
       }
     });
 
-    // Standardized response format for Task 7.3
+    // ========================================================
+    // VALIDATION FAILED
+    // ========================================================
+
     if (errors.length > 0) {
       res.status(400).json({
         success: false,
-        status: 'fail',
+        status: "fail",
         code: ERROR_CODES.VALIDATION_ERROR,
-        message: 'Validation failed',
+        message: "Validation failed",
         data: null,
         errors,
       });
+
       return;
     }
+
+    // ========================================================
+    // SUCCESS
+    // ========================================================
 
     next();
   };

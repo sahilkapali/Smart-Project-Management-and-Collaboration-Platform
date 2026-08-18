@@ -11,9 +11,9 @@ import {
 
 import { ROLE } from "../types/user.types";
 
-/* =====================================================
-   CHECK PROJECT ACCESS
-===================================================== */
+// =====================================================
+// CHECK PROJECT ACCESS
+// =====================================================
 
 const checkProjectAccess = async (
   projectId: string,
@@ -34,15 +34,15 @@ const checkProjectAccess = async (
 
   const isAdmin = user.role === ROLE.ADMIN;
 
-  const isOwner = project.createdBy.toString() === userId;
+  const isOwner = project.createdBy?.toString() === userId.toString();
 
-  const isMember = project.members.some(
-    (member) => member.toString() === userId,
+  const isMember = project.members?.some(
+    (member) => member.toString() === userId.toString(),
   );
 
-  /* -------------------------------------------------
-     VIEW ACCESS
-  ------------------------------------------------- */
+  // ===================================================
+  // VIEW
+  // ===================================================
 
   if (action === "VIEW") {
     if (isAdmin || isOwner || isMember) {
@@ -52,9 +52,9 @@ const checkProjectAccess = async (
     throw new Error("PROJECT_ACCESS_DENIED");
   }
 
-  /* -------------------------------------------------
-     MANAGEMENT ACCESS
-  ------------------------------------------------- */
+  // ===================================================
+  // MANAGE
+  // ===================================================
 
   if (action === "MANAGE") {
     if (isAdmin) {
@@ -71,94 +71,100 @@ const checkProjectAccess = async (
   throw new Error("PROJECT_ACCESS_DENIED");
 };
 
-/* =====================================================
-   CREATE MEETING
-===================================================== */
+// =====================================================
+// POPULATE MEETING
+// =====================================================
+
+const populateMeeting = (query: any) => {
+  return query
+    .populate("createdBy", "name email role avatar")
+    .populate("participants", "name email role avatar");
+};
+
+// =====================================================
+// CREATE MEETING
+// =====================================================
 
 export const createMeeting = async (
   meetingData: Record<string, any>,
   userId: string,
 ) => {
-  /*
-   * Verify that the authenticated user can
-   * manage the selected project.
-   */
   const project = await checkProjectAccess(
     meetingData.projectId,
     userId,
     "MANAGE",
   );
 
-  /*
-   * Never trust createdBy from frontend.
-   */
+  const participants = Array.isArray(meetingData.participants)
+    ? [...new Set(meetingData.participants.map(String))]
+    : [];
+
   const meeting = new Meeting({
-    ...meetingData,
+    title: meetingData.title,
+    description: meetingData.description,
+    meetingLink: meetingData.meetingLink,
+    startTime: meetingData.startTime,
+    endTime: meetingData.endTime,
     projectId: project._id,
     createdBy: userId,
+    participants,
+    notes: Array.isArray(meetingData.notes)
+      ? meetingData.notes.map((note: any) => ({
+          content: note.content,
+          aiGeneratedSummary: note.aiGeneratedSummary || "",
+        }))
+      : [],
+    actionItems: Array.isArray(meetingData.actionItems)
+      ? meetingData.actionItems
+      : [],
   });
 
   const savedMeeting = await meeting.save();
 
-  const participants = meetingData.participants || [];
+  // ===================================================
+  // NOTIFICATIONS
+  // ===================================================
 
-  /*
-   * Notify meeting participants.
-   */
   for (const participantId of participants) {
-    /*
-     * Don't notify creator.
-     */
-    if (participantId.toString() === userId.toString()) {
+    if (participantId === userId.toString()) {
       continue;
     }
 
     await createNotification(
-      participantId.toString(),
-
+      participantId,
       `You have been invited to the meeting "${savedMeeting.title}".`,
-
       NotificationType.MEETING_INVITATION,
-
       userId.toString(),
-
       savedMeeting._id.toString(),
-
       NotificationEntityType.MEETING,
     );
   }
 
-  return await Meeting.findById(savedMeeting._id)
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  return await populateMeeting(Meeting.findById(savedMeeting._id));
 };
 
-/* =====================================================
-   GET MEETINGS BY PROJECT
-===================================================== */
+// =====================================================
+// GET MEETINGS BY PROJECT
+// =====================================================
 
 export const getMeetingsByProject = async (
   projectId: string,
   userId: string,
 ) => {
-  /*
-   * Verify VIEW access.
-   */
   await checkProjectAccess(projectId, userId, "VIEW");
 
-  return await Meeting.find({
-    projectId,
-  })
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar")
-    .sort({
+  return await populateMeeting(
+    Meeting.find({
+      projectId,
+    }).sort({
       startTime: 1,
-    });
+    }),
+  );
 };
 
-/* =====================================================
-   GET MEETING BY ID
-===================================================== */
+// =====================================================
+// GET MEETING BY ID
+// =====================================================
 
 export const getMeetingById = async (id: string, userId: string) => {
   const meeting = await Meeting.findById(id);
@@ -167,19 +173,14 @@ export const getMeetingById = async (id: string, userId: string) => {
     return null;
   }
 
-  /*
-   * Verify access through meeting's project.
-   */
   await checkProjectAccess(meeting.projectId.toString(), userId, "VIEW");
 
-  return await Meeting.findById(id)
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  return await populateMeeting(Meeting.findById(id));
 };
 
-/* =====================================================
-   UPDATE MEETING
-===================================================== */
+// =====================================================
+// UPDATE MEETING
+// =====================================================
 
 export const updateMeeting = async (
   id: string,
@@ -192,21 +193,16 @@ export const updateMeeting = async (
     return null;
   }
 
-  /*
-   * Verify management access to the
-   * meeting's current project.
-   */
   await checkProjectAccess(
     existingMeeting.projectId.toString(),
     userId,
     "MANAGE",
   );
 
-  /*
-   * If projectId is being changed,
-   * verify management access to the
-   * new project as well.
-   */
+  // ===================================================
+  // PROJECT CHANGE
+  // ===================================================
+
   if (
     updateData.projectId !== undefined &&
     updateData.projectId.toString() !== existingMeeting.projectId.toString()
@@ -214,28 +210,42 @@ export const updateMeeting = async (
     await checkProjectAccess(updateData.projectId.toString(), userId, "MANAGE");
   }
 
-  /*
-   * Don't allow createdBy to be changed.
-   */
+  // ===================================================
+  // NEVER ALLOW CREATEDBY CHANGE
+  // ===================================================
+
   const safeUpdateData = {
     ...updateData,
   };
 
   delete safeUpdateData.createdBy;
+  delete safeUpdateData._id;
 
-  const updatedMeeting = await Meeting.findByIdAndUpdate(id, safeUpdateData, {
-    new: true,
-    runValidators: true,
-  })
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  // ===================================================
+  // UPDATE
+  // ===================================================
 
-  return updatedMeeting;
+  const updatedMeeting = await Meeting.findByIdAndUpdate(
+    id,
+    {
+      $set: safeUpdateData,
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  );
+
+  if (!updatedMeeting) {
+    return null;
+  }
+
+  return await populateMeeting(Meeting.findById(updatedMeeting._id));
 };
 
-/* =====================================================
-   DELETE MEETING
-===================================================== */
+// =====================================================
+// DELETE MEETING
+// =====================================================
 
 export const deleteMeeting = async (id: string, userId: string) => {
   const meeting = await Meeting.findById(id);
@@ -244,17 +254,14 @@ export const deleteMeeting = async (id: string, userId: string) => {
     return null;
   }
 
-  /*
-   * Verify management access.
-   */
   await checkProjectAccess(meeting.projectId.toString(), userId, "MANAGE");
 
   return await Meeting.findByIdAndDelete(id);
 };
 
-/* =====================================================
-   ADD MEETING NOTES
-===================================================== */
+// =====================================================
+// ADD MEETING NOTE
+// =====================================================
 
 export const addMeetingNotes = async (
   meetingId: string,
@@ -267,29 +274,21 @@ export const addMeetingNotes = async (
     return null;
   }
 
-  /*
-   * Adding notes requires project access.
-   */
-  await checkProjectAccess(meeting.projectId.toString(), userId, "VIEW");
-
-  if (!meeting.notes) {
-    meeting.notes = [];
-  }
+  await checkProjectAccess(meeting.projectId.toString(), userId, "MANAGE");
 
   meeting.notes.push({
-    content,
-  } as any);
+    content: content.trim(),
+    aiGeneratedSummary: "",
+  });
 
   await meeting.save();
 
-  return await Meeting.findById(meetingId)
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  return await populateMeeting(Meeting.findById(meetingId));
 };
 
-/* =====================================================
-   UPDATE MEETING NOTES
-===================================================== */
+// =====================================================
+// UPDATE MEETING NOTE
+// =====================================================
 
 export const updateMeetingNotes = async (
   meetingId: string,
@@ -303,11 +302,7 @@ export const updateMeetingNotes = async (
     return null;
   }
 
-  await checkProjectAccess(meeting.projectId.toString(), userId, "VIEW");
-
-  if (!meeting.notes) {
-    return undefined;
-  }
+  await checkProjectAccess(meeting.projectId.toString(), userId, "MANAGE");
 
   const note = meeting.notes.find(
     (item: any) => item._id?.toString() === noteId,
@@ -317,18 +312,16 @@ export const updateMeetingNotes = async (
     return undefined;
   }
 
-  note.content = content;
+  note.content = content.trim();
 
   await meeting.save();
 
-  return await Meeting.findById(meetingId)
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  return await populateMeeting(Meeting.findById(meetingId));
 };
 
-/* =====================================================
-   PATCH MEETING NOTES
-===================================================== */
+// =====================================================
+// PATCH MEETING NOTE
+// =====================================================
 
 export const patchMeetingNotes = async (
   meetingId: string,
@@ -342,11 +335,7 @@ export const patchMeetingNotes = async (
     return null;
   }
 
-  await checkProjectAccess(meeting.projectId.toString(), userId, "VIEW");
-
-  if (!meeting.notes) {
-    return undefined;
-  }
+  await checkProjectAccess(meeting.projectId.toString(), userId, "MANAGE");
 
   const note = meeting.notes.find(
     (item: any) => item._id?.toString() === noteId,
@@ -357,12 +346,10 @@ export const patchMeetingNotes = async (
   }
 
   if (content !== undefined) {
-    note.content = content;
+    note.content = content.trim();
   }
 
   await meeting.save();
 
-  return await Meeting.findById(meetingId)
-    .populate("createdBy", "name email role avatar")
-    .populate("participants", "name email role avatar");
+  return await populateMeeting(Meeting.findById(meetingId));
 };

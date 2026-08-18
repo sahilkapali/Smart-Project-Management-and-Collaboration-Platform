@@ -1,12 +1,27 @@
 import { Document, Types } from "mongoose";
 
 // =====================================================
+// POPULATED USER
+// =====================================================
+
+export interface IMeetingUser {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string;
+}
+
+// =====================================================
 // MEETING NOTE
 // =====================================================
 
 export interface IMeetingNote {
+  _id?: Types.ObjectId;
   content: string;
   aiGeneratedSummary?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // =====================================================
@@ -23,13 +38,13 @@ export interface IMeeting extends Document {
 
   projectId: Types.ObjectId;
 
-  createdBy: Types.ObjectId;
+  createdBy: Types.ObjectId | IMeetingUser;
 
-  participants: Types.ObjectId[];
+  participants: Array<Types.ObjectId | IMeetingUser>;
 
-  notes?: IMeetingNote[];
+  notes: IMeetingNote[];
 
-  actionItems?: string[];
+  actionItems: string[];
 
   createdAt: Date;
   updatedAt: Date;

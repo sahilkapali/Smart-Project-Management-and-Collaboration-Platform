@@ -13,37 +13,80 @@ import upload from "../middleware/upload.middleware";
 
 const router = Router();
 
-// ======================================================
+// ============================================================
 // CREATE REPOSITORY VERSION
-// POST /api/repositories/:id/versions
-// ======================================================
+// ============================================================
+//
+// POST
+// /api/repositories/:id/versions
+//
+// Content-Type:
+// multipart/form-data
+//
+// Fields:
+// versionNumber
+// title
+// changelog
+// commitHash
+// file
+//
 
 router.post(
   "/:id/versions",
+
   authenticateUser(),
+
   upload.single("file"),
+
   createVersion,
 );
 
-// ======================================================
-// GET ALL REPOSITORY VERSIONS
-// GET /api/repositories/:id/versions
-// ======================================================
+// ============================================================
+// GET ALL VERSIONS
+// ============================================================
+//
+// GET
+// /api/repositories/:id/versions
+//
 
-router.get("/:id/versions", authenticateUser(), getVersions);
+router.get(
+  "/:id/versions",
 
-// ======================================================
-// GET VERSION BY ID
-// GET /api/repositories/:id/versions/:versionId
-// ======================================================
+  authenticateUser(),
 
-router.get("/:id/versions/:versionId", authenticateUser(), getVersionById);
+  getVersions,
+);
 
-// ======================================================
+// ============================================================
+// GET SINGLE VERSION
+// ============================================================
+//
+// GET
+// /api/repositories/:id/versions/:versionId
+//
+
+router.get(
+  "/:id/versions/:versionId",
+
+  authenticateUser(),
+
+  getVersionById,
+);
+
+// ============================================================
 // DELETE VERSION
-// DELETE /api/repositories/:id/versions/:versionId
-// ======================================================
+// ============================================================
+//
+// DELETE
+// /api/repositories/:id/versions/:versionId
+//
 
-router.delete("/:id/versions/:versionId", authenticateUser(), deleteVersion);
+router.delete(
+  "/:id/versions/:versionId",
+
+  authenticateUser(),
+
+  deleteVersion,
+);
 
 export default router;

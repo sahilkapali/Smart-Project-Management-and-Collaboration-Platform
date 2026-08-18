@@ -7,12 +7,18 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -21,6 +27,9 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -29,7 +38,12 @@ import projectService from "../../services/project.service";
 
 import CreateTaskDialog from "./CreateTaskDialog";
 
-import type { Task, TaskPriority, TaskStatus } from "../../types/task.types";
+import type {
+  Task,
+  TaskPriority,
+  TaskStatus,
+  UpdateTaskPayload,
+} from "../../types/task.types";
 
 import type { Project } from "../../types/project.types";
 
@@ -95,17 +109,48 @@ const Tasks = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
   // ==========================================================
-  // DETERMINE PROJECT ID
+  // EDIT TASK
   // ==========================================================
 
-  /**
-   * Priority:
-   *
-   * 1. /projects/:projectId/tasks
-   * 2. ?project=PROJECT_ID
-   * 3. Previously selected project from localStorage
-   * 4. User selects manually
-   */
+  const [editOpen, setEditOpen] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const [editLoading, setEditLoading] = useState(false);
+
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    description: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    assignedTo: string;
+    dueDate: string;
+  }>({
+    title: "",
+    description: "",
+    status: "Todo",
+    priority: "Medium",
+    assignedTo: "",
+    dueDate: "",
+  });
+
+  // ==========================================================
+  // DELETE TASK
+  // ==========================================================
+
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // ==========================================================
+  // AI PRIORITIZATION
+  // ==========================================================
+
+  const [aiLoadingTaskId, setAiLoadingTaskId] = useState<string | null>(null);
+
+  // ==========================================================
+  // DETERMINE PROJECT ID
+  // ==========================================================
 
   const queryProjectId = searchParams.get("project");
 
@@ -136,15 +181,14 @@ const Tasks = () => {
 
       setProjects(projectList);
 
-      // ------------------------------------------------------
-      // Determine initial project
-      // ------------------------------------------------------
-
       const validProjectIds = projectList
         .map((project) => project.id)
-        .filter(Boolean);
+        .filter((id): id is string => Boolean(id));
 
-      // If route already has a project, use it
+      // ------------------------------------------------------
+      // ROUTE PROJECT
+      // ------------------------------------------------------
+
       if (routeProjectId && validProjectIds.includes(routeProjectId)) {
         setSelectedProjectId(routeProjectId);
 
@@ -153,7 +197,10 @@ const Tasks = () => {
         return;
       }
 
-      // If query has a project, use it
+      // ------------------------------------------------------
+      // QUERY PROJECT
+      // ------------------------------------------------------
+
       if (queryProjectId && validProjectIds.includes(queryProjectId)) {
         setSelectedProjectId(queryProjectId);
 
@@ -162,20 +209,37 @@ const Tasks = () => {
         return;
       }
 
-      // If current selected state is valid
+      // ------------------------------------------------------
+      // CURRENT SELECTED PROJECT
+      // ------------------------------------------------------
+
       if (selectedProjectId && validProjectIds.includes(selectedProjectId)) {
         return;
       }
 
-      // If localStorage project is valid
+      // ------------------------------------------------------
+      // STORED PROJECT
+      // ------------------------------------------------------
+
       if (storedProjectId && validProjectIds.includes(storedProjectId)) {
         setSelectedProjectId(storedProjectId);
+
+        if (!routeProjectId && !queryProjectId) {
+          setSearchParams(
+            {
+              project: storedProjectId,
+            },
+            {
+              replace: true,
+            },
+          );
+        }
 
         return;
       }
 
       // ------------------------------------------------------
-      // If nothing is selected, select first project
+      // FIRST PROJECT
       // ------------------------------------------------------
 
       if (projectList.length > 0) {
@@ -186,7 +250,6 @@ const Tasks = () => {
 
           localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, firstProjectId);
 
-          // Update URL only for /tasks page
           if (!routeProjectId) {
             setSearchParams(
               {
@@ -239,19 +302,10 @@ const Tasks = () => {
 
     setError("");
 
-    // --------------------------------------------------------
-    // If current page is /projects/:id/tasks
-    // navigate to the selected project
-    // --------------------------------------------------------
-
     if (routeProjectId) {
       navigate(`/projects/${projectId}/tasks`);
       return;
     }
-
-    // --------------------------------------------------------
-    // Otherwise keep /tasks and use query parameter
-    // --------------------------------------------------------
 
     setSearchParams({
       project: projectId,
@@ -259,7 +313,7 @@ const Tasks = () => {
   };
 
   // ==========================================================
-  // GET CURRENT PROJECT
+  // CURRENT PROJECT
   // ==========================================================
 
   const selectedProject = useMemo(() => {
@@ -391,6 +445,22 @@ const Tasks = () => {
   };
 
   // ==========================================================
+  // GET ASSIGNEE NAME
+  // ==========================================================
+
+  const getAssigneeName = (task: Task): string => {
+    if (!task.assignedTo) {
+      return "Unassigned";
+    }
+
+    if (typeof task.assignedTo === "object") {
+      return task.assignedTo.name || "Unassigned";
+    }
+
+    return task.assignedTo;
+  };
+
+  // ==========================================================
   // UPDATE TASK STATUS
   // ==========================================================
 
@@ -408,11 +478,9 @@ const Tasks = () => {
       const updatedTask = await taskService.updateTaskStatus(taskId, status);
 
       setTasks((previousTasks) =>
-        previousTasks.map((currentTask) => {
-          const currentId = getTaskId(currentTask);
-
-          return currentId === taskId ? updatedTask : currentTask;
-        }),
+        previousTasks.map((currentTask) =>
+          getTaskId(currentTask) === taskId ? updatedTask : currentTask,
+        ),
       );
     } catch (err: any) {
       console.error("Failed to update task status:", err);
@@ -436,6 +504,7 @@ const Tasks = () => {
 
     setTasks((previousTasks) => [createdTask, ...previousTasks]);
 
+    setCreateOpen(false);
     setError("");
   };
 
@@ -451,6 +520,175 @@ const Tasks = () => {
     }
 
     setCreateOpen(true);
+  };
+
+  // ==========================================================
+  // OPEN EDIT TASK
+  // ==========================================================
+
+  const handleOpenEdit = (task: Task) => {
+    setEditingTask(task);
+
+    let dueDate = "";
+
+    if (task.dueDate) {
+      const date = new Date(task.dueDate);
+
+      if (!Number.isNaN(date.getTime())) {
+        dueDate = date.toISOString().slice(0, 10);
+      }
+    }
+
+    setEditForm({
+      title: task.title || "",
+      description: task.description || "",
+      status: task.status || "Todo",
+      priority: task.priority || "Medium",
+      assignedTo:
+        typeof task.assignedTo === "string"
+          ? task.assignedTo
+          : task.assignedTo?._id || "",
+      dueDate,
+    });
+
+    setEditOpen(true);
+  };
+
+  // ==========================================================
+  // EDIT FORM CHANGE
+  // ==========================================================
+
+  const handleEditChange = (field: keyof typeof editForm, value: string) => {
+    setEditForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  };
+
+  // ==========================================================
+  // UPDATE TASK
+  // ==========================================================
+
+  const handleUpdateTask = async () => {
+    if (!editingTask) {
+      return;
+    }
+
+    const taskId = getTaskId(editingTask);
+
+    if (!taskId) {
+      setError("Task ID is missing.");
+      return;
+    }
+
+    if (!editForm.title.trim()) {
+      setError("Task title is required.");
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      setError("");
+
+      const payload: UpdateTaskPayload = {
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        status: editForm.status,
+        priority: editForm.priority,
+        dueDate: editForm.dueDate || undefined,
+        assignedTo: editForm.assignedTo.trim() || undefined,
+      };
+
+      const updatedTask = await taskService.updateTask(taskId, payload);
+
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          getTaskId(task) === taskId ? updatedTask : task,
+        ),
+      );
+
+      setEditOpen(false);
+      setEditingTask(null);
+    } catch (err: any) {
+      console.error("Failed to update task:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to update task.",
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // DELETE TASK
+  // ==========================================================
+
+  const handleDeleteTask = async () => {
+    if (!deleteTaskId) {
+      return;
+    }
+
+    try {
+      setDeleteLoading(true);
+      setError("");
+
+      await taskService.deleteTask(deleteTaskId);
+
+      setTasks((previousTasks) =>
+        previousTasks.filter((task) => getTaskId(task) !== deleteTaskId),
+      );
+
+      setDeleteTaskId(null);
+    } catch (err: any) {
+      console.error("Failed to delete task:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete task.",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // AI AUTO PRIORITIZE
+  // ==========================================================
+
+  const handleAutoPrioritize = async (task: Task) => {
+    const taskId = getTaskId(task);
+
+    if (!taskId) {
+      setError("Task ID is missing.");
+      return;
+    }
+
+    try {
+      setAiLoadingTaskId(taskId);
+      setError("");
+
+      const updatedTask = await taskService.autoPrioritizeTask(taskId);
+
+      setTasks((previousTasks) =>
+        previousTasks.map((currentTask) =>
+          getTaskId(currentTask) === taskId ? updatedTask : currentTask,
+        ),
+      );
+    } catch (err: any) {
+      console.error("AI prioritization failed:", err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "AI prioritization failed.",
+      );
+    } finally {
+      setAiLoadingTaskId(null);
+    }
   };
 
   // ==========================================================
@@ -473,6 +711,8 @@ const Tasks = () => {
 
   const renderTaskCard = (task: Task) => {
     const taskId = getTaskId(task);
+
+    const isAiLoading = aiLoadingTaskId === taskId;
 
     return (
       <Card
@@ -499,18 +739,64 @@ const Tasks = () => {
           }}
         >
           <Stack spacing={1.5}>
-            {/* TITLE */}
+            {/* ==========================================
+                TITLE + ACTIONS
+            =========================================== */}
 
-            <Typography
-              fontWeight={700}
-              sx={{
-                wordBreak: "break-word",
-              }}
+            <Stack
+              direction="row"
+              alignItems="flex-start"
+              justifyContent="space-between"
+              spacing={1}
             >
-              {task.title || "Untitled Task"}
-            </Typography>
+              <Typography
+                fontWeight={700}
+                sx={{
+                  wordBreak: "break-word",
+                  flex: 1,
+                }}
+              >
+                {task.title || "Untitled Task"}
+              </Typography>
 
-            {/* DESCRIPTION */}
+              <Stack direction="row" spacing={0.25}>
+                <Tooltip title="AI Auto Prioritize">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => void handleAutoPrioritize(task)}
+                      disabled={isAiLoading}
+                    >
+                      {isAiLoading ? (
+                        <CircularProgress size={18} />
+                      ) : (
+                        <AutoAwesomeRoundedIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+
+                <Tooltip title="Edit task">
+                  <IconButton size="small" onClick={() => handleOpenEdit(task)}>
+                    <EditRoundedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Delete task">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => setDeleteTaskId(taskId)}
+                  >
+                    <DeleteRoundedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
+
+            {/* ==========================================
+                DESCRIPTION
+            =========================================== */}
 
             <Typography
               variant="body2"
@@ -526,7 +812,9 @@ const Tasks = () => {
               {task.description || "No description available."}
             </Typography>
 
-            {/* PRIORITY */}
+            {/* ==========================================
+                PRIORITY
+            =========================================== */}
 
             <Stack
               direction="row"
@@ -552,7 +840,9 @@ const Tasks = () => {
               </Typography>
             </Stack>
 
-            {/* DUE DATE */}
+            {/* ==========================================
+                DUE DATE
+            =========================================== */}
 
             <Stack
               direction="row"
@@ -573,7 +863,9 @@ const Tasks = () => {
               </Typography>
             </Stack>
 
-            {/* ASSIGNEE */}
+            {/* ==========================================
+                ASSIGNEE
+            =========================================== */}
 
             <Stack
               direction="row"
@@ -594,13 +886,13 @@ const Tasks = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {typeof task.assignedTo === "object"
-                  ? task.assignedTo?.name || "Unassigned"
-                  : task.assignedTo || "Unassigned"}
+                {getAssigneeName(task)}
               </Typography>
             </Stack>
 
-            {/* STATUS */}
+            {/* ==========================================
+                STATUS
+            =========================================== */}
 
             <FormControl size="small" fullWidth>
               <Select
@@ -1097,10 +1389,6 @@ const Tasks = () => {
       ) : activeProjectId &&
         projects.length > 0 &&
         filteredTasks.length === 0 ? (
-        /* ====================================================
-           NO TASKS
-        ===================================================== */
-
         <Card
           elevation={0}
           sx={{
@@ -1159,10 +1447,6 @@ const Tasks = () => {
           </CardContent>
         </Card>
       ) : (
-        /* ====================================================
-           KANBAN BOARD
-        ===================================================== */
-
         activeProjectId &&
         projects.length > 0 && (
           <Box
@@ -1197,6 +1481,173 @@ const Tasks = () => {
           onCreated={(task) => handleTaskCreated(task as Task)}
         />
       )}
+
+      {/* ======================================================
+          EDIT TASK DIALOG
+      ======================================================= */}
+
+      <Dialog
+        open={editOpen}
+        onClose={() => {
+          if (!editLoading) {
+            setEditOpen(false);
+          }
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Edit Task</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Task Title"
+              fullWidth
+              required
+              value={editForm.title}
+              onChange={(event) =>
+                handleEditChange("title", event.target.value)
+              }
+            />
+
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              minRows={3}
+              value={editForm.description}
+              onChange={(event) =>
+                handleEditChange("description", event.target.value)
+              }
+            />
+
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              spacing={2}
+            >
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+
+                <Select
+                  value={editForm.status}
+                  label="Status"
+                  onChange={(event) =>
+                    handleEditChange("status", event.target.value)
+                  }
+                >
+                  <MenuItem value="Todo">To Do</MenuItem>
+
+                  <MenuItem value="In Progress">In Progress</MenuItem>
+
+                  <MenuItem value="Completed">Completed</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Priority</InputLabel>
+
+                <Select
+                  value={editForm.priority}
+                  label="Priority"
+                  onChange={(event) =>
+                    handleEditChange("priority", event.target.value)
+                  }
+                >
+                  <MenuItem value="Low">Low</MenuItem>
+
+                  <MenuItem value="Medium">Medium</MenuItem>
+
+                  <MenuItem value="High">High</MenuItem>
+
+                  <MenuItem value="Critical">Critical</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+
+            <TextField
+              label="Assigned User ID"
+              fullWidth
+              value={editForm.assignedTo}
+              onChange={(event) =>
+                handleEditChange("assignedTo", event.target.value)
+              }
+              helperText="Enter the MongoDB User ID. Leave empty to unassign."
+            />
+
+            <TextField
+              label="Due Date"
+              type="date"
+              fullWidth
+              value={editForm.dueDate}
+              onChange={(event) =>
+                handleEditChange("dueDate", event.target.value)
+              }
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)} disabled={editLoading}>
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => void handleUpdateTask()}
+            disabled={editLoading}
+          >
+            {editLoading ? <CircularProgress size={20} /> : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ======================================================
+          DELETE CONFIRMATION DIALOG
+      ======================================================= */}
+
+      <Dialog
+        open={Boolean(deleteTaskId)}
+        onClose={() => {
+          if (!deleteLoading) {
+            setDeleteTaskId(null);
+          }
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Task?</DialogTitle>
+
+        <DialogContent>
+          <Typography color="text.secondary">
+            Are you sure you want to delete this task? This action cannot be
+            undone.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={() => setDeleteTaskId(null)}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void handleDeleteTask()}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? <CircularProgress size={20} /> : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

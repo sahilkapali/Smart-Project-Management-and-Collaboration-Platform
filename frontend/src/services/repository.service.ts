@@ -2,281 +2,434 @@ import api from "./api";
 
 import type {
   Repository,
-  FileNode,
-  RepositoryIssue,
   RepositoryVersion,
-  CreateVersionPayload,
+  CreateRepositoryRequest,
+  UpdateRepositoryRequest,
+  CreateRepositoryVersionRequest,
+  RepositoryStatistics,
+  RepositoryFile,
+  RepositoryIssue,
 } from "../types/repository.types";
 
-const ENDPOINT = "/repositories";
+/**
+ * ============================================================
+ * REPOSITORY SERVICE
+ * ============================================================
+ *
+ * All repository API calls go through the shared Axios client.
+ *
+ * The Axios client is responsible for:
+ * - Backend base URL
+ * - JWT Authorization header
+ * - Credentials/cookies
+ * - Global 401 handling
+ *
+ * Backend base path:
+ *
+ *     /api/repositories
+ */
 
-// ============================================================
-// API RESPONSE TYPES
-// ============================================================
+/**
+ * ============================================================
+ * CREATE REPOSITORY
+ * ============================================================
+ *
+ * POST /api/repositories
+ */
+export const createRepository = async (
+  data: CreateRepositoryRequest,
+): Promise<Repository> => {
+  const response = await api.post("/repositories", data);
 
-interface RepositoryResponse {
-  success: boolean;
-  message?: string;
-  data: Repository;
-}
-
-interface RepositoriesResponse {
-  success: boolean;
-  message?: string;
-  data: Repository[];
-}
-
-interface DeleteRepositoryResponse {
-  success: boolean;
-  message: string;
-}
-
-// ============================================================
-// GET ALL ACCESSIBLE REPOSITORIES
-// ============================================================
-//
-// Backend:
-// GET /api/repositories
-//
-// Accessible to:
-// - ADMIN
-// - Project owner
-// - Project members
-//
-
-export const getRepositories = async (): Promise<Repository[]> => {
-  const response = await api.get<RepositoriesResponse>(ENDPOINT);
-
-  return response.data.data;
+  return response.data?.data;
 };
 
-// ============================================================
-// GET REPOSITORIES BY PROJECT
-// ============================================================
-//
-// Backend:
-// GET /api/repositories/project/:projectId
-//
+/**
+ * ============================================================
+ * GET ALL ACCESSIBLE REPOSITORIES
+ * ============================================================
+ *
+ * GET /api/repositories
+ *
+ * The backend automatically limits the result according
+ * to the authenticated user's project access.
+ */
+export const getRepositories = async (): Promise<Repository[]> => {
+  const response = await api.get("/repositories");
 
+  const data = response.data?.data;
+
+  return Array.isArray(data) ? data : [];
+};
+
+/**
+ * ============================================================
+ * GET REPOSITORIES FOR A PROJECT
+ * ============================================================
+ *
+ * GET /api/repositories/project/:projectId
+ */
 export const getProjectRepositories = async (
   projectId: string,
 ): Promise<Repository[]> => {
-  const response = await api.get<RepositoriesResponse>(
-    `${ENDPOINT}/project/${projectId}`,
+  if (!projectId) {
+    throw new Error("Project ID is required.");
+  }
+
+  const response = await api.get(
+    `/repositories/project/${encodeURIComponent(projectId)}`,
   );
 
-  return response.data.data;
+  const data = response.data?.data;
+
+  return Array.isArray(data) ? data : [];
 };
 
-// ============================================================
-// GET SINGLE REPOSITORY
-// ============================================================
-//
-// Backend:
-// GET /api/repositories/:id
-//
+/**
+ * ============================================================
+ * GET REPOSITORY BY ID
+ * ============================================================
+ *
+ * GET /api/repositories/:id
+ */
+export const getRepository = async (
+  repositoryId: string,
+): Promise<Repository> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}`,
+  );
+
+  return response.data?.data;
+};
+
+/**
+ * Backward-compatible alias.
+ */
 export const getRepositoryById = async (
   repositoryId: string,
 ): Promise<Repository> => {
-  const response = await api.get<RepositoryResponse>(
-    `${ENDPOINT}/${repositoryId}`,
-  );
-
-  return response.data.data;
+  return getRepository(repositoryId);
 };
 
-// ============================================================
-// CREATE REPOSITORY
-// ============================================================
-//
-// Backend:
-// POST /api/repositories
-//
-// Backend expects:
-// {
-//   project: string;
-//   name: string;
-//   description?: string;
-//   githubUrl?: string;
-// }
-//
-// Only ADMIN / PROJECT_MANAGER with project access
-// should be allowed by backend.
-//
-
-export interface CreateRepositoryPayload {
-  project: string;
-  name: string;
-  description?: string;
-  githubUrl?: string;
-}
-
-export const createRepository = async (
-  data: CreateRepositoryPayload,
-): Promise<Repository> => {
-  const response = await api.post<RepositoryResponse>(ENDPOINT, data);
-
-  return response.data.data;
-};
-
-// ============================================================
-// UPDATE REPOSITORY
-// ============================================================
-//
-// Backend:
-// PATCH /api/repositories/:id
-//
-// Backend expects:
-// {
-//   name?: string;
-//   description?: string;
-//   githubUrl?: string;
-// }
-//
-
-export interface UpdateRepositoryPayload {
-  name?: string;
-  description?: string;
-  githubUrl?: string;
-}
-
+/**
+ * ============================================================
+ * UPDATE REPOSITORY
+ * ============================================================
+ *
+ * PUT /api/repositories/:id
+ */
 export const updateRepository = async (
   repositoryId: string,
-  data: UpdateRepositoryPayload,
+  data: UpdateRepositoryRequest,
 ): Promise<Repository> => {
-  const response = await api.patch<RepositoryResponse>(
-    `${ENDPOINT}/${repositoryId}`,
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
+
+  const response = await api.put(
+    `/repositories/${encodeURIComponent(repositoryId)}`,
     data,
   );
 
-  return response.data.data;
+  return response.data?.data;
 };
 
-// ============================================================
-// DELETE REPOSITORY
-// ============================================================
-//
-// Backend:
-// DELETE /api/repositories/:id
-//
+/**
+ * ============================================================
+ * DELETE REPOSITORY
+ * ============================================================
+ *
+ * DELETE /api/repositories/:id
+ */
+export const deleteRepository = async (repositoryId: string): Promise<void> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
-export const deleteRepository = async (
+  await api.delete(`/repositories/${encodeURIComponent(repositoryId)}`);
+};
+
+/**
+ * ============================================================
+ * CREATE REPOSITORY VERSION
+ * ============================================================
+ *
+ * POST /api/repositories/:id/versions
+ *
+ * Content-Type:
+ * multipart/form-data
+ *
+ * Fields:
+ * - versionNumber
+ * - title
+ * - changelog
+ * - commitHash
+ * - file
+ */
+export const createRepositoryVersion = async (
   repositoryId: string,
-): Promise<string> => {
-  const response = await api.delete<DeleteRepositoryResponse>(
-    `${ENDPOINT}/${repositoryId}`,
+  data: Omit<CreateRepositoryVersionRequest, "repositoryId">,
+): Promise<RepositoryVersion> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
+
+  if (!data.versionNumber?.trim()) {
+    throw new Error("Version number is required.");
+  }
+
+  if (!data.title?.trim()) {
+    throw new Error("Version title is required.");
+  }
+
+  const formData = new FormData();
+
+  formData.append("versionNumber", data.versionNumber.trim());
+
+  formData.append("title", data.title.trim());
+
+  if (data.changelog?.trim()) {
+    formData.append("changelog", data.changelog.trim());
+  }
+
+  if (data.commitHash?.trim()) {
+    formData.append("commitHash", data.commitHash.trim());
+  }
+
+  if (data.file) {
+    formData.append("file", data.file);
+  }
+
+  const response = await api.post(
+    `/repositories/${encodeURIComponent(repositoryId)}/versions`,
+    formData,
   );
 
-  return response.data.message;
+  return response.data?.data;
 };
 
-// ============================================================
-// OPTIONAL: REPOSITORY VERSIONS
-// ============================================================
-//
-// Keep these only if you have separate backend routes:
-//
-// POST /api/repositories/:id/versions
-// GET  /api/repositories/:id/versions
-//
-// They are NOT present in the repository.routes.ts
-// you showed me.
-//
-
-export const uploadRepositoryVersion = async (
-  repositoryId: string,
-  formData: FormData,
-): Promise<RepositoryVersion> => {
-  const response = await api.post<
-    RepositoryResponse & {
-      data: RepositoryVersion;
-    }
-  >(`${ENDPOINT}/${repositoryId}/versions`, formData);
-
-  return response.data.data;
-};
-
+/**
+ * ============================================================
+ * GET REPOSITORY VERSIONS
+ * ============================================================
+ *
+ * GET /api/repositories/:id/versions
+ */
 export const getRepositoryVersions = async (
   repositoryId: string,
 ): Promise<RepositoryVersion[]> => {
-  const response = await api.get<{
-    success: boolean;
-    message?: string;
-    data: RepositoryVersion[];
-  }>(`${ENDPOINT}/${repositoryId}/versions`);
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
-  return response.data.data;
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/versions`,
+  );
+
+  const data = response.data?.data;
+
+  return Array.isArray(data) ? data : [];
 };
 
-export const createRepositoryVersion = async (
+/**
+ * ============================================================
+ * GET SINGLE REPOSITORY VERSION
+ * ============================================================
+ *
+ * GET /api/repositories/:id/versions/:versionId
+ */
+export const getRepositoryVersion = async (
   repositoryId: string,
-  payload: CreateVersionPayload,
+  versionId: string,
 ): Promise<RepositoryVersion> => {
-  const formData = new FormData();
-
-  formData.append("versionNumber", payload.versionNumber);
-
-  if (payload.title) {
-    formData.append("title", payload.title);
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
   }
 
-  if (payload.changelog) {
-    formData.append("changelog", payload.changelog);
+  if (!versionId) {
+    throw new Error("Version ID is required.");
   }
 
-  if (payload.commitHash) {
-    formData.append("commitHash", payload.commitHash);
-  }
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/versions/${encodeURIComponent(versionId)}`,
+  );
 
-  if (payload.file) {
-    formData.append("file", payload.file);
-  }
-
-  return uploadRepositoryVersion(repositoryId, formData);
+  return response.data?.data;
 };
 
-// ============================================================
-// OPTIONAL: REPOSITORY FILES
-// ============================================================
-//
-// Keep only if backend provides:
-// GET /api/repositories/:id/files
-//
+/**
+ * ============================================================
+ * DELETE REPOSITORY VERSION
+ * ============================================================
+ *
+ * DELETE /api/repositories/:id/versions/:versionId
+ */
+export const deleteRepositoryVersion = async (
+  repositoryId: string,
+  versionId: string,
+): Promise<void> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
+  if (!versionId) {
+    throw new Error("Version ID is required.");
+  }
+
+  await api.delete(
+    `/repositories/${encodeURIComponent(repositoryId)}/versions/${encodeURIComponent(versionId)}`,
+  );
+};
+
+/**
+ * ============================================================
+ * GET REPOSITORY FILES
+ * ============================================================
+ *
+ * GET /api/repositories/:id/files
+ *
+ * NOTE:
+ * The original backend currently does NOT expose this
+ * endpoint. We will add the backend implementation in
+ * the next Repository step.
+ */
 export const getRepositoryFiles = async (
   repositoryId: string,
-  path = "",
-): Promise<FileNode[]> => {
-  const url = path
-    ? `${ENDPOINT}/${repositoryId}/files?path=${encodeURIComponent(path)}`
-    : `${ENDPOINT}/${repositoryId}/files`;
+): Promise<RepositoryFile[]> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
-  const response = await api.get<{
-    success: boolean;
-    message?: string;
-    data: FileNode[];
-  }>(url);
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/files`,
+  );
 
-  return response.data.data;
+  const data = response.data?.data;
+
+  return Array.isArray(data) ? data : [];
 };
 
-// ============================================================
-// OPTIONAL: REPOSITORY ISSUES
-// ============================================================
-//
-// Keep only if backend provides:
-// GET /api/repositories/:id/issues
-//
+/**
+ * ============================================================
+ * GET REPOSITORY FILE CONTENT
+ * ============================================================
+ *
+ * GET /api/repositories/:id/files/:fileId
+ *
+ * NOTE:
+ * Backend implementation will be added in a later step.
+ */
+export const getRepositoryFileContent = async (
+  repositoryId: string,
+  fileId: string,
+): Promise<RepositoryFile & { content?: string }> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
+  if (!fileId) {
+    throw new Error("File ID is required.");
+  }
+
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/files/${encodeURIComponent(fileId)}`,
+  );
+
+  return response.data?.data;
+};
+
+/**
+ * ============================================================
+ * UPLOAD REPOSITORY SOURCE ZIP
+ * ============================================================
+ *
+ * POST /api/repositories/:id/files/upload
+ *
+ * This will be connected to the backend in the next step.
+ */
+export const uploadRepositorySource = async (
+  repositoryId: string,
+  file: File,
+) => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
+
+  if (!file) {
+    throw new Error("Source ZIP file is required.");
+  }
+
+  const isZip =
+    file.name.toLowerCase().endsWith(".zip") ||
+    file.type === "application/zip" ||
+    file.type === "application/x-zip-compressed";
+
+  if (!isZip) {
+    throw new Error("Only ZIP files are allowed.");
+  }
+
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const response = await api.post(
+    `/repositories/${encodeURIComponent(repositoryId)}/files/upload`,
+    formData,
+  );
+
+  return response.data?.data;
+};
+
+/**
+ * ============================================================
+ * GET REPOSITORY ISSUES
+ * ============================================================
+ *
+ * GET /api/repositories/:id/issues
+ *
+ * NOTE:
+ * Backend implementation will be added in a later step.
+ */
 export const getRepositoryIssues = async (
   repositoryId: string,
 ): Promise<RepositoryIssue[]> => {
-  const response = await api.get<{
-    success: boolean;
-    message?: string;
-    data: RepositoryIssue[];
-  }>(`${ENDPOINT}/${repositoryId}/issues`);
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
 
-  return response.data.data;
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/issues`,
+  );
+
+  const data = response.data?.data;
+
+  return Array.isArray(data) ? data : [];
+};
+
+/**
+ * ============================================================
+ * GET REPOSITORY STATISTICS
+ * ============================================================
+ *
+ * GET /api/repositories/:id/stats
+ *
+ * NOTE:
+ * Backend implementation will be added in a later step.
+ */
+export const getRepositoryStats = async (
+  repositoryId: string,
+): Promise<RepositoryStatistics> => {
+  if (!repositoryId) {
+    throw new Error("Repository ID is required.");
+  }
+
+  const response = await api.get(
+    `/repositories/${encodeURIComponent(repositoryId)}/stats`,
+  );
+
+  return response.data?.data;
 };

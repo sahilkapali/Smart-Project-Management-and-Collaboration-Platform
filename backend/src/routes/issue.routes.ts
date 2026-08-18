@@ -16,10 +16,10 @@ import { validate } from "../middleware/validation.middleware";
 const router = Router();
 
 // ============================================================
-// ISSUE CRUD
+// CREATE ISSUE
+// POST /issues
 // ============================================================
 
-// Create Issue
 router.post(
   "/",
   authenticateUser(),
@@ -30,17 +30,20 @@ router.post(
       required: true,
       isObjectId: true,
     },
+
     {
       field: "title",
       location: "body",
       required: true,
       minLength: 3,
     },
+
     {
       field: "priority",
       location: "body",
       enum: ["Low", "Medium", "High", "Critical"],
     },
+
     {
       field: "assignedTo",
       location: "body",
@@ -50,13 +53,45 @@ router.post(
   createIssue,
 );
 
-// Get All Issues
+// ============================================================
+// GET ALL ISSUES
+// GET /issues
+// ============================================================
+
 router.get("/", authenticateUser(), getIssues);
 
-// Get Issue By ID
+// ============================================================
+// ISSUE COMMENTS
+// IMPORTANT:
+// These routes are placed BEFORE /:id
+// ============================================================
+
+// ------------------------------------------------------------
+// GET ISSUE COMMENTS
+// GET /issues/:id/comments
+// ------------------------------------------------------------
+
+router.get("/:id/comments", authenticateUser(), getIssueComments);
+
+// ------------------------------------------------------------
+// ADD ISSUE COMMENT
+// POST /issues/:id/comments
+// ------------------------------------------------------------
+
+router.post("/:id/comments", authenticateUser(), addIssueComment);
+
+// ============================================================
+// GET ISSUE BY ID
+// GET /issues/:id
+// ============================================================
+
 router.get("/:id", authenticateUser(), getIssueById);
 
-// Update Issue
+// ============================================================
+// UPDATE ISSUE
+// PUT /issues/:id
+// ============================================================
+
 router.put(
   "/:id",
   authenticateUser(),
@@ -66,16 +101,19 @@ router.put(
       location: "body",
       minLength: 3,
     },
+
     {
       field: "priority",
       location: "body",
       enum: ["Low", "Medium", "High", "Critical"],
     },
+
     {
       field: "status",
       location: "body",
       enum: ["Open", "In Progress", "Resolved", "Closed"],
     },
+
     {
       field: "assignedTo",
       location: "body",
@@ -85,17 +123,15 @@ router.put(
   updateIssue,
 );
 
-// Delete Issue
+// ============================================================
+// DELETE ISSUE
+// DELETE /issues/:id
+// ============================================================
+
 router.delete("/:id", authenticateUser(), deleteIssue);
 
 // ============================================================
-// ISSUE COMMENTS
+// EXPORT
 // ============================================================
-
-// Add Comment
-router.post("/:id/comments", authenticateUser(), addIssueComment);
-
-// Get Comments
-router.get("/:id/comments", authenticateUser(), getIssueComments);
 
 export default router;

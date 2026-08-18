@@ -22,7 +22,11 @@ import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
 import { getIssueById, updateIssue } from "../../services/issues.service";
 
-import type { IssuePriority, IssueStatus } from "../../types/issue.types";
+import type {
+  IssuePriority,
+  IssueStatus,
+  UpdateIssuePayload,
+} from "../../types/issue.types";
 
 const EditIssuePage = () => {
   const navigate = useNavigate();
@@ -35,14 +39,12 @@ const EditIssuePage = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const [priority, setPriority] = useState<IssuePriority>("Medium");
-
   const [status, setStatus] = useState<IssueStatus>("Open");
+  const [priority, setPriority] = useState<IssuePriority>("Medium");
 
   const [assignedTo, setAssignedTo] = useState("");
 
   const [loading, setLoading] = useState(true);
-
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
@@ -66,17 +68,23 @@ const EditIssuePage = () => {
         const issue = await getIssueById(id);
 
         setTitle(issue.title || "");
-
         setDescription(issue.description || "");
 
+        setStatus(issue.status || "Open");
         setPriority(issue.priority || "Medium");
 
-        setStatus(issue.status || "Open");
+        // assignedTo can be:
+        // string
+        // populated user object
+        // null
+        // undefined
 
-        if (typeof issue.assignedTo === "object") {
-          setAssignedTo(issue.assignedTo?._id || "");
+        if (typeof issue.assignedTo === "string") {
+          setAssignedTo(issue.assignedTo);
+        } else if (issue.assignedTo && typeof issue.assignedTo === "object") {
+          setAssignedTo(issue.assignedTo._id || "");
         } else {
-          setAssignedTo(issue.assignedTo || "");
+          setAssignedTo("");
         }
       } catch (err: any) {
         console.error("Failed to load issue:", err);
@@ -95,7 +103,7 @@ const EditIssuePage = () => {
   }, [id]);
 
   // ============================================================
-  // SAVE
+  // SAVE ISSUE
   // ============================================================
 
   const handleSave = async () => {
@@ -104,8 +112,19 @@ const EditIssuePage = () => {
       return;
     }
 
-    if (!title.trim()) {
+    // ----------------------------------------------------------
+    // TITLE VALIDATION
+    // ----------------------------------------------------------
+
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
       setError("Issue title is required.");
+      return;
+    }
+
+    if (trimmedTitle.length < 3) {
+      setError("Issue title must be at least 3 characters.");
       return;
     }
 
@@ -113,13 +132,30 @@ const EditIssuePage = () => {
       setSaving(true);
       setError("");
 
-      await updateIssue(id, {
-        title: title.trim(),
+      // --------------------------------------------------------
+      // UPDATE PAYLOAD
+      // --------------------------------------------------------
+
+      const payload: UpdateIssuePayload = {
+        title: trimmedTitle,
         description: description.trim() || undefined,
-        priority,
         status,
+        priority,
         assignedTo: assignedTo.trim() || undefined,
-      });
+      };
+
+      console.log("Updating issue:", id);
+      console.log("Update payload:", payload);
+
+      // --------------------------------------------------------
+      // API CALL
+      // --------------------------------------------------------
+
+      await updateIssue(id, payload);
+
+      // --------------------------------------------------------
+      // REDIRECT
+      // --------------------------------------------------------
 
       navigate(`/issues/${id}`);
     } catch (err: any) {
@@ -136,6 +172,18 @@ const EditIssuePage = () => {
   };
 
   // ============================================================
+  // CANCEL
+  // ============================================================
+
+  const handleCancel = () => {
+    if (saving) {
+      return;
+    }
+
+    navigate(-1);
+  };
+
+  // ============================================================
   // LOADING
   // ============================================================
 
@@ -143,19 +191,24 @@ const EditIssuePage = () => {
     return (
       <Box
         sx={{
+          width: "100%",
           minHeight: 400,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <CircularProgress />
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress />
+
+          <Typography color="text.secondary">Loading issue...</Typography>
+        </Stack>
       </Box>
     );
   }
 
   // ============================================================
-  // UI
+  // PAGE
   // ============================================================
 
   return (
@@ -166,10 +219,15 @@ const EditIssuePage = () => {
         mx: "auto",
       }}
     >
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
         <Button
           startIcon={<ArrowBackRoundedIcon />}
-          onClick={() => navigate(-1)}
+          onClick={handleCancel}
+          disabled={saving}
           sx={{
             textTransform: "none",
           }}
@@ -182,6 +240,27 @@ const EditIssuePage = () => {
         </Typography>
       </Stack>
 
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
+
+      {error && (
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+          }}
+          onClose={() => setError("")}
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* ======================================================
+          FORM
+      ====================================================== */}
+
       <Card
         elevation={0}
         sx={{
@@ -192,26 +271,40 @@ const EditIssuePage = () => {
       >
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={3}>
-            {error && <Alert severity="error">{error}</Alert>}
+            {/* ==================================================
+                TITLE
+            ================================================== */}
 
             <TextField
               fullWidth
               label="Issue Title"
+              placeholder="Enter issue title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
+              disabled={saving}
               required
             />
+
+            {/* ==================================================
+                DESCRIPTION
+            ================================================== */}
 
             <TextField
               fullWidth
               label="Description"
+              placeholder="Describe the issue"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               multiline
               minRows={5}
+              disabled={saving}
             />
 
-            <FormControl fullWidth>
+            {/* ==================================================
+                STATUS
+            ================================================== */}
+
+            <FormControl fullWidth disabled={saving}>
               <InputLabel>Status</InputLabel>
 
               <Select
@@ -231,7 +324,11 @@ const EditIssuePage = () => {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
+            {/* ==================================================
+                PRIORITY
+            ================================================== */}
+
+            <FormControl fullWidth disabled={saving}>
               <InputLabel>Priority</InputLabel>
 
               <Select
@@ -251,18 +348,28 @@ const EditIssuePage = () => {
               </Select>
             </FormControl>
 
+            {/* ==================================================
+                ASSIGNED USER
+            ================================================== */}
+
             <TextField
               fullWidth
               label="Assigned User ID"
+              placeholder="Enter user MongoDB ID"
               value={assignedTo}
               onChange={(event) => setAssignedTo(event.target.value)}
               helperText="Optional"
+              disabled={saving}
             />
+
+            {/* ==================================================
+                ACTIONS
+            ================================================== */}
 
             <Stack direction="row" justifyContent="flex-end" spacing={2}>
               <Button
                 variant="outlined"
-                onClick={() => navigate(-1)}
+                onClick={handleCancel}
                 disabled={saving}
                 sx={{
                   textTransform: "none",
@@ -276,11 +383,11 @@ const EditIssuePage = () => {
                 variant="contained"
                 startIcon={<SaveRoundedIcon />}
                 onClick={() => void handleSave()}
-                disabled={saving}
+                disabled={saving || !title.trim()}
                 sx={{
                   textTransform: "none",
                   borderRadius: 2,
-                  minWidth: 130,
+                  minWidth: 140,
                 }}
               >
                 {saving ? "Saving..." : "Save Changes"}

@@ -1,216 +1,118 @@
-import type { ReactNode } from "react";
+import type { User } from "./user.types";
 
-/* ============================================================
-   USER
-   ============================================================ */
-
-export interface RepositoryUser {
-  _id?: string;
-  id?: string;
-
-  name?: string;
-  email?: string;
-  avatar?: string;
-}
-
-/* ============================================================
-   PROJECT
-   ============================================================ */
-
-export interface RepositoryProject {
-  _id?: string;
-  id?: string;
-
-  name?: string;
-  title?: string;
-
-  description?: string;
-}
-
-/* ============================================================
-   REPOSITORY
-   ============================================================ */
+// ============================================================
+// REPOSITORY
+// ============================================================
 
 export interface Repository {
-  /*
-   * MongoDB ID
-   */
   _id: string;
 
-  /*
-   * Some existing frontend components use "id".
-   * Backend primarily returns "_id".
-   */
-  id?: string;
+  project:
+    | string
+    | {
+        _id: string;
+        name: string;
+        description?: string;
+      };
 
-  /*
-   * Project reference.
-   *
-   * Backend normally returns an ObjectId, but the repository
-   * service populates the project in several endpoints.
-   */
-  project: string | RepositoryProject;
-
-  /*
-   * Repository information
-   */
   name: string;
 
   description?: string;
 
-  /*
-   * Backend field
-   */
   githubUrl?: string;
 
-  /*
-   * Existing frontend pages may use these aliases.
-   * They are optional because your backend model does not
-   * currently define them.
-   */
-  gitUrl?: string;
+  createdBy:
+    | string
+    | User
+    | {
+        _id: string;
+        name: string;
+        email: string;
+        avatar?: string;
+      };
 
-  cloneUrl?: string;
+  createdAt: string;
 
-  /*
-   * Existing UI field.
-   *
-   * The backend does not currently store visibility,
-   * so this remains optional.
-   */
-  visibility?: "public" | "private" | string;
-
-  /*
-   * Existing UI field.
-   *
-   * Your backend does not currently store programming language.
-   */
-  language?: string;
-
-  /*
-   * Creator
-   */
-  createdBy: string | RepositoryUser;
-
-  /*
-   * Dates
-   */
-  createdAt: string | Date;
-
-  updatedAt: string | Date;
+  updatedAt: string;
 }
 
-/* ============================================================
-   CREATE REPOSITORY
-   ============================================================ */
+// ============================================================
+// CREATE REPOSITORY
+// ============================================================
 
-/**
- * Matches backend:
- *
- * POST /api/repositories
- *
- * Required backend fields:
- * project
- * name
- *
- * Optional:
- * description
- * githubUrl
- */
-export interface CreateRepositoryPayload {
+export interface CreateRepositoryRequest {
   project: string;
-
   name: string;
-
   description?: string;
-
   githubUrl?: string;
 }
 
-/* ============================================================
-   UPDATE REPOSITORY
-   ============================================================ */
-
-/**
- * Matches backend:
- *
- * PATCH /api/repositories/:id
- *
- * The backend does NOT allow changing the project.
+/*
+ * Backward-compatible name used by
+ * CreateRepositoryModal.tsx
  */
-export interface UpdateRepositoryPayload {
+export type CreateRepositoryPayload = CreateRepositoryRequest;
+
+// ============================================================
+// UPDATE REPOSITORY
+// ============================================================
+
+export interface UpdateRepositoryRequest {
   name?: string;
-
   description?: string;
-
   githubUrl?: string;
 }
 
-/* ============================================================
-   REPOSITORY VERSION
-   ============================================================ */
+/*
+ * Backward-compatible name used by
+ * EditRepositoryModal.tsx
+ */
+export type UpdateRepositoryPayload = UpdateRepositoryRequest;
+
+// ============================================================
+// REPOSITORY VERSION
+// ============================================================
 
 export interface RepositoryVersion {
-  /*
-   * MongoDB ID
-   */
   _id: string;
 
-  /*
-   * Compatibility with existing frontend components.
-   */
-  id?: string;
-
-  /*
-   * Repository reference
-   */
   repository: string | Repository;
 
-  /*
-   * Version information
-   */
   versionNumber: string;
 
-  title?: string;
+  title: string;
 
   changelog?: string;
 
   commitHash?: string;
 
-  /*
-   * File information
-   */
   file?: string;
 
-  fileSize?: string | number;
+  uploadedBy:
+    | string
+    | User
+    | {
+        _id: string;
+        name: string;
+        email: string;
+        avatar?: string;
+      };
 
-  downloadUrl?: string;
+  createdAt: string;
 
-  /*
-   * Existing frontend naming
-   */
-  author?: string;
-
-  uploadedBy?: string;
-
-  createdBy?: string | RepositoryUser;
-
-  /*
-   * Dates
-   */
-  createdAt: string | Date;
-
-  updatedAt: string | Date;
+  updatedAt: string;
 }
 
-/* ============================================================
-   CREATE VERSION
-   ============================================================ */
+// ============================================================
+// CREATE VERSION REQUEST
+// ============================================================
 
-export interface CreateVersionPayload {
+export interface CreateRepositoryVersionRequest {
+  repositoryId: string;
+
   versionNumber: string;
 
-  title?: string;
+  title: string;
 
   changelog?: string;
 
@@ -219,9 +121,9 @@ export interface CreateVersionPayload {
   file?: File;
 }
 
-/* ============================================================
-   UPLOAD VERSION MODAL
-   ============================================================ */
+// ============================================================
+// UPLOAD VERSION MODAL PROPS
+// ============================================================
 
 export interface UploadVersionModalProps {
   open: boolean;
@@ -230,128 +132,71 @@ export interface UploadVersionModalProps {
 
   repositoryId: string;
 
-  onSuccess?: () => void | Promise<void>;
+  onSuccess?: (version: RepositoryVersion) => void;
 }
 
-/* ============================================================
-   FILE NODE
-   ============================================================ */
+// ============================================================
+// REPOSITORY STATISTICS
+// ============================================================
 
-export interface FileNode {
-  /*
-   * File/folder identity
-   */
+export interface RepositoryStatistics {
+  totalFiles: number;
+
+  totalSize: number;
+
+  totalVersions: number;
+
+  totalIssues: number;
+
+  openIssues: number;
+
+  closedIssues: number;
+
+  lastUpdated?: string;
+}
+
+// ============================================================
+// REPOSITORY FILE
+// ============================================================
+
+export interface RepositoryFile {
+  _id: string;
+
+  repository: string;
+
   name: string;
 
   path: string;
 
-  /*
-   * Existing backend/frontend implementations may use
-   * different values for this field.
-   */
-  type: "file" | "folder" | "directory" | string;
+  size: number;
 
-  /*
-   * File metadata
-   */
-  size?: number;
+  url?: string;
 
-  updatedAt?: string | Date;
+  mimeType?: string;
 
-  /*
-   * File content.
-   *
-   * Useful when a selected file is opened in the repository
-   * detail page.
-   */
-  content?: string;
+  createdAt: string;
 
-  /*
-   * Nested folders
-   */
-  children?: FileNode[];
+  updatedAt: string;
 }
 
-/* ============================================================
-   REPOSITORY ISSUE
-   ============================================================ */
+// ============================================================
+// REPOSITORY ISSUE
+// ============================================================
 
 export interface RepositoryIssue {
-  /*
-   * MongoDB ID
-   */
   _id: string;
 
-  /*
-   * Existing frontend components use "id".
-   */
-  id?: string;
+  repository: string;
 
-  /*
-   * Issue information
-   */
   title: string;
 
   description?: string;
 
-  status?: string;
+  status: string;
 
   priority?: string;
 
-  /*
-   * Repository reference
-   */
-  repository?: string | Repository;
+  createdAt: string;
 
-  /*
-   * Existing frontend naming
-   */
-  author?: string;
-
-  createdBy?: string | RepositoryUser;
-
-  /*
-   * Dates
-   */
-  createdAt?: string | Date;
-
-  updatedAt?: string | Date;
-}
-
-/* ============================================================
-   API RESPONSES
-   ============================================================ */
-
-export interface RepositoryResponse<T> {
-  success: boolean;
-
-  message?: string;
-
-  data: T;
-}
-
-export interface RepositoriesResponse {
-  success: boolean;
-
-  message?: string;
-
-  data: Repository[];
-}
-
-/* ============================================================
-   REPOSITORY ACTION PROPS
-   ============================================================ */
-
-export interface RepositoryActionProps {
-  onSuccess?: () => void | Promise<void>;
-}
-
-/* ============================================================
-   DISPLAY ITEM
-   ============================================================ */
-
-export interface RepositoryDisplayItem {
-  label: string;
-
-  value: string | number | ReactNode;
+  updatedAt: string;
 }

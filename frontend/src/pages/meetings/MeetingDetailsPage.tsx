@@ -1,19 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
-  Container,
-  Typography,
-  Stack,
-  Button,
-  CircularProgress,
   Alert,
   Box,
+  Button,
+  CircularProgress,
+  Container,
   Divider,
+  Paper,
+  Stack,
+  Typography,
 } from "@mui/material";
 
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import {
+  ArrowBack,
+  CalendarMonth,
+  OpenInNew,
+  People,
+  Refresh,
+} from "@mui/icons-material";
 
 import meetingService from "../../services/meeting.service";
 import aiService from "../../services/ai.service";
@@ -25,26 +31,35 @@ import ActionItemsCard from "../../components/meeting/ActionItemsCard";
 import type { Meeting } from "../../types/meeting.types";
 
 const MeetingDetailsPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{
+    id?: string;
+    meetingId?: string;
+  }>();
+
+  /*
+   * Support both names just in case another route
+   * uses :meetingId.
+   */
+  const meetingId = params.id ?? params.meetingId;
 
   const navigate = useNavigate();
 
-  // ============================================================
-  // STATE
-  // ============================================================
-
   const [meeting, setMeeting] = useState<Meeting | null>(null);
+
   const [loading, setLoading] = useState(true);
+
   const [summaryLoading, setSummaryLoading] = useState(false);
+
   const [actionLoading, setActionLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   // ============================================================
-  // LOAD MEETING DETAILS
+  // LOAD MEETING
   // ============================================================
 
-  const loadMeeting = async () => {
-    if (!id) {
+  const loadMeeting = useCallback(async () => {
+    if (!meetingId || meetingId === "undefined" || meetingId === "null") {
       setError("Meeting ID is missing.");
       setLoading(false);
       return;
@@ -54,34 +69,43 @@ const MeetingDetailsPage = () => {
       setLoading(true);
       setError("");
 
-      const response = await meetingService.getMeetingById(id);
+      console.log("Loading meeting:", meetingId);
+
+      const response = await meetingService.getMeetingById(meetingId);
+
+      if (!response?.data) {
+        setError(response?.message || "Meeting not found.");
+
+        setMeeting(null);
+        return;
+      }
 
       setMeeting(response.data);
     } catch (err: any) {
       console.error("Failed to load meeting:", err);
 
+      setMeeting(null);
+
       setError(err?.response?.data?.message || "Unable to load meeting.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [meetingId]);
 
   // ============================================================
-  // LOAD MEETING WHEN PAGE OPENS
+  // LOAD ON PAGE OPEN
   // ============================================================
 
   useEffect(() => {
     loadMeeting();
-  }, [id]);
+  }, [loadMeeting]);
 
   // ============================================================
-  // GENERATE AI MEETING SUMMARY
+  // GENERATE SUMMARY
   // ============================================================
 
   const handleSummary = async () => {
-    console.log("=== AI SUMMARY BUTTON CLICKED ===");
-
-    if (!id) {
+    if (!meetingId) {
       setError("Meeting ID is missing.");
       return;
     }
@@ -90,32 +114,11 @@ const MeetingDetailsPage = () => {
       setSummaryLoading(true);
       setError("");
 
-      console.log("Meeting ID:", id);
-      console.log("Meeting notes:", meeting?.notes);
+      await aiService.summarizeMeeting(meetingId);
 
-      const noteId = meeting?.notes?.[meeting.notes.length - 1]?._id;
-
-      console.log("Note ID:", noteId);
-
-      if (!noteId) {
-        setError("No meeting note is available to summarize.");
-        return;
-      }
-
-      console.log("Calling PATCH /meetings/" + id + "/ai-summary");
-
-      // FIXED: Removed the secondary noteId argument to match the service signature
-      await aiService.summarizeMeeting(id);
-
-      console.log("AI summary request completed.");
-
-      // Reload the complete meeting from backend
       await loadMeeting();
-
-      console.log("Meeting reloaded successfully.");
     } catch (err: any) {
-      console.error("AI meeting summary failed:", err);
-      console.error("Response:", err?.response?.data);
+      console.error("AI summary failed:", err);
 
       setError(
         err?.response?.data?.message ||
@@ -128,11 +131,11 @@ const MeetingDetailsPage = () => {
   };
 
   // ============================================================
-  // GENERATE AI ACTION ITEMS
+  // GENERATE ACTION ITEMS
   // ============================================================
 
   const handleActionItems = async () => {
-    if (!id) {
+    if (!meetingId) {
       setError("Meeting ID is missing.");
       return;
     }
@@ -141,24 +144,16 @@ const MeetingDetailsPage = () => {
       setActionLoading(true);
       setError("");
 
-      /*
-       * Call the backend AI action-item endpoint.
-       */
-      await aiService.extractActionItems(id);
+      await aiService.extractActionItems(meetingId);
 
-      /*
-       * The AI endpoint returns MeetingAIData,
-       * not a complete Meeting.
-       *
-       * Therefore reload the meeting after
-       * the AI operation has completed.
-       */
       await loadMeeting();
     } catch (err: any) {
-      console.error("AI action-item extraction failed:", err);
+      console.error("AI action items failed:", err);
 
       setError(
-        err?.response?.data?.message || "Failed to extract AI action items.",
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Failed to extract action items.",
       );
     } finally {
       setActionLoading(false);
@@ -166,60 +161,79 @@ const MeetingDetailsPage = () => {
   };
 
   // ============================================================
-  // LOADING STATE
+  // LOADING
   // ============================================================
 
   if (loading) {
     return (
       <Box
         sx={{
+          minHeight: "60vh",
           display: "flex",
-          justifyContent: "center",
           alignItems: "center",
-          minHeight: "50vh",
+          justifyContent: "center",
         }}
       >
-        <CircularProgress />
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress />
+
+          <Typography color="text.secondary">Loading meeting...</Typography>
+        </Stack>
       </Box>
     );
   }
 
   // ============================================================
-  // MEETING NOT FOUND
+  // INVALID ID / NOT FOUND
   // ============================================================
 
   if (!meeting) {
     return (
-      <Container sx={{ py: 5 }}>
-        <Alert severity="error">{error || "Meeting not found."}</Alert>
+      <Container maxWidth="lg" sx={{ py: 5 }}>
+        <Stack spacing={2}>
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                startIcon={<Refresh />}
+                onClick={loadMeeting}
+              >
+                Retry
+              </Button>
+            }
+          >
+            {error || "Meeting not found."}
+          </Alert>
 
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ mt: 2 }}
-        >
-          Back
-        </Button>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => navigate(-1)}
+            sx={{
+              alignSelf: "flex-start",
+              textTransform: "none",
+            }}
+          >
+            Back
+          </Button>
+        </Stack>
       </Container>
     );
   }
 
   // ============================================================
-  // MEETING DATE/TIME
+  // DATE / TIME
   // ============================================================
 
   const start = new Date(meeting.startTime);
 
+  const end = meeting.endTime ? new Date(meeting.endTime) : null;
+
   // ============================================================
-  // AI SUMMARY
+  // SUMMARY
   // ============================================================
 
-  /*
-   * Meeting notes may contain AI-generated summaries.
-   *
-   * Combine all available summaries into one string
-   * for AISummaryCard.
-   */
   const summary =
     meeting.notes
       ?.map((note) => note.aiGeneratedSummary)
@@ -233,21 +247,24 @@ const MeetingDetailsPage = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Stack spacing={4}>
-        {/* ================================================== */}
-        {/* BACK BUTTON */}
-        {/* ================================================== */}
+        {/* =====================================================
+            BACK
+        ===================================================== */}
 
         <Button
-          startIcon={<ArrowBackIcon />}
+          startIcon={<ArrowBack />}
           onClick={() => navigate(-1)}
-          sx={{ alignSelf: "flex-start" }}
+          sx={{
+            alignSelf: "flex-start",
+            textTransform: "none",
+          }}
         >
           Back
         </Button>
 
-        {/* ================================================== */}
-        {/* ERROR MESSAGE */}
-        {/* ================================================== */}
+        {/* =====================================================
+            ERROR
+        ===================================================== */}
 
         {error && (
           <Alert severity="error" onClose={() => setError("")}>
@@ -255,73 +272,144 @@ const MeetingDetailsPage = () => {
           </Alert>
         )}
 
-        {/* ================================================== */}
-        {/* MEETING TITLE */}
-        {/* ================================================== */}
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
 
-        <Box>
-          <Typography variant="h3" fontWeight={800}>
-            {meeting.title}
-          </Typography>
-
-          {meeting.description && (
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-              {meeting.description}
+        <Paper
+          elevation={0}
+          sx={{
+            p: {
+              xs: 3,
+              md: 4,
+            },
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Stack spacing={2}>
+            <Typography variant="h3" fontWeight={800}>
+              {meeting.title}
             </Typography>
-          )}
-        </Box>
 
-        <Divider />
+            {meeting.description && (
+              <Typography color="text.secondary" variant="body1">
+                {meeting.description}
+              </Typography>
+            )}
 
-        {/* ================================================== */}
-        {/* MEETING INFORMATION */}
-        {/* ================================================== */}
+            <Divider />
 
-        <Stack spacing={1}>
-          <Typography>
-            <strong>Date:</strong> {start.toLocaleDateString()}
-          </Typography>
+            {/* =================================================
+                DATE
+            ================================================= */}
 
-          <Typography>
-            <strong>Time:</strong>{" "}
-            {start.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Typography>
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              spacing={{
+                xs: 2,
+                sm: 4,
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CalendarMonth color="primary" />
 
-          <Typography>
-            <strong>Participants:</strong> {meeting.participants?.length || 0}
-          </Typography>
-        </Stack>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date
+                  </Typography>
 
-        {/* ================================================== */}
-        {/* JOIN MEETING */}
-        {/* ================================================== */}
+                  <Typography fontWeight={600}>
+                    {start.toLocaleDateString(undefined, {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </Typography>
+                </Box>
+              </Stack>
 
-        {meeting.meetingLink && (
-          <Button
-            variant="contained"
-            startIcon={<OpenInNewIcon />}
-            component="a"
-            href={meeting.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{ alignSelf: "flex-start" }}
-          >
-            Join Meeting
-          </Button>
-        )}
+              {/* =================================================
+                  TIME
+              ================================================= */}
 
-        {/* ================================================== */}
-        {/* MEETING NOTES */}
-        {/* ================================================== */}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Time
+                </Typography>
 
-        <MeetingNotes meetingId={meeting._id} notes={meeting.notes} />
+                <Typography fontWeight={600}>
+                  {start.toLocaleTimeString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
 
-        {/* ================================================== */}
-        {/* AI MEETING SUMMARY */}
-        {/* ================================================== */}
+                  {end &&
+                    ` – ${end.toLocaleTimeString(undefined, {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`}
+                </Typography>
+              </Box>
+
+              {/* =================================================
+                  PARTICIPANTS
+              ================================================= */}
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <People color="primary" />
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Participants
+                  </Typography>
+
+                  <Typography fontWeight={600}>
+                    {meeting.participants?.length ?? 0}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+
+            {/* =================================================
+                JOIN
+            ================================================= */}
+
+            {meeting.meetingLink && (
+              <Button
+                variant="contained"
+                startIcon={<OpenInNew />}
+                component="a"
+                href={meeting.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  alignSelf: "flex-start",
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Join Meeting
+              </Button>
+            )}
+          </Stack>
+        </Paper>
+
+        {/* =====================================================
+            NOTES
+        ===================================================== */}
+
+        <MeetingNotes meetingId={meeting._id} notes={meeting.notes ?? []} />
+
+        {/* =====================================================
+            AI SUMMARY
+        ===================================================== */}
 
         <AISummaryCard
           summary={summary}
@@ -329,12 +417,12 @@ const MeetingDetailsPage = () => {
           loading={summaryLoading}
         />
 
-        {/* ================================================== */}
-        {/* AI ACTION ITEMS */}
-        {/* ================================================== */}
+        {/* =====================================================
+            ACTION ITEMS
+        ===================================================== */}
 
         <ActionItemsCard
-          actionItems={meeting.actionItems || []}
+          actionItems={meeting.actionItems ?? []}
           onGenerate={handleActionItems}
           loading={actionLoading}
         />

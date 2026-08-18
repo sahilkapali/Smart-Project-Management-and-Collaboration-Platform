@@ -4,7 +4,6 @@ export const ROUTES = {
   // ============================================================
 
   HOME: "/",
-
   LOGIN: "/login",
   REGISTER: "/register",
   FORGOT_PASSWORD: "/forgot-password",
@@ -36,6 +35,7 @@ export const ROUTES = {
   // ============================================================
 
   TASKS: "/tasks",
+  PROJECT_TASKS: "/projects/:projectId/tasks",
 
   // ============================================================
   // TEAMS
@@ -65,9 +65,19 @@ export const ROUTES = {
   // MEETINGS
   // ============================================================
 
+  // Global meetings page
   MEETINGS: "/meetings",
+
+  // Global create meeting
+  CREATE_MEETING_GLOBAL: "/meetings/create",
+
+  // Meetings belonging to a project
   PROJECT_MEETINGS: "/projects/:projectId/meetings",
+
+  // Create meeting for a specific project
   CREATE_MEETING: "/projects/:projectId/meetings/create",
+
+  // Meeting details
   MEETING_DETAILS: "/meetings/:id",
 
   // ============================================================
