@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from "express";
 
 import {
   createRepository,
@@ -6,87 +6,47 @@ import {
   getProjectRepositories,
   getRepositoryById,
   updateRepository,
-  deleteRepository
-} from '../controllers/repository.controller';
+  deleteRepository,
+} from "../controllers/repository.controller";
 
-import {
-  authenticateUser
-} from '../middleware/auth.middleware';
-
-import {
-  checkProjectMembership,
-  checkProjectManagementAccess
-} from '../middleware/role.middleware';
+import { authenticateUser } from "../middleware/auth.middleware";
 
 const router = Router();
-
 
 // =====================================================
 // GET ALL ACCESSIBLE REPOSITORIES
 // =====================================================
 
-router.get(
-  '/',
-  authenticateUser(),
-  getRepositories
-);
-
+router.get("/", authenticateUser(), getRepositories);
 
 // =====================================================
 // GET REPOSITORIES OF A PROJECT
 // =====================================================
 
-router.get(
-  '/project/:projectId',
-  authenticateUser(),
-  checkProjectMembership,
-  getProjectRepositories
-);
-
+router.get("/project/:projectId", authenticateUser(), getProjectRepositories);
 
 // =====================================================
 // CREATE REPOSITORY
 // =====================================================
 
-router.post(
-  '/',
-  authenticateUser(),
-  checkProjectManagementAccess,
-  createRepository
-);
-
+router.post("/", authenticateUser(), createRepository);
 
 // =====================================================
 // GET ONE REPOSITORY
 // =====================================================
 
-router.get(
-  '/:id',
-  authenticateUser(),
-  getRepositoryById
-);
-
+router.get("/:id", authenticateUser(), getRepositoryById);
 
 // =====================================================
 // UPDATE REPOSITORY
 // =====================================================
 
-router.patch(
-  '/:id',
-  authenticateUser(),
-  updateRepository
-);
-
+router.patch("/:id", authenticateUser(), updateRepository);
 
 // =====================================================
 // DELETE REPOSITORY
 // =====================================================
 
-router.delete(
-  '/:id',
-  authenticateUser(),
-  deleteRepository
-);
-
+router.delete("/:id", authenticateUser(), deleteRepository);
 
 export default router;

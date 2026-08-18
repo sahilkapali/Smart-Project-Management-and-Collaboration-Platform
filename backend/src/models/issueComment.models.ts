@@ -8,7 +8,7 @@ export interface IIssueComment extends Document {
   updatedAt: Date;
 }
 
-const IssueCommentSchema = new Schema(
+const IssueCommentSchema = new Schema<IIssueComment>(
   {
     issue: {
       type: Schema.Types.ObjectId,
@@ -27,12 +27,15 @@ const IssueCommentSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: 1,
     },
   },
-  { timestamps: true }
- );
+  {
+    timestamps: true,
+  },
+);
 
 export default mongoose.model<IIssueComment>(
   "IssueComment",
-  IssueCommentSchema
+  IssueCommentSchema,
 );

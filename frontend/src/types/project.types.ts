@@ -1,4 +1,12 @@
+/* ============================================================
+   PROJECT TYPES
+   ============================================================ */
+
 export type ProjectStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+
+/* ============================================================
+   PROJECT
+   ============================================================ */
 
 export interface Project {
   id: string;
@@ -26,6 +34,10 @@ export interface Project {
   createdBy?: any;
 }
 
+/* ============================================================
+   CREATE PROJECT
+   ============================================================ */
+
 export interface CreateProjectPayload {
   name: string;
 
@@ -41,6 +53,10 @@ export interface CreateProjectPayload {
 
   progress?: number;
 }
+
+/* ============================================================
+   UPDATE PROJECT
+   ============================================================ */
 
 export interface UpdateProjectPayload {
   name?: string;

@@ -6,12 +6,13 @@ export interface IComment extends Document {
   comment: string;
 }
 
-const CommentSchema: Schema = new Schema(
+const CommentSchema = new Schema<IComment>(
   {
     issue: {
       type: Schema.Types.ObjectId,
       ref: "Issue",
       required: true,
+      index: true,
     },
 
     user: {
@@ -24,9 +25,12 @@ const CommentSchema: Schema = new Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: 1,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  },
 );
 
 export default mongoose.model<IComment>("Comment", CommentSchema);
