@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 
 import {
   Alert,
+  Box,
   Button,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
+  IconButton,
   MenuItem,
   Slider,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
+
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
 import projectService from "../../services/project.service";
 
@@ -27,9 +31,7 @@ import type {
 
 interface CreateProjectDialogProps {
   open: boolean;
-
   onClose: () => void;
-
   onCreated?: () => void;
 }
 
@@ -83,19 +85,15 @@ const CreateProjectDialog = ({
 
   const [projectName, setProjectName] = useState("");
 
-  const [description, setDescription] =
-    useState("");
+  const [description, setDescription] = useState("");
 
   const [status, setStatus] = useState<ProjectStatus>("PLANNING");
 
-  const [teamId, setTeamId] =
-    useState("");
+  const [teamId, setTeamId] = useState("");
 
-  const [startDate, setStartDate] =
-    useState("");
+  const [startDate, setStartDate] = useState("");
 
-  const [dueDate, setDueDate] =
-    useState("");
+  const [dueDate, setDueDate] = useState("");
 
   const [progress, setProgress] = useState(0);
 
@@ -105,8 +103,7 @@ const CreateProjectDialog = ({
 
   const [loading, setLoading] = useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   // ==========================================================
   // RESET FORM
@@ -114,19 +111,12 @@ const CreateProjectDialog = ({
 
   const resetForm = () => {
     setProjectName("");
-
     setDescription("");
-
     setStatus("PLANNING");
-
     setTeamId("");
-
     setStartDate("");
-
-    setEndDate("");
-
+    setDueDate("");
     setProgress(0);
-
     setError("");
   };
 
@@ -150,7 +140,6 @@ const CreateProjectDialog = ({
     }
 
     resetForm();
-
     onClose();
   };
 
@@ -167,7 +156,6 @@ const CreateProjectDialog = ({
 
     if (!projectName.trim()) {
       setError("Project name is required.");
-
       return;
     }
 
@@ -177,7 +165,6 @@ const CreateProjectDialog = ({
 
     if (!teamId.trim()) {
       setError("Team ID is required.");
-
       return;
     }
 
@@ -185,9 +172,8 @@ const CreateProjectDialog = ({
     // Date validation
     // --------------------------------------------------------
 
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      setError("End date cannot be before the start date.");
-
+    if (startDate && dueDate && new Date(startDate) > new Date(dueDate)) {
+      setError("Project deadline cannot be before the start date.");
       return;
     }
 
@@ -197,7 +183,6 @@ const CreateProjectDialog = ({
 
     if (progress < 0 || progress > 100) {
       setError("Project progress must be between 0 and 100.");
-
       return;
     }
 
@@ -207,31 +192,21 @@ const CreateProjectDialog = ({
 
     const payload: CreateProjectPayload = {
       name: projectName.trim(),
-
-      description:
-        description.trim(),
-
-      status:
-        UI_TO_BACKEND_STATUS[
-          status
-        ],
-
-      teamId:
-        teamId.trim(),
-    };
-
+      description: description.trim(),
+      status,
+      teamId: teamId.trim(),
       progress,
-
       ...(startDate
         ? {
             startDate,
           }
         : {}),
-
-    if (dueDate) {
-      payload.dueDate =
-        dueDate;
-    }
+      ...(dueDate
+        ? {
+            dueDate,
+          }
+        : {}),
+    };
 
     try {
       setLoading(true);
@@ -248,7 +223,7 @@ const CreateProjectDialog = ({
 
       resetForm();
 
-      onCreated();
+      onCreated?.();
 
       onClose();
     } catch (error: unknown) {
@@ -289,7 +264,6 @@ const CreateProjectDialog = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
-
           p: {
             xs: 1,
             sm: 2,
@@ -306,9 +280,7 @@ const CreateProjectDialog = ({
           <Box
             sx={{
               display: "flex",
-
               alignItems: "center",
-
               justifyContent: "space-between",
             }}
           >
@@ -318,7 +290,6 @@ const CreateProjectDialog = ({
                   xs: "1.6rem",
                   sm: "2rem",
                 },
-
                 fontWeight: 700,
               }}
             >
@@ -429,12 +400,10 @@ const CreateProjectDialog = ({
           <Box
             sx={{
               display: "grid",
-
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "1fr 1fr",
               },
-
               gap: 2,
             }}
           >
@@ -445,11 +414,8 @@ const CreateProjectDialog = ({
               type="date"
               fullWidth
               value={startDate}
-              onChange={(event) =>
-                setStartDate(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setStartDate(event.target.value)}
+              disabled={loading}
               InputLabelProps={{
                 shrink: true,
               }}
@@ -462,11 +428,8 @@ const CreateProjectDialog = ({
               type="date"
               fullWidth
               value={dueDate}
-              onChange={(event) =>
-                setDueDate(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setDueDate(event.target.value)}
+              disabled={loading}
               InputLabelProps={{
                 shrink: true,
               }}
@@ -515,14 +478,12 @@ const CreateProjectDialog = ({
               BUTTONS
           ================================================== */}
 
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading}
+          <Stack
+            direction="row"
+            justifyContent="flex-end"
+            spacing={2}
             sx={{
-              textTransform:
-                "none",
-              fontWeight: 700,
+              pt: 1,
             }}
           >
             <Button
@@ -531,11 +492,8 @@ const CreateProjectDialog = ({
               disabled={loading}
               sx={{
                 minWidth: 120,
-
                 borderRadius: 2,
-
                 textTransform: "none",
-
                 fontWeight: 700,
               }}
             >
@@ -555,11 +513,8 @@ const CreateProjectDialog = ({
               disabled={loading || !projectName.trim() || !teamId.trim()}
               sx={{
                 minWidth: 170,
-
                 borderRadius: 2,
-
                 textTransform: "none",
-
                 fontWeight: 700,
               }}
             >
