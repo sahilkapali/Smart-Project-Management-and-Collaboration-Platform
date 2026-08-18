@@ -28,6 +28,7 @@ import {
   Add,
   CalendarMonth,
   Close,
+  Delete,
   Edit,
   OpenInNew,
   Refresh,
@@ -235,6 +236,23 @@ const MeetingListPage = () => {
     useState(false);
 
   const [saveError, setSaveError] =
+    useState("");
+
+
+  // ==========================================================
+  // DELETE STATE
+  // ==========================================================
+
+  const [deleteOpen, setDeleteOpen] =
+    useState(false);
+
+  const [deletingMeeting, setDeletingMeeting] =
+    useState<Meeting | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [deleteError, setDeleteError] =
     useState("");
 
 
@@ -850,6 +868,106 @@ const MeetingListPage = () => {
 
 
   // ==========================================================
+  // OPEN DELETE CONFIRMATION
+  // ==========================================================
+
+  const handleDeleteMeeting = (
+    meeting: Meeting,
+  ) => {
+    if (deleting) {
+      return;
+    }
+
+    setDeletingMeeting(
+      meeting,
+    );
+
+    setDeleteError("");
+    setDeleteOpen(true);
+  };
+
+
+  // ==========================================================
+  // CLOSE DELETE CONFIRMATION
+  // ==========================================================
+
+  const handleCloseDelete = () => {
+    if (deleting) {
+      return;
+    }
+
+    setDeleteOpen(false);
+    setDeletingMeeting(null);
+    setDeleteError("");
+  };
+
+
+  // ==========================================================
+  // CONFIRM DELETE
+  // ==========================================================
+
+  const confirmDeleteMeeting =
+    async () => {
+      if (!deletingMeeting) {
+        return;
+      }
+
+      const meetingId =
+        getMeetingId(
+          deletingMeeting,
+        );
+
+      if (!meetingId) {
+        setDeleteError(
+          "Meeting ID is missing.",
+        );
+
+        return;
+      }
+
+      try {
+        setDeleting(true);
+        setDeleteError("");
+
+        await meetingService.deleteMeeting(
+          meetingId,
+        );
+
+        /*
+         * Remove the deleted meeting
+         * from the current list.
+         */
+        setMeetings(
+          (current) =>
+            current.filter(
+              (meeting) =>
+                getMeetingId(
+                  meeting,
+                ) !== meetingId,
+            ),
+        );
+
+        setDeleteOpen(false);
+        setDeletingMeeting(null);
+      } catch (err: any) {
+        console.error(
+          "Failed to delete meeting:",
+          err,
+        );
+
+        setDeleteError(
+          getErrorMessage(
+            err,
+            "Unable to delete meeting.",
+          ),
+        );
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+
+  // ==========================================================
   // LOADING
   // ==========================================================
 
@@ -1379,6 +1497,32 @@ const MeetingListPage = () => {
                           </IconButton>
                         </Tooltip>
 
+
+                        {/* DELETE */}
+
+                        <Tooltip
+                          title="Delete meeting"
+                        >
+                          <IconButton
+                            onClick={() =>
+                              handleDeleteMeeting(
+                                meeting,
+                              )
+                            }
+                            disabled={
+                              deleting
+                            }
+                            sx={{
+                              border:
+                                "1px solid",
+                              borderColor:
+                                "divider",
+                            }}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+
                       </Stack>
                     </Stack>
                   </Box>
@@ -1531,6 +1675,7 @@ const MeetingListPage = () => {
               placeholder="https://meet.google.com/..."
             />
 
+
             {/* PARTICIPANTS */}
 
             <ParticipantSelector
@@ -1607,6 +1752,123 @@ const MeetingListPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+
+      {/* ======================================================
+          DELETE CONFIRMATION DIALOG
+      ====================================================== */}
+
+      <Dialog
+        open={deleteOpen}
+        onClose={
+          handleCloseDelete
+        }
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography
+              variant="h6"
+              fontWeight={800}
+            >
+              Delete Meeting
+            </Typography>
+
+            <IconButton
+              onClick={
+                handleCloseDelete
+              }
+              disabled={deleting}
+            >
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2}>
+
+            {deleteError && (
+              <Alert severity="error">
+                {deleteError}
+              </Alert>
+            )}
+
+            <Typography>
+              Are you sure you want to
+              delete{" "}
+              <strong>
+                {deletingMeeting?.title ||
+                  "this meeting"}
+              </strong>
+              ?
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              This action cannot be
+              undone.
+            </Typography>
+
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2.5,
+          }}
+        >
+          <Button
+            onClick={
+              handleCloseDelete
+            }
+            disabled={deleting}
+            sx={{
+              textTransform:
+                "none",
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() =>
+              void confirmDeleteMeeting()
+            }
+            disabled={deleting}
+            startIcon={
+              deleting ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <Delete />
+              )
+            }
+            sx={{
+              textTransform:
+                "none",
+              fontWeight: 700,
+            }}
+          >
+            {deleting
+              ? "Deleting..."
+              : "Delete Meeting"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Container>
   );
 };
