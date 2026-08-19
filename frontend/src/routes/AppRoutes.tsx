@@ -114,6 +114,9 @@ const AppRoutes: React.FC = () => {
           {/* Teams */}
           <Route path={ROUTES.TEAMS} element={<Teams />} />
 
+          {/* User Management */}
+          <Route path={ROUTES.USERS} element={<UserManagement />} />
+
           {/* Reports */}
           <Route path={ROUTES.REPORTS} element={<Reports />} />
 
