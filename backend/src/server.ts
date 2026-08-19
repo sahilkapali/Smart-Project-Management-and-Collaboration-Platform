@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
+
 import { initSocket } from "./utils/socket";
 
 dotenv.config();
@@ -28,156 +29,175 @@ import dashboardRoutes from "./routes/dashboard.routes";
 import reportRoutes from "./routes/report.routes";
 import activityRoutes from "./routes/activity.routes";
 
-// Middleware
+// Error middleware
 import errorHandler from "./middleware/errorHandler.middleware";
 
 const app = express();
 
 // =====================================================
-// ENVIRONMENT CONFIGURATION
+// ENVIRONMENT CHECK
 // =====================================================
 
 if (!ENV_CONFIG.mongodb_uri) {
-  throw new Error("DB_URI is not configured in the .env file.");
+  throw new Error("MongoDB URI is missing.");
 }
 
 if (!ENV_CONFIG.jwt_secret) {
-  throw new Error("JWT_SECRET is not configured in the .env file.");
+  throw new Error("JWT secret is missing.");
 }
 
-const PORT = ENV_CONFIG.port || process.env.PORT || 5000;
+// Render automatically provides PORT
+const PORT = Number(process.env.PORT) || Number(ENV_CONFIG.port) || 5000;
 
 // =====================================================
-// DATABASE CONNECTION
+// FRONTEND URL CONFIGURATION
+// =====================================================
+
+const FRONTEND_URL =
+  process.env.FRONTEND_URL ||
+  "https://smart-project-management-and-collab.vercel.app";
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+
+  FRONTEND_URL,
+];
+
+console.log("Allowed Origins:");
+console.log(allowedOrigins);
+
+// =====================================================
+// DATABASE
 // =====================================================
 
 connectDatabase(ENV_CONFIG.mongodb_uri);
 
 // =====================================================
-// GLOBAL MIDDLEWARES
+// GLOBAL MIDDLEWARE
 // =====================================================
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(
+  express.urlencoded({
+    extended: true,
+  }),
+);
+
 app.use(cookieParser());
 
 // =====================================================
-// CORS CONFIGURATION
+// CORS
 // =====================================================
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow Postman / server requests
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log("Blocked CORS Origin:", origin);
+
+      return callback(new Error("CORS blocked this origin"));
+    },
+
     credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   }),
 );
 
 // =====================================================
-// HOME / HEALTH CHECK
+// HEALTH CHECK
 // =====================================================
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
+
     message: "Smart Project Management Backend Running",
   });
 });
 
 // =====================================================
-// AUTHENTICATION ROUTES
+// API ROUTES
 // =====================================================
 
 app.use("/api/auth", authRouter);
 
-// =====================================================
-// USER ROUTES
-// =====================================================
-
 app.use("/api/users", userRouter);
 
-// =====================================================
-// PROJECT & TEAM ROUTES
-// =====================================================
-
 app.use("/api/projects", projectRoutes);
-app.use("/api/teams", teamRoutes);
 
-// =====================================================
-// TASK ROUTES
-// =====================================================
+app.use("/api/teams", teamRoutes);
 
 app.use("/api/tasks", taskRoutes);
 
-// =====================================================
-// REPOSITORY ROUTES
-// =====================================================
-
 app.use("/api/repositories", repositoryRoutes);
-app.use("/api/repositories", repositoryVersionRoutes);
-app.use("/api/repository-files", repositoryFileRoutes);
 
-// =====================================================
-// ISSUE ROUTES
-// =====================================================
+app.use("/api/repositories", repositoryVersionRoutes);
+
+app.use("/api/repository-files", repositoryFileRoutes);
 
 app.use("/api/issues", issueRoutes);
 
-// =====================================================
-// COMMENT ROUTES
-// =====================================================
-
 app.use("/api", commentRoutes);
-
-// =====================================================
-// REPORT ROUTES
-// =====================================================
 
 app.use("/api/reports", reportRoutes);
 
-// =====================================================
-// ACTIVITY ROUTES
-// =====================================================
-
 app.use("/api/activities", activityRoutes);
-
-// =====================================================
-// MEETING ROUTES
-// =====================================================
 
 app.use("/api/meetings", meetingRouter);
 
-// =====================================================
-// AI ROUTES
-// =====================================================
-
 app.use("/api/ai", aiRoutes);
 
-// =====================================================
-// NOTIFICATION ROUTES
-// =====================================================
-
 app.use("/api/notifications", notificationRoutes);
-
-// =====================================================
-// DASHBOARD ROUTES
-// =====================================================
 
 app.use("/api/dashboard", dashboardRoutes);
 
 // =====================================================
-// GLOBAL ERROR HANDLER
+// ERROR HANDLER
 // MUST BE LAST
 // =====================================================
 
 app.use(errorHandler);
 
 // =====================================================
-// START SERVER WITH SOCKET.IO
+// HTTP SERVER
 // =====================================================
 
 const server = http.createServer(app);
+
+// =====================================================
+// SOCKET.IO
+// =====================================================
+
 initSocket(server);
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+// =====================================================
+// START SERVER
+// =====================================================
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("================================");
+
+  console.log("🚀 Backend Started Successfully");
+
+  console.log(`PORT: ${PORT}`);
+
+  console.log(`Frontend: ${FRONTEND_URL}`);
+
+  console.log("================================");
 });
