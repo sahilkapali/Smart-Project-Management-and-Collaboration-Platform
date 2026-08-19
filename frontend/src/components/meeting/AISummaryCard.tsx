@@ -1,103 +1,42 @@
-import {
-  Card,
-  CardContent,
-  Typography,
-  Stack,
-  Button,
-  CircularProgress,
-} from "@mui/material";
-
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import { Box, Paper, Stack, Typography } from "@mui/material";
+import { AutoAwesome } from "@mui/icons-material";
 
 interface AISummaryCardProps {
-  summary?: string;
-  onGenerate: () => void;
-  loading: boolean;
+  summary: string;
 }
 
-const AISummaryCard = ({
-  summary,
-  onGenerate,
-  loading,
-}: AISummaryCardProps) => {
+const AISummaryCard = ({ summary }: AISummaryCardProps) => {
+  // If there is no summary yet, we don't render the card
+  if (!summary) return null;
+
   return (
-    <Card
+    <Paper
       elevation={0}
       sx={{
+        p: { xs: 3, md: 4 },
         borderRadius: 3,
-        background:
-          "linear-gradient(135deg, rgba(25,118,210,0.08), rgba(156,39,176,0.08))",
         border: "1px solid",
         borderColor: "divider",
       }}
     >
-      <CardContent sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          {/* =====================================================
-              HEADER
-          ===================================================== */}
-
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            <AutoAwesomeIcon color="primary" />
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <AutoAwesome color="primary" />
+          <Typography variant="h6" fontWeight={700}>
             AI Summary
           </Typography>
-
-          {/* =====================================================
-              SUMMARY
-          ===================================================== */}
-
-          {summary?.trim() ? (
-            <Typography
-              variant="body1"
-              sx={{
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                lineHeight: 1.7,
-              }}
-            >
-              {summary}
-            </Typography>
-          ) : (
-            <Typography color="text.secondary">
-              Generate an AI summary from the meeting notes.
-            </Typography>
-          )}
-
-          {/* =====================================================
-              GENERATE BUTTON
-          ===================================================== */}
-
-          <Button
-            variant="contained"
-            startIcon={
-              loading ? (
-                <CircularProgress size={18} color="inherit" />
-              ) : (
-                <AutoAwesomeIcon />
-              )
-            }
-            onClick={onGenerate}
-            disabled={loading}
-            sx={{
-              alignSelf: "flex-start",
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 700,
-            }}
-          >
-            {loading ? "Generating..." : "Generate Summary"}
-          </Button>
         </Stack>
-      </CardContent>
-    </Card>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography 
+            variant="body1" 
+            sx={{ whiteSpace: "pre-line", lineHeight: 1.6 }}
+          >
+            {summary}
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
   );
 };
 

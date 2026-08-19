@@ -22,11 +22,10 @@ import {
 } from "@mui/icons-material";
 
 import meetingService from "../../services/meeting.service";
-import aiService from "../../services/ai.service";
 
 import MeetingNotes from "../../components/meeting/MeetingNotes";
-import AISummaryCard from "../../components/meeting/AISummaryCard";
 import ActionItemsCard from "../../components/meeting/ActionItemsCard";
+import AISummaryCard from "../../components/meeting/AISummaryCard";
 
 import type { Meeting } from "../../types/meeting.types";
 
@@ -37,23 +36,17 @@ const MeetingDetailsPage = () => {
   }>();
 
   const meetingId = params.id ?? params.meetingId;
-
   const navigate = useNavigate();
 
   const [meeting, setMeeting] = useState<Meeting | null>(null);
-
   const [loading, setLoading] = useState(true);
-
-  const [summaryLoading, setSummaryLoading] = useState(false);
-
+  
   const [actionLoading, setActionLoading] = useState(false);
-
   const [error, setError] = useState("");
 
-  // ============================================================
-  // LOAD MEETING
-  // ============================================================
-
+  /* ============================================================
+     LOAD MEETING
+  ============================================================ */
   const loadMeeting = useCallback(async () => {
     if (!meetingId || meetingId === "undefined" || meetingId === "null") {
       setError("Meeting ID is missing.");
@@ -66,20 +59,6 @@ const MeetingDetailsPage = () => {
       setLoading(true);
       setError("");
 
-      console.log("Loading meeting:", meetingId);
-
-      /*
-       * meetingService.getMeetingById() already normalizes
-       * the backend response and returns a Meeting directly.
-       *
-       * Therefore:
-       *
-       * const response = await ...
-       * response.data
-       *
-       * is incorrect.
-       */
-
       const loadedMeeting = await meetingService.getMeetingById(meetingId);
 
       if (!loadedMeeting || !loadedMeeting.id) {
@@ -91,9 +70,7 @@ const MeetingDetailsPage = () => {
       setMeeting(loadedMeeting);
     } catch (err: any) {
       console.error("Failed to load meeting:", err);
-
       setMeeting(null);
-
       setError(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
@@ -105,49 +82,16 @@ const MeetingDetailsPage = () => {
     }
   }, [meetingId]);
 
-  // ============================================================
-  // LOAD ON PAGE OPEN
-  // ============================================================
-
+  /* ============================================================
+     LOAD ON PAGE OPEN
+  ============================================================ */
   useEffect(() => {
     loadMeeting();
   }, [loadMeeting]);
 
-  // ============================================================
-  // GENERATE SUMMARY
-  // ============================================================
-
-  const handleSummary = async () => {
-    if (!meetingId) {
-      setError("Meeting ID is missing.");
-      return;
-    }
-
-    try {
-      setSummaryLoading(true);
-      setError("");
-
-      await aiService.summarizeMeeting(meetingId);
-
-      await loadMeeting();
-    } catch (err: any) {
-      console.error("AI summary failed:", err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "Failed to generate AI meeting summary.",
-      );
-    } finally {
-      setSummaryLoading(false);
-    }
-  };
-
-  // ============================================================
-  // GENERATE ACTION ITEMS
-  // ============================================================
-
+  /* ============================================================
+     GENERATE ACTION ITEMS
+  ============================================================ */
   const handleActionItems = async () => {
     if (!meetingId) {
       setError("Meeting ID is missing.");
@@ -158,12 +102,13 @@ const MeetingDetailsPage = () => {
       setActionLoading(true);
       setError("");
 
-      await aiService.extractActionItems(meetingId);
+      // Use the newly created method in meetingService
+      const updatedMeeting = await meetingService.extractActionItems(meetingId);
 
-      await loadMeeting();
+      // Update state directly instead of re-fetching
+      setMeeting(updatedMeeting);
     } catch (err: any) {
       console.error("AI action items failed:", err);
-
       setError(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
@@ -175,10 +120,9 @@ const MeetingDetailsPage = () => {
     }
   };
 
-  // ============================================================
-  // LOADING
-  // ============================================================
-
+  /* ============================================================
+     LOADING STATE
+  ============================================================ */
   if (loading) {
     return (
       <Box
@@ -191,17 +135,15 @@ const MeetingDetailsPage = () => {
       >
         <Stack alignItems="center" spacing={2}>
           <CircularProgress />
-
           <Typography color="text.secondary">Loading meeting...</Typography>
         </Stack>
       </Box>
     );
   }
 
-  // ============================================================
-  // INVALID ID / NOT FOUND
-  // ============================================================
-
+  /* ============================================================
+     INVALID ID / NOT FOUND STATE
+  ============================================================ */
   if (!meeting) {
     return (
       <Container maxWidth="lg" sx={{ py: 5 }}>
@@ -237,17 +179,11 @@ const MeetingDetailsPage = () => {
     );
   }
 
-  // ============================================================
-  // DATE / TIME
-  // ============================================================
-
+  /* ============================================================
+     COMPUTED VALUES
+  ============================================================ */
   const start = new Date(meeting.startTime);
-
   const end = meeting.endTime ? new Date(meeting.endTime) : null;
-
-  // ============================================================
-  // SUMMARY
-  // ============================================================
 
   const summary =
     meeting.notes
@@ -255,31 +191,22 @@ const MeetingDetailsPage = () => {
       .filter((value): value is string => Boolean(value))
       .join("\n\n") || "";
 
-  // ============================================================
-  // RENDER
-  // ============================================================
-
+  /* ============================================================
+     RENDER
+  ============================================================ */
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Stack spacing={4}>
         {/* =====================================================
-            BACK
+            BACK & ERROR ALERTS
         ===================================================== */}
-
         <Button
           startIcon={<ArrowBack />}
           onClick={() => navigate(-1)}
-          sx={{
-            alignSelf: "flex-start",
-            textTransform: "none",
-          }}
+          sx={{ alignSelf: "flex-start", textTransform: "none" }}
         >
           Back
         </Button>
-
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
 
         {error && (
           <Alert severity="error" onClose={() => setError("")}>
@@ -288,16 +215,12 @@ const MeetingDetailsPage = () => {
         )}
 
         {/* =====================================================
-            HEADER
+            HEADER / METADATA
         ===================================================== */}
-
         <Paper
           elevation={0}
           sx={{
-            p: {
-              xs: 3,
-              md: 4,
-            },
+            p: { xs: 3, md: 4 },
             borderRadius: 3,
             border: "1px solid",
             borderColor: "divider",
@@ -316,28 +239,17 @@ const MeetingDetailsPage = () => {
 
             <Divider />
 
-            {/* =================================================
-                DATE
-            ================================================= */}
-
             <Stack
-              direction={{
-                xs: "column",
-                sm: "row",
-              }}
-              spacing={{
-                xs: 2,
-                sm: 4,
-              }}
+              direction={{ xs: "column", sm: "row" }}
+              spacing={{ xs: 2, sm: 4 }}
             >
+              {/* DATE */}
               <Stack direction="row" spacing={1} alignItems="center">
                 <CalendarMonth color="primary" />
-
                 <Box>
                   <Typography variant="caption" color="text.secondary">
                     Date
                   </Typography>
-
                   <Typography fontWeight={600}>
                     {start.toLocaleDateString(undefined, {
                       weekday: "long",
@@ -349,21 +261,16 @@ const MeetingDetailsPage = () => {
                 </Box>
               </Stack>
 
-              {/* =================================================
-                  TIME
-              ================================================= */}
-
+              {/* TIME */}
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   Time
                 </Typography>
-
                 <Typography fontWeight={600}>
                   {start.toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
-
                   {end &&
                     ` – ${end.toLocaleTimeString(undefined, {
                       hour: "2-digit",
@@ -372,18 +279,13 @@ const MeetingDetailsPage = () => {
                 </Typography>
               </Box>
 
-              {/* =================================================
-                  PARTICIPANTS
-              ================================================= */}
-
+              {/* PARTICIPANTS */}
               <Stack direction="row" spacing={1} alignItems="center">
                 <People color="primary" />
-
                 <Box>
                   <Typography variant="caption" color="text.secondary">
                     Participants
                   </Typography>
-
                   <Typography fontWeight={600}>
                     {meeting.participants?.length ?? 0}
                   </Typography>
@@ -391,10 +293,7 @@ const MeetingDetailsPage = () => {
               </Stack>
             </Stack>
 
-            {/* =================================================
-                JOIN
-            ================================================= */}
-
+            {/* JOIN LINK */}
             {meeting.meetingLink && (
               <Button
                 variant="contained"
@@ -419,23 +318,22 @@ const MeetingDetailsPage = () => {
         {/* =====================================================
             NOTES
         ===================================================== */}
-
-        <MeetingNotes meetingId={meeting.id} notes={meeting.notes ?? []} />
+        <MeetingNotes 
+          meetingId={meeting.id} 
+          notes={meeting.notes ?? []} 
+          onMeetingUpdated={setMeeting} // Passes state update seamlessly!
+        />
 
         {/* =====================================================
-            AI SUMMARY
+            AI SUMMARY CARD (Displays aggregate of all note summaries)
         ===================================================== */}
-
-        <AISummaryCard
-          summary={summary}
-          onGenerate={handleSummary}
-          loading={summaryLoading}
-        />
+        {summary && (
+          <AISummaryCard summary={summary} />
+        )}
 
         {/* =====================================================
             ACTION ITEMS
         ===================================================== */}
-
         <ActionItemsCard
           actionItems={meeting.actionItems ?? []}
           onGenerate={handleActionItems}
