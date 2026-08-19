@@ -9,7 +9,6 @@ import {
   DialogContent,
   IconButton,
   MenuItem,
-  Slider,
   Stack,
   TextField,
   Typography,
@@ -25,19 +24,21 @@ import type {
   ProjectStatus,
 } from "../../types/project.types";
 
-// ============================================================
-// PROPS
-// ============================================================
+/* ============================================================
+   PROPS
+   ============================================================ */
 
 interface CreateProjectDialogProps {
   open: boolean;
+
   onClose: () => void;
+
   onCreated?: () => void;
 }
 
-// ============================================================
-// STATUS OPTIONS
-// ============================================================
+/* ============================================================
+   STATUS OPTIONS
+   ============================================================ */
 
 const STATUS_OPTIONS: Array<{
   value: ProjectStatus;
@@ -61,27 +62,28 @@ const STATUS_OPTIONS: Array<{
   },
 ];
 
-// ============================================================
-// ERROR TYPE
-// ============================================================
+/* ============================================================
+   API ERROR
+   ============================================================ */
 
 interface ApiErrorResponse {
   message?: string;
+
   error?: string;
 }
 
-// ============================================================
-// CREATE PROJECT DIALOG
-// ============================================================
+/* ============================================================
+   CREATE PROJECT DIALOG
+   ============================================================ */
 
 const CreateProjectDialog = ({
   open,
   onClose,
   onCreated,
 }: CreateProjectDialogProps) => {
-  // ==========================================================
-  // FORM STATE
-  // ==========================================================
+  /* ==========================================================
+     FORM STATE
+     ========================================================== */
 
   const [projectName, setProjectName] = useState("");
 
@@ -95,34 +97,37 @@ const CreateProjectDialog = ({
 
   const [dueDate, setDueDate] = useState("");
 
-  const [progress, setProgress] = useState(0);
-
-  // ==========================================================
-  // UI STATE
-  // ==========================================================
+  /* ==========================================================
+     UI STATE
+     ========================================================== */
 
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
 
-  // ==========================================================
-  // RESET FORM
-  // ==========================================================
+  /* ==========================================================
+     RESET FORM
+     ========================================================== */
 
   const resetForm = () => {
     setProjectName("");
+
     setDescription("");
+
     setStatus("PLANNING");
+
     setTeamId("");
+
     setStartDate("");
+
     setDueDate("");
-    setProgress(0);
+
     setError("");
   };
 
-  // ==========================================================
-  // RESET WHEN DIALOG OPENS
-  // ==========================================================
+  /* ==========================================================
+     RESET WHEN OPENED
+     ========================================================== */
 
   useEffect(() => {
     if (open) {
@@ -130,9 +135,9 @@ const CreateProjectDialog = ({
     }
   }, [open]);
 
-  // ==========================================================
-  // CLOSE DIALOG
-  // ==========================================================
+  /* ==========================================================
+     CLOSE
+     ========================================================== */
 
   const handleClose = () => {
     if (loading) {
@@ -140,67 +145,92 @@ const CreateProjectDialog = ({
     }
 
     resetForm();
+
     onClose();
   };
 
-  // ==========================================================
-  // SUBMIT
-  // ==========================================================
+  /* ==========================================================
+     SUBMIT
+     ========================================================== */
 
   const handleSubmit = async () => {
     setError("");
 
-    // --------------------------------------------------------
-    // Project name validation
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       NAME
+       -------------------------------------------------------- */
 
     if (!projectName.trim()) {
       setError("Project name is required.");
+
       return;
     }
 
-    // --------------------------------------------------------
-    // Team validation
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       NAME LENGTH
+       -------------------------------------------------------- */
+
+    if (projectName.trim().length < 3) {
+      setError("Project name must be at least 3 characters long.");
+
+      return;
+    }
+
+    if (projectName.trim().length > 100) {
+      setError("Project name cannot exceed 100 characters.");
+
+      return;
+    }
+
+    /* --------------------------------------------------------
+       TEAM
+       -------------------------------------------------------- */
 
     if (!teamId.trim()) {
       setError("Team ID is required.");
+
       return;
     }
 
-    // --------------------------------------------------------
-    // Date validation
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       DESCRIPTION
+       -------------------------------------------------------- */
 
-    if (startDate && dueDate && new Date(startDate) > new Date(dueDate)) {
+    if (description.length > 500) {
+      setError("Description cannot exceed 500 characters.");
+
+      return;
+    }
+
+    /* --------------------------------------------------------
+       DATE
+       -------------------------------------------------------- */
+
+    if (startDate && dueDate && startDate > dueDate) {
       setError("Project deadline cannot be before the start date.");
+
       return;
     }
 
-    // --------------------------------------------------------
-    // Progress validation
-    // --------------------------------------------------------
-
-    if (progress < 0 || progress > 100) {
-      setError("Project progress must be between 0 and 100.");
-      return;
-    }
-
-    // --------------------------------------------------------
-    // Payload
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       PAYLOAD
+       -------------------------------------------------------- */
 
     const payload: CreateProjectPayload = {
       name: projectName.trim(),
+
       description: description.trim(),
-      status,
+
       teamId: teamId.trim(),
-      progress,
+
+      status,
+
       ...(startDate
         ? {
             startDate,
           }
         : {}),
+
       ...(dueDate
         ? {
             dueDate,
@@ -208,18 +238,18 @@ const CreateProjectDialog = ({
         : {}),
     };
 
+    /* ========================================================
+       API
+       ======================================================== */
+
     try {
       setLoading(true);
 
-      // ------------------------------------------------------
-      // CREATE PROJECT
-      // ------------------------------------------------------
-
       await projectService.createProject(payload);
 
-      // ------------------------------------------------------
-      // SUCCESS
-      // ------------------------------------------------------
+      /* ------------------------------------------------------
+         SUCCESS
+         ------------------------------------------------------ */
 
       resetForm();
 
@@ -229,31 +259,28 @@ const CreateProjectDialog = ({
     } catch (error: unknown) {
       console.error("Create project failed:", error);
 
-      // ------------------------------------------------------
-      // Extract backend error safely
-      // ------------------------------------------------------
-
       const axiosError = error as {
         response?: {
           data?: ApiErrorResponse;
         };
+
+        message?: string;
       };
 
       const backendMessage =
-        axiosError.response?.data?.message || axiosError.response?.data?.error;
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        axiosError.message;
 
-      setError(
-        backendMessage ||
-          "Unable to create project. Please check the information and try again.",
-      );
+      setError(backendMessage || "Unable to create project. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+  /* ==========================================================
+     RENDER
+     ========================================================== */
 
   return (
     <Dialog
@@ -264,8 +291,10 @@ const CreateProjectDialog = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
+
           p: {
             xs: 1,
+
             sm: 2,
           },
         },
@@ -280,7 +309,9 @@ const CreateProjectDialog = ({
           <Box
             sx={{
               display: "flex",
+
               alignItems: "center",
+
               justifyContent: "space-between",
             }}
           >
@@ -288,8 +319,10 @@ const CreateProjectDialog = ({
               sx={{
                 fontSize: {
                   xs: "1.6rem",
+
                   sm: "2rem",
                 },
+
                 fontWeight: 700,
               }}
             >
@@ -317,7 +350,7 @@ const CreateProjectDialog = ({
               severity="error"
               onClose={() => setError("")}
               sx={{
-                mb: 2,
+                borderRadius: 2,
               }}
             >
               {error}
@@ -336,9 +369,9 @@ const CreateProjectDialog = ({
             onChange={(event) => setProjectName(event.target.value)}
             disabled={loading}
             inputProps={{
-              maxLength: 150,
+              maxLength: 100,
             }}
-            helperText={`${projectName.length}/150`}
+            helperText={`${projectName.length}/100`}
           />
 
           {/* ==================================================
@@ -354,9 +387,9 @@ const CreateProjectDialog = ({
             onChange={(event) => setDescription(event.target.value)}
             disabled={loading}
             inputProps={{
-              maxLength: 1000,
+              maxLength: 500,
             }}
-            helperText={`${description.length}/1000`}
+            helperText={`${description.length}/500`}
           />
 
           {/* ==================================================
@@ -371,7 +404,7 @@ const CreateProjectDialog = ({
             onChange={(event) => setTeamId(event.target.value)}
             disabled={loading}
             placeholder="Enter an existing team ID"
-            helperText="Enter the ID of an existing team that you belong to."
+            helperText="Enter the ID of the team for this project."
           />
 
           {/* ==================================================
@@ -400,14 +433,19 @@ const CreateProjectDialog = ({
           <Box
             sx={{
               display: "grid",
+
               gridTemplateColumns: {
                 xs: "1fr",
+
                 sm: "1fr 1fr",
               },
+
               gap: 2,
             }}
           >
-            {/* Start Date */}
+            {/* ------------------------------------------------
+                START DATE
+            ------------------------------------------------ */}
 
             <TextField
               label="Start Date"
@@ -421,7 +459,9 @@ const CreateProjectDialog = ({
               }}
             />
 
-            {/* Deadline */}
+            {/* ------------------------------------------------
+                DEADLINE
+            ------------------------------------------------ */}
 
             <TextField
               label="Project Deadline"
@@ -433,44 +473,6 @@ const CreateProjectDialog = ({
               InputLabelProps={{
                 shrink: true,
               }}
-            />
-          </Box>
-
-          {/* ==================================================
-              PROGRESS
-          ================================================== */}
-
-          <Box>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{
-                mb: 1,
-              }}
-            >
-              <Typography variant="body2" fontWeight={600}>
-                Initial Project Progress
-              </Typography>
-
-              <Typography variant="body2" fontWeight={700} color="primary.main">
-                {progress}%
-              </Typography>
-            </Stack>
-
-            <Slider
-              value={progress}
-              onChange={(_event, value) => {
-                if (typeof value === "number") {
-                  setProgress(value);
-                }
-              }}
-              min={0}
-              max={100}
-              step={5}
-              valueLabelDisplay="auto"
-              disabled={loading}
-              aria-label="Initial project progress"
             />
           </Box>
 
@@ -492,8 +494,11 @@ const CreateProjectDialog = ({
               disabled={loading}
               sx={{
                 minWidth: 120,
+
                 borderRadius: 2,
+
                 textTransform: "none",
+
                 fontWeight: 700,
               }}
             >
@@ -513,8 +518,11 @@ const CreateProjectDialog = ({
               disabled={loading || !projectName.trim() || !teamId.trim()}
               sx={{
                 minWidth: 170,
+
                 borderRadius: 2,
+
                 textTransform: "none",
+
                 fontWeight: 700,
               }}
             >

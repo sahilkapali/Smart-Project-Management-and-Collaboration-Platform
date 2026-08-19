@@ -6,10 +6,8 @@ import {
   Button,
   CircularProgress,
   MenuItem,
-  Slider,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
@@ -82,13 +80,13 @@ const ProjectForm = ({
 
   const [description, setDescription] = useState("");
 
+  const [teamId, setTeamId] = useState("");
+
   const [status, setStatus] = useState<ProjectStatus>("PLANNING");
 
   const [startDate, setStartDate] = useState("");
 
-  const [endDate, setEndDate] = useState("");
-
-  const [progress, setProgress] = useState(0);
+  const [dueDate, setDueDate] = useState("");
 
   const [validationError, setValidationError] = useState("");
 
@@ -100,10 +98,10 @@ const ProjectForm = ({
     if (!project) {
       setName("");
       setDescription("");
+      setTeamId("");
       setStatus("PLANNING");
       setStartDate("");
-      setEndDate("");
-      setProgress(0);
+      setDueDate("");
       setValidationError("");
 
       return;
@@ -113,17 +111,13 @@ const ProjectForm = ({
 
     setDescription(project.description ?? "");
 
+    setTeamId(project.teamId ?? "");
+
     setStatus(project.status ?? "PLANNING");
 
     setStartDate(project.startDate ? project.startDate.slice(0, 10) : "");
 
-    setEndDate(project.endDate ? project.endDate.slice(0, 10) : "");
-
-    setProgress(
-      typeof project.progress === "number"
-        ? Math.min(100, Math.max(0, project.progress))
-        : 0,
-    );
+    setDueDate(project.dueDate ? project.dueDate.slice(0, 10) : "");
 
     setValidationError("");
   }, [project]);
@@ -141,8 +135,32 @@ const ProjectForm = ({
     // Name validation
     // --------------------------------------------------------
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
       setValidationError("Project name is required.");
+
+      return;
+    }
+
+    if (trimmedName.length < 3) {
+      setValidationError("Project name must be at least 3 characters long.");
+
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setValidationError("Project name cannot exceed 100 characters.");
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Team validation
+    // --------------------------------------------------------
+
+    if (!teamId.trim()) {
+      setValidationError("Team ID is required.");
 
       return;
     }
@@ -151,41 +169,55 @@ const ProjectForm = ({
     // Date validation
     // --------------------------------------------------------
 
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      setValidationError("End date cannot be earlier than the start date.");
+    if (startDate && dueDate && new Date(startDate) > new Date(dueDate)) {
+      setValidationError("Due date cannot be earlier than the start date.");
 
       return;
     }
 
     // --------------------------------------------------------
-    // Progress validation
+    // CREATE PAYLOAD
     // --------------------------------------------------------
 
-    if (progress < 0 || progress > 100) {
-      setValidationError("Project progress must be between 0 and 100.");
+    if (!project) {
+      const createPayload: CreateProjectPayload = {
+        name: trimmedName,
+
+        description: description.trim() || undefined,
+
+        teamId: teamId.trim(),
+
+        status,
+
+        startDate: startDate || undefined,
+
+        dueDate: dueDate || undefined,
+      };
+
+      onSubmit(createPayload);
 
       return;
     }
 
     // --------------------------------------------------------
-    // Prepare payload
+    // UPDATE PAYLOAD
     // --------------------------------------------------------
 
-    const payload = {
-      name: name.trim(),
+    const updatePayload: UpdateProjectPayload = {
+      name: trimmedName,
 
-      description: description.trim(),
+      description: description.trim() || undefined,
+
+      teamId: teamId.trim(),
 
       status,
 
       startDate: startDate || undefined,
 
-      endDate: endDate || undefined,
-
-      progress,
+      dueDate: dueDate || undefined,
     };
 
-    onSubmit(payload);
+    onSubmit(updatePayload);
   };
 
   // ==========================================================
@@ -215,9 +247,9 @@ const ProjectForm = ({
           fullWidth
           disabled={loading}
           inputProps={{
-            maxLength: 150,
+            maxLength: 100,
           }}
-          helperText={`${name.length}/150`}
+          helperText={`${name.length}/100`}
         />
 
         {/* ==================================================
@@ -233,9 +265,24 @@ const ProjectForm = ({
           fullWidth
           disabled={loading}
           inputProps={{
-            maxLength: 1000,
+            maxLength: 500,
           }}
-          helperText={`${description.length}/1000`}
+          helperText={`${description.length}/500`}
+        />
+
+        {/* ==================================================
+            TEAM ID
+        ================================================== */}
+
+        <TextField
+          label="Team ID"
+          value={teamId}
+          onChange={(event) => setTeamId(event.target.value)}
+          required
+          fullWidth
+          disabled={loading}
+          placeholder="Enter team ID"
+          helperText="Enter the ID of the team this project belongs to."
         />
 
         {/* ==================================================
@@ -282,13 +329,13 @@ const ProjectForm = ({
             disabled={loading}
           />
 
-          {/* Deadline */}
+          {/* Due Date */}
 
           <TextField
             label="Project Deadline"
             type="date"
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
             InputLabelProps={{
               shrink: true,
             }}
@@ -296,54 +343,6 @@ const ProjectForm = ({
             disabled={loading}
           />
         </Stack>
-
-        {/* ==================================================
-            PROGRESS
-        ================================================== */}
-
-        <Box>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{
-              mb: 1,
-            }}
-          >
-            <Typography variant="body2" fontWeight={600}>
-              Project Progress
-            </Typography>
-
-            <Typography variant="body2" fontWeight={700} color="primary.main">
-              {progress}%
-            </Typography>
-          </Stack>
-
-          <Slider
-            value={progress}
-            onChange={(_event, value) => {
-              if (typeof value === "number") {
-                setProgress(value);
-              }
-            }}
-            min={0}
-            max={100}
-            step={5}
-            valueLabelDisplay="auto"
-            disabled={loading}
-            aria-label="Project progress"
-          />
-
-          <Stack direction="row" justifyContent="space-between">
-            <Typography variant="caption" color="text.secondary">
-              0%
-            </Typography>
-
-            <Typography variant="caption" color="text.secondary">
-              100%
-            </Typography>
-          </Stack>
-        </Box>
 
         {/* ==================================================
             ACTIONS
@@ -376,7 +375,7 @@ const ProjectForm = ({
                 <SaveRoundedIcon />
               )
             }
-            disabled={loading || !name.trim()}
+            disabled={loading || !name.trim() || !teamId.trim()}
           >
             {project ? "Update Project" : "Create Project"}
           </Button>

@@ -2,16 +2,21 @@ import api from "./api";
 
 import type {
   Project,
+  ProjectStatus,
   CreateProjectPayload,
   UpdateProjectPayload,
+  ProjectTeam,
 } from "../types/project.types";
 
 /* ============================================================
    BACKEND PROJECT
-============================================================ */
 
 interface BackendProject extends Omit<Project, "id"> {
   id?: string;
+  name?: string | null;
+}
+
+interface BackendUser {
   _id?: string;
 
   progress?: number;
@@ -23,7 +28,6 @@ interface BackendProject extends Omit<Project, "id"> {
 
 /* ============================================================
    NORMALIZE PROJECT
-============================================================ */
 
 const normalizeProject = (project: BackendProject): Project => {
   return {
@@ -55,7 +59,6 @@ const normalizeProject = (project: BackendProject): Project => {
 
 /* ============================================================
    PROJECT SERVICE
-============================================================ */
 
 const projectService = {
   /* ==========================================================
@@ -66,10 +69,10 @@ const projectService = {
      to see according to their role.
   ========================================================== */
 
-  async getProjects(): Promise<Project[]> {
-    const response = await api.get("/projects");
+const normalizeProject = (data: BackendProject): Project => {
+  const teamId = getTeamId(data);
 
-    const rawData = response.data;
+  const team = normalizeTeam(data);
 
     const projectsData = Array.isArray(rawData)
       ? rawData
@@ -95,15 +98,14 @@ const projectService = {
 
     const response = await api.get(`/projects/${projectId}`);
 
-    const rawData = response.data;
+    members: (data.members ?? []).map((member) => getId(member)),
 
     const project =
       rawData?.data ??
       rawData?.project ??
       rawData;
 
-    return normalizeProject(project);
-  },
+    startDate: data.startDate ?? null,
 
   /* ==========================================================
      CREATE PROJECT
@@ -114,15 +116,19 @@ const projectService = {
   ): Promise<Project> {
     const response = await api.post("/projects", data);
 
-    const rawData = response.data;
+    updatedAt: data.updatedAt ?? "",
+  };
+};
 
     const project =
       rawData?.data ??
       rawData?.project ??
       rawData;
 
-    return normalizeProject(project);
-  },
+const extractData = <T>(response: unknown): T => {
+  const result = response as {
+    data?: T | { data?: T };
+  };
 
   /* ==========================================================
      UPDATE PROJECT
@@ -141,15 +147,14 @@ const projectService = {
       data,
     );
 
-    const rawData = response.data;
+  getProjects,
 
     const project =
       rawData?.data ??
       rawData?.project ??
       rawData;
 
-    return normalizeProject(project);
-  },
+  updateProject,
 
   /* ==========================================================
      DELETE PROJECT

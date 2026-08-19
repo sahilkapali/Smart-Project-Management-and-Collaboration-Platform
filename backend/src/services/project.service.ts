@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import Project from "../models/project.models";
 import Team from "../models/team.models";
+import User from "../models/user.models";
 
 import { PROJECT_STATUS } from "../types/project.types";
 import { ROLE } from "../types/enum.types";
@@ -14,12 +15,7 @@ import { ERROR_CODES } from "../types/error.types";
  * =========================================================
  */
 
-export type UserRole =
-  | "ADMIN"
-  | "PROJECT_MANAGER"
-  | "TEAM_MEMBER"
-  | string;
-
+export type UserRole = "ADMIN" | "PROJECT_MANAGER" | "TEAM_MEMBER" | string;
 
 export interface UpdateProjectData {
   name?: string;
@@ -29,22 +25,17 @@ export interface UpdateProjectData {
   dueDate?: Date;
 }
 
-
 /**
  * =========================================================
  * HELPERS
  * =========================================================
  */
 
-const validateObjectId = (
-  id: string,
-  fieldName: string,
-): void => {
-
-  if (
-    !id ||
-    !mongoose.Types.ObjectId.isValid(id)
-  ) {
+/**
+ * Validate MongoDB ObjectId.
+ */
+const validateObjectId = (id: string, fieldName: string): void => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(
       `Invalid ${fieldName}.`,
       ERROR_CODES.VALIDATION_ERROR,
@@ -53,14 +44,79 @@ const validateObjectId = (
   }
 };
 
-
-const toObjectId = (
-  id: string,
-): mongoose.Types.ObjectId => {
-
+/**
+ * Convert string to MongoDB ObjectId.
+ */
+const toObjectId = (id: string): mongoose.Types.ObjectId => {
   return new mongoose.Types.ObjectId(id);
 };
 
+/**
+ * =========================================================
+ * ADD TEAM NAME TO PROJECT RESPONSE
+ * =========================================================
+ *
+ * Database continues to store:
+ *
+ * team: ObjectId
+ *
+ * API response additionally contains:
+ *
+ * teamName: string
+ *
+ * This allows the frontend to display:
+ *
+ * Team: Development Team
+ *
+ * instead of:
+ *
+ * Team: 6a847b3dd654acf198152185
+ *
+ * =========================================================
+ */
+
+const addTeamNameToProject = (project: any) => {
+  if (!project) {
+    return project;
+  }
+
+  /**
+   * Convert Mongoose document into
+   * a normal JavaScript object.
+   */
+  const projectObject =
+    typeof project.toObject === "function" ? project.toObject() : project;
+
+  /**
+   * The team should already be populated
+   * by the query.
+   */
+  const populatedTeam = projectObject.team;
+
+  let teamName = "No team assigned";
+
+  /**
+   * If team is populated:
+   *
+   * team = {
+   *   _id: "...",
+   *   name: "Development Team",
+   *   ...
+   * }
+   */
+  if (
+    populatedTeam &&
+    typeof populatedTeam === "object" &&
+    typeof populatedTeam.name === "string"
+  ) {
+    teamName = populatedTeam.name.trim() || "Unnamed Team";
+  }
+
+  return {
+    ...projectObject,
+    teamName,
+  };
+};
 
 /**
  * =========================================================
@@ -70,21 +126,17 @@ const toObjectId = (
  * A user can access a project ONLY if:
  *
  * 1. They created the project
+ *
  * OR
+ *
  * 2. They are the owner of the project's team
- *    (project manager)
+ *
  * OR
+ *
  * 3. They are a member of the project's team
  *
- * IMPORTANT:
- *
- * Being ADMIN alone does NOT grant access.
- *
- * Being PROJECT_MANAGER alone does NOT grant access
- * to every project.
- *
- * The user must actually belong to that project's team,
- * or be the creator.
+ * Being ADMIN alone does NOT automatically grant
+ * access to every project.
  *
  * =========================================================
  */
@@ -93,91 +145,53 @@ export const canAccessProject = async (
   projectId: string,
   userId: string,
 ): Promise<boolean> => {
+  validateObjectId(projectId, "project ID");
 
-  validateObjectId(
-    projectId,
-    "project ID",
-  );
+  validateObjectId(userId, "user ID");
 
-  validateObjectId(
-    userId,
-    "user ID",
-  );
+  const userObjectId = toObjectId(userId);
 
-
-  const userObjectId =
-    toObjectId(userId);
-
-
-  const project =
-    await Project.findById(
-      projectId,
-    ).select(
-      "createdBy team",
-    );
-
+  /**
+   * Find project.
+   */
+  const project = await Project.findById(projectId).select("createdBy team");
 
   if (!project) {
     return false;
   }
 
-
   /**
-   * Project creator
+   * Project creator.
    */
-
-  if (
-    project.createdBy.toString() ===
-    userId
-  ) {
+  if (project.createdBy.toString() === userId) {
     return true;
   }
-
 
   /**
    * Find project's team.
    */
-
-  const team =
-    await Team.findById(
-      project.team,
-    ).select(
-      "owner members",
-    );
-
+  const team = await Team.findById(project.team).select("owner members");
 
   if (!team) {
     return false;
   }
 
-
   /**
-   * Project manager / team owner
+   * Team owner / project manager.
    */
-
-  if (
-    team.owner.toString() ===
-    userId
-  ) {
+  if (team.owner.toString() === userId) {
     return true;
   }
 
-
   /**
-   * Team member
+   * Team member.
    */
-
-  const isTeamMember =
-    team.members.some(
-      (member) =>
-        member.toString() ===
-        userObjectId.toString(),
-    );
-
+  const isTeamMember = team.members.some(
+    (member) => member.toString() === userObjectId.toString(),
+  );
 
   return isTeamMember;
 };
-
 
 /**
  * =========================================================
@@ -185,29 +199,20 @@ export const canAccessProject = async (
  * =========================================================
  */
 
-export const requireProjectAccess =
-  async (
-    projectId: string,
-    userId: string,
-  ): Promise<void> => {
+export const requireProjectAccess = async (
+  projectId: string,
+  userId: string,
+): Promise<void> => {
+  const allowed = await canAccessProject(projectId, userId);
 
-    const allowed =
-      await canAccessProject(
-        projectId,
-        userId,
-      );
-
-
-    if (!allowed) {
-
-      throw new AppError(
-        "You do not have access to this project. You must be the project creator, the project manager, or a member of the project's team.",
-        ERROR_CODES.FORBIDDEN,
-        403,
-      );
-    }
-  };
-
+  if (!allowed) {
+    throw new AppError(
+      "You do not have access to this project. You must be the project creator, the project manager, or a member of the project's team.",
+      ERROR_CODES.FORBIDDEN,
+      403,
+    );
+  }
+};
 
 /**
  * =========================================================
@@ -221,33 +226,22 @@ export const createProject = async (
   teamId: string,
   userId: string,
   userRole: UserRole,
-  status: PROJECT_STATUS =
-    PROJECT_STATUS.PLANNING,
+  status: PROJECT_STATUS = PROJECT_STATUS.PLANNING,
   startDate?: Date,
   dueDate?: Date,
 ) => {
+  /**
+   * Validate IDs.
+   */
+  validateObjectId(teamId, "team ID");
 
-  validateObjectId(
-    teamId,
-    "team ID",
-  );
-
-  validateObjectId(
-    userId,
-    "user ID",
-  );
-
+  validateObjectId(userId, "user ID");
 
   /**
    * Only ADMIN and PROJECT_MANAGER
    * can create projects.
    */
-
-  if (
-    userRole !== ROLE.ADMIN &&
-    userRole !== ROLE.PROJECT_MANAGER
-  ) {
-
+  if (userRole !== ROLE.ADMIN && userRole !== ROLE.PROJECT_MANAGER) {
     throw new AppError(
       "You are not authorized to create a project.",
       ERROR_CODES.FORBIDDEN,
@@ -255,44 +249,25 @@ export const createProject = async (
     );
   }
 
-
-  const team =
-    await Team.findById(
-      teamId,
-    );
-
+  /**
+   * Find team.
+   */
+  const team = await Team.findById(teamId);
 
   if (!team) {
-
-    throw new AppError(
-      "Team not found.",
-      ERROR_CODES.NOT_FOUND,
-      404,
-    );
+    throw new AppError("Team not found.", ERROR_CODES.NOT_FOUND, 404);
   }
-
 
   /**
    * Project manager must belong
-   * to the team they are creating
-   * the project for.
+   * to the team.
    */
-
-  if (
-    userRole ===
-    ROLE.PROJECT_MANAGER
-  ) {
-
-    const isTeamMember =
-      team.members.some(
-        (member) =>
-          member.toString() ===
-          userId,
-      );
-
+  if (userRole === ROLE.PROJECT_MANAGER) {
+    const isTeamMember = team.members.some(
+      (member) => member.toString() === userId,
+    );
 
     if (!isTeamMember) {
-
       throw new AppError(
         "You must be a member of the team to create a project.",
         ERROR_CODES.FORBIDDEN,
@@ -301,17 +276,10 @@ export const createProject = async (
     }
   }
 
-
   /**
    * Validate dates.
    */
-
-  if (
-    startDate &&
-    dueDate &&
-    dueDate < startDate
-  ) {
-
+  if (startDate && dueDate && dueDate < startDate) {
     throw new AppError(
       "Due date cannot be earlier than start date.",
       ERROR_CODES.VALIDATION_ERROR,
@@ -319,159 +287,243 @@ export const createProject = async (
     );
   }
 
-
   /**
    * Create project.
-   *
-   * The creator is also stored in
-   * project.members for compatibility
-   * with the existing project structure.
    */
+  const project = await Project.create({
+    name,
+    description,
+    team: toObjectId(teamId),
+    createdBy: toObjectId(userId),
+    members: [toObjectId(userId)],
+    status,
+    startDate,
+    dueDate,
+  });
 
-  const project =
-    await Project.create({
-      name,
-      description,
-      team: toObjectId(teamId),
-      createdBy:
-        toObjectId(userId),
-      members: [
-        toObjectId(userId),
-      ],
-      status,
-      startDate,
-      dueDate,
-    });
+  /**
+   * Populate team with name.
+   */
+  const populatedProject = await Project.findById(project._id)
+    .populate("team", "name owner members")
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role");
 
-
-  return await Project.findById(
-    project._id,
-  )
-    .populate("team")
-    .populate(
-      "createdBy",
-      "firstName lastName email role",
-    )
-    .populate(
-      "members",
-      "firstName lastName email role",
-    );
+  return addTeamNameToProject(populatedProject);
 };
 
+/**
+ * =========================================================
+ * ADD PROJECT MEMBER
+ * =========================================================
+ *
+ * Only the owner of the project's team
+ * can add a project member.
+ *
+ * The user being added must already
+ * belong to the project's team.
+ *
+ * =========================================================
+ */
+
+export const addProjectMember = async (
+  projectId: string,
+  email: string,
+  requesterId: string,
+  _requesterRole: UserRole,
+) => {
+  /**
+   * Validate IDs.
+   */
+  validateObjectId(projectId, "project ID");
+
+  validateObjectId(requesterId, "user ID");
+
+  /**
+   * Normalize email.
+   */
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new AppError("Email is required.", ERROR_CODES.VALIDATION_ERROR, 400);
+  }
+
+  /**
+   * Find project.
+   */
+  const project = await Project.findById(projectId);
+
+  if (!project) {
+    throw new AppError("Project not found.", ERROR_CODES.NOT_FOUND, 404);
+  }
+
+  /**
+   * Find project's team.
+   */
+  const team = await Team.findById(project.team).select("owner members");
+
+  if (!team) {
+    throw new AppError("Project team not found.", ERROR_CODES.NOT_FOUND, 404);
+  }
+
+  /**
+   * Only team owner /
+   * project manager can add members.
+   */
+  if (team.owner.toString() !== requesterId) {
+    throw new AppError(
+      "Only the project manager can add members to this project.",
+      ERROR_CODES.FORBIDDEN,
+      403,
+    );
+  }
+
+  /**
+   * Find user by email.
+   */
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
+
+  if (!user) {
+    throw new AppError(
+      "No user was found with this email address.",
+      ERROR_CODES.NOT_FOUND,
+      404,
+    );
+  }
+
+  /**
+   * Check team membership.
+   */
+  const isTeamMember = team.members.some(
+    (memberId) => memberId.toString() === user._id.toString(),
+  );
+
+  if (!isTeamMember) {
+    throw new AppError(
+      "This user is not a member of the project's team.",
+      ERROR_CODES.FORBIDDEN,
+      403,
+    );
+  }
+
+  /**
+   * Check existing project membership.
+   */
+  const isProjectMember = project.members.some(
+    (memberId) => memberId.toString() === user._id.toString(),
+  );
+
+  if (isProjectMember) {
+    throw new AppError(
+      "User is already a member of this project.",
+      ERROR_CODES.CONFLICT,
+      409,
+    );
+  }
+
+  /**
+   * Add member.
+   */
+  project.members.push(user._id);
+
+  await project.save();
+
+  /**
+   * Return populated project.
+   */
+  const populatedProject = await Project.findById(project._id)
+    .populate("team", "name owner members")
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role");
+
+  return addTeamNameToProject(populatedProject);
+};
 
 /**
  * =========================================================
  * GET USER PROJECTS
  * =========================================================
  *
- * IMPORTANT:
+ * Returns projects where:
  *
- * ADMIN does NOT automatically receive
- * every project anymore.
+ * 1. User created the project
  *
- * Instead:
- *
- * createdBy = user
  * OR
- * team.owner = user
+ *
+ * 2. User owns the project team
+ *
  * OR
- * team.members contains user
+ *
+ * 3. User belongs to the project team
+ *
+ * OR
+ *
+ * 4. User is already a project member
  *
  * =========================================================
  */
 
-export const getUserProjects = async (
-  userId: string,
-  _userRole: UserRole,
-) => {
+export const getUserProjects = async (userId: string, _userRole: UserRole) => {
+  validateObjectId(userId, "user ID");
 
-  validateObjectId(
-    userId,
-    "user ID",
-  );
-
-
-  const userObjectId =
-    toObjectId(userId);
-
+  const userObjectId = toObjectId(userId);
 
   /**
-   * Find projects where:
-   *
-   * 1. User created project
-   *
-   * OR
-   *
-   * 2. User owns project's team
-   *
-   * OR
-   *
-   * 3. User belongs to project's team
+   * Find teams where user
+   * is a member.
    */
+  const teams = await Team.find({
+    members: userObjectId,
+  }).select("_id");
 
-  const teams =
-    await Team.find({
-      members: userObjectId,
-    }).select("_id");
+  const teamIds = teams.map((team) => team._id);
 
+  /**
+   * Find teams owned by user.
+   */
+  const ownedTeams = await Team.find({
+    owner: userObjectId,
+  }).select("_id");
 
-  const teamIds =
-    teams.map(
-      (team) => team._id,
-    );
+  const ownedTeamIds = ownedTeams.map((team) => team._id);
 
+  /**
+   * Combine team IDs.
+   */
+  const allTeamIds = [...teamIds, ...ownedTeamIds];
 
-  const ownedTeams =
-    await Team.find({
-      owner: userObjectId,
-    }).select("_id");
-
-
-  const ownedTeamIds =
-    ownedTeams.map(
-      (team) => team._id,
-    );
-
-
-  const allTeamIds = [
-    ...teamIds,
-    ...ownedTeamIds,
-  ];
-
-
-  return await Project.find({
+  /**
+   * Find projects.
+   */
+  const projects = await Project.find({
     $or: [
       {
-        createdBy:
-          userObjectId,
+        createdBy: userObjectId,
       },
-
       {
         team: {
           $in: allTeamIds,
         },
       },
-
       {
-        members:
-          userObjectId,
+        members: userObjectId,
       },
     ],
   })
-    .populate("team")
-    .populate(
-      "createdBy",
-      "firstName lastName email role",
-    )
-    .populate(
-      "members",
-      "firstName lastName email role",
-    )
+    .populate("team", "name owner members")
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role")
     .sort({
       createdAt: -1,
     });
-};
 
+  /**
+   * Add teamName to every project.
+   */
+  return projects.map((project) => addTeamNameToProject(project));
+};
 
 /**
  * =========================================================
@@ -484,60 +536,34 @@ export const getProjectById = async (
   userId: string,
   _userRole: UserRole,
 ) => {
+  validateObjectId(projectId, "project ID");
 
-  validateObjectId(
-    projectId,
-    "project ID",
-  );
-
-  validateObjectId(
-    userId,
-    "user ID",
-  );
-
-
-  const project =
-    await Project.findById(
-      projectId,
-    );
-
-
-  if (!project) {
-
-    throw new AppError(
-      "Project not found.",
-      ERROR_CODES.NOT_FOUND,
-      404,
-    );
-  }
-
+  validateObjectId(userId, "user ID");
 
   /**
-   * IMPORTANT:
-   *
-   * No ADMIN bypass here.
+   * Check whether project exists.
    */
+  const project = await Project.findById(projectId);
 
-  await requireProjectAccess(
-    projectId,
-    userId,
-  );
+  if (!project) {
+    throw new AppError("Project not found.", ERROR_CODES.NOT_FOUND, 404);
+  }
 
+  /**
+   * Check access.
+   */
+  await requireProjectAccess(projectId, userId);
 
-  return await Project.findById(
-    projectId,
-  )
-    .populate("team")
-    .populate(
-      "createdBy",
-      "firstName lastName email role",
-    )
-    .populate(
-      "members",
-      "firstName lastName email role",
-    );
+  /**
+   * Get populated project.
+   */
+  const populatedProject = await Project.findById(projectId)
+    .populate("team", "name owner members")
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role");
+
+  return addTeamNameToProject(populatedProject);
 };
-
 
 /**
  * =========================================================
@@ -547,12 +573,9 @@ export const getProjectById = async (
  * Only:
  *
  * - Project creator
- * - Project manager/team owner
+ * - Team owner / project manager
  *
  * can update the project.
- *
- * Regular team members can VIEW
- * but cannot update.
  *
  * =========================================================
  */
@@ -563,64 +586,30 @@ export const updateProject = async (
   _userRole: UserRole,
   data: UpdateProjectData,
 ) => {
+  validateObjectId(projectId, "project ID");
 
-  validateObjectId(
-    projectId,
-    "project ID",
-  );
-
-  validateObjectId(
-    userId,
-    "user ID",
-  );
-
-
-  const project =
-    await Project.findById(
-      projectId,
-    );
-
-
-  if (!project) {
-
-    throw new AppError(
-      "Project not found.",
-      ERROR_CODES.NOT_FOUND,
-      404,
-    );
-  }
-
+  validateObjectId(userId, "user ID");
 
   /**
-   * Creator can update.
+   * Find project.
    */
+  const project = await Project.findById(projectId);
 
-  if (
-    project.createdBy.toString() ===
-    userId
-  ) {
-    // allowed
-  } else {
+  if (!project) {
+    throw new AppError("Project not found.", ERROR_CODES.NOT_FOUND, 404);
+  }
 
+  /**
+   * Project creator can update.
+   */
+  if (project.createdBy.toString() !== userId) {
     /**
-     * Otherwise only the team owner
-     * / project manager can update.
+     * Otherwise team owner /
+     * project manager can update.
      */
+    const team = await Team.findById(project.team).select("owner");
 
-    const team =
-      await Team.findById(
-        project.team,
-      ).select(
-        "owner",
-      );
-
-
-    if (
-      !team ||
-      team.owner.toString() !==
-        userId
-    ) {
-
+    if (!team || team.owner.toString() !== userId) {
       throw new AppError(
         "Only the project creator or project manager can update this project.",
         ERROR_CODES.FORBIDDEN,
@@ -629,30 +618,19 @@ export const updateProject = async (
     }
   }
 
-
   /**
-   * Validate dates.
+   * Calculate final dates.
    */
-
   const finalStartDate =
-    data.startDate !== undefined
-      ? data.startDate
-      : project.startDate;
-
+    data.startDate !== undefined ? data.startDate : project.startDate;
 
   const finalDueDate =
-    data.dueDate !== undefined
-      ? data.dueDate
-      : project.dueDate;
+    data.dueDate !== undefined ? data.dueDate : project.dueDate;
 
-
-  if (
-    finalStartDate &&
-    finalDueDate &&
-    finalDueDate <
-      finalStartDate
-  ) {
-
+  /**
+   * Validate final dates.
+   */
+  if (finalStartDate && finalDueDate && finalDueDate < finalStartDate) {
     throw new AppError(
       "Due date cannot be earlier than start date.",
       ERROR_CODES.VALIDATION_ERROR,
@@ -660,73 +638,68 @@ export const updateProject = async (
     );
   }
 
-
-  if (
-    data.name !== undefined
-  ) {
-    project.name =
-      data.name;
+  /**
+   * Update name.
+   */
+  if (data.name !== undefined) {
+    project.name = data.name;
   }
 
-
-  if (
-    data.description !==
-    undefined
-  ) {
-    project.description =
-      data.description;
+  /**
+   * Update description.
+   */
+  if (data.description !== undefined) {
+    project.description = data.description;
   }
 
-
-  if (
-    data.status !== undefined
-  ) {
-    project.status =
-      data.status;
+  /**
+   * Update status.
+   */
+  if (data.status !== undefined) {
+    project.status = data.status;
   }
 
-
-  if (
-    data.startDate !==
-    undefined
-  ) {
-    project.startDate =
-      data.startDate;
+  /**
+   * Update start date.
+   */
+  if (data.startDate !== undefined) {
+    project.startDate = data.startDate;
   }
 
-
-  if (
-    data.dueDate !== undefined
-  ) {
-    project.dueDate =
-      data.dueDate;
+  /**
+   * Update due date.
+   */
+  if (data.dueDate !== undefined) {
+    project.dueDate = data.dueDate;
   }
 
-
+  /**
+   * Save changes.
+   */
   await project.save();
 
+  /**
+   * Return populated project
+   * with team name.
+   */
+  const populatedProject = await Project.findById(project._id)
+    .populate("team", "name owner members")
+    .populate("createdBy", "firstName lastName email role")
+    .populate("members", "firstName lastName email role");
 
-  return await Project.findById(
-    project._id,
-  )
-    .populate("team")
-    .populate(
-      "createdBy",
-      "firstName lastName email role",
-    )
-    .populate(
-      "members",
-      "firstName lastName email role",
-    );
+  return addTeamNameToProject(populatedProject);
 };
-
 
 /**
  * =========================================================
  * DELETE PROJECT
  * =========================================================
  *
- * Only creator or project manager
+ * Only:
+ *
+ * - Project creator
+ * - Team owner / project manager
+ *
  * can delete.
  *
  * =========================================================
@@ -737,70 +710,35 @@ export const deleteProject = async (
   userId: string,
   _userRole: UserRole,
 ): Promise<boolean> => {
+  validateObjectId(projectId, "project ID");
 
-  validateObjectId(
-    projectId,
-    "project ID",
-  );
-
-  validateObjectId(
-    userId,
-    "user ID",
-  );
-
-
-  const project =
-    await Project.findById(
-      projectId,
-    );
-
-
-  if (!project) {
-
-    throw new AppError(
-      "Project not found.",
-      ERROR_CODES.NOT_FOUND,
-      404,
-    );
-  }
-
+  validateObjectId(userId, "user ID");
 
   /**
-   * Creator can delete.
+   * Find project.
    */
+  const project = await Project.findById(projectId);
 
-  if (
-    project.createdBy.toString() ===
-    userId
-  ) {
+  if (!project) {
+    throw new AppError("Project not found.", ERROR_CODES.NOT_FOUND, 404);
+  }
 
-    await Project.findByIdAndDelete(
-      projectId,
-    );
+  /**
+   * Project creator can delete.
+   */
+  if (project.createdBy.toString() === userId) {
+    await Project.findByIdAndDelete(projectId);
 
     return true;
   }
 
-
   /**
-   * Otherwise only project manager
-   * / team owner can delete.
+   * Otherwise only team owner /
+   * project manager can delete.
    */
+  const team = await Team.findById(project.team).select("owner");
 
-  const team =
-    await Team.findById(
-      project.team,
-    ).select(
-      "owner",
-    );
-
-
-  if (
-    !team ||
-    team.owner.toString() !==
-      userId
-  ) {
-
+  if (!team || team.owner.toString() !== userId) {
     throw new AppError(
       "Only the project creator or project manager can delete this project.",
       ERROR_CODES.FORBIDDEN,
@@ -808,11 +746,10 @@ export const deleteProject = async (
     );
   }
 
-
-  await Project.findByIdAndDelete(
-    projectId,
-  );
-
+  /**
+   * Delete project.
+   */
+  await Project.findByIdAndDelete(projectId);
 
   return true;
 };

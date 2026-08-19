@@ -37,10 +37,10 @@ import { useAuth } from "../../context/AuthContext";
 
 import {
   addTeamMember,
+  removeTeamMember,
   createTeam,
   deleteTeam,
   getMyTeams,
-  removeTeamMember,
   updateTeam,
 } from "../../services/team.service";
 
@@ -79,7 +79,7 @@ const Teams = () => {
   );
 
   const [memberTeam, setMemberTeam] = useState<Team | null>(null);
-  const [memberUserId, setMemberUserId] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
   const [memberLoading, setMemberLoading] = useState(false);
 
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -323,7 +323,7 @@ const Teams = () => {
 
     setMemberTeam(team);
     setMemberDialogMode("add");
-    setMemberUserId("");
+    setMemberEmail("");
     setMemberDialogOpen(true);
   };
 
@@ -339,7 +339,7 @@ const Teams = () => {
 
     setMemberTeam(team);
     setMemberDialogMode("remove");
-    setMemberUserId("");
+    setMemberEmail("");
     setMemberDialogOpen(true);
   };
 
@@ -352,10 +352,10 @@ const Teams = () => {
       return;
     }
 
-    const trimmedUserId = memberUserId.trim();
+    const trimmedEmail = memberEmail.trim();
 
-    if (!trimmedUserId) {
-      toast.error("Please enter a user ID.");
+    if (!trimmedEmail) {
+      toast.error("Please enter user email.");
       return;
     }
 
@@ -371,12 +371,12 @@ const Teams = () => {
 
       if (memberDialogMode === "add") {
         updatedTeam = await addTeamMember(memberTeam._id, {
-          userId: trimmedUserId,
+          email: trimmedEmail,
         });
 
         toast.success("Team member added successfully.");
       } else {
-        updatedTeam = await removeTeamMember(memberTeam._id, trimmedUserId);
+        updatedTeam = await removeTeamMember(memberTeam._id, trimmedEmail);
 
         toast.success("Team member removed successfully.");
       }
@@ -393,7 +393,7 @@ const Teams = () => {
 
       setMemberDialogOpen(false);
       setMemberTeam(null);
-      setMemberUserId("");
+      setMemberEmail("");
     } catch (error: any) {
       console.error("Member action error:", error);
 
@@ -1210,15 +1210,15 @@ const Teams = () => {
 
             <TextField
               fullWidth
-              label="User ID"
-              placeholder="Enter user ObjectId"
-              value={memberUserId}
-              onChange={(event) => setMemberUserId(event.target.value)}
+              label="User Email"
+              placeholder="Enter user registered email"
+              value={memberEmail}
+              onChange={(event) => setMemberEmail(event.target.value)}
               disabled={memberLoading}
               helperText={
                 memberDialogMode === "add"
-                  ? "Enter the MongoDB User ID of the person you want to add."
-                  : "Enter the MongoDB User ID of the member you want to remove."
+                  ? "Enter the MongoDB registered email of the person you want to add."
+                  : "Enter the MongoDB registered email of the member you want to remove."
               }
             />
           </Stack>

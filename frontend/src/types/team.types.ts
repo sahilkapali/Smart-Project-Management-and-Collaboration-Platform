@@ -29,7 +29,7 @@ export interface UpdateTeamPayload {
 }
 
 export interface AddTeamMemberPayload {
-  userId: string;
+  email: string;
 }
 
 export interface TeamResponse<T> {

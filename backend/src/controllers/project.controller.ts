@@ -28,14 +28,7 @@ export const createProject = async (
       return;
     }
 
-    const {
-      name,
-      description,
-      teamId,
-      status,
-      startDate,
-      dueDate,
-    } = req.body;
+    const { name, description, teamId, status, startDate, dueDate } = req.body;
 
     // -------------------------------------------------
     // Name validation
@@ -108,8 +101,7 @@ export const createProject = async (
       PROJECT_STATUS.ARCHIVED,
     ];
 
-    let projectStatus: PROJECT_STATUS =
-      PROJECT_STATUS.PLANNING;
+    let projectStatus: PROJECT_STATUS = PROJECT_STATUS.PLANNING;
 
     if (status !== undefined) {
       if (
@@ -132,10 +124,7 @@ export const createProject = async (
     // Description validation
     // -------------------------------------------------
 
-    if (
-      description !== undefined &&
-      typeof description !== "string"
-    ) {
+    if (description !== undefined && typeof description !== "string") {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -145,10 +134,7 @@ export const createProject = async (
       return;
     }
 
-    if (
-      typeof description === "string" &&
-      description.length > 500
-    ) {
+    if (typeof description === "string" && description.length > 500) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -193,11 +179,7 @@ export const createProject = async (
       }
     }
 
-    if (
-      parsedStartDate &&
-      parsedDueDate &&
-      parsedDueDate < parsedStartDate
-    ) {
+    if (parsedStartDate && parsedDueDate && parsedDueDate < parsedStartDate) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -213,9 +195,7 @@ export const createProject = async (
 
     const project = await projectService.createProject(
       trimmedName,
-      typeof description === "string"
-        ? description.trim()
-        : undefined,
+      typeof description === "string" ? description.trim() : undefined,
       teamId,
       userId,
       userRole,
@@ -227,6 +207,97 @@ export const createProject = async (
     res.status(201).json({
       success: true,
       message: "Project created successfully.",
+      data: project,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =====================================================
+// ADD PROJECT MEMBER
+// =====================================================
+
+export const handleAddProjectMember = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const requesterId = req.user?.id;
+    const requesterRole = req.user?.role;
+
+    const { projectId } = req.params;
+    const { email } = req.body;
+
+    // -------------------------------------------------
+    // Authentication
+    // -------------------------------------------------
+
+    if (!requesterId || !requesterRole) {
+      res.status(401).json({
+        success: false,
+        code: "UNAUTHORIZED",
+        message: "Unauthorized.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Project ID
+    // -------------------------------------------------
+
+    if (!projectId) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Project ID is required.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Email
+    // -------------------------------------------------
+
+    if (!email || typeof email !== "string") {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Email is required.",
+        data: null,
+      });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Email is required.",
+        data: null,
+      });
+      return;
+    }
+
+    // -------------------------------------------------
+    // Call SERVICE
+    // -------------------------------------------------
+
+    const project = await projectService.addProjectMember(
+      projectId,
+      normalizedEmail,
+      requesterId,
+      requesterRole,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Project member added successfully.",
       data: project,
     });
   } catch (error) {
@@ -259,10 +330,7 @@ export const getProjects = async (
 
     // IMPORTANT:
     // Controller calls SERVICE here.
-    const projects = await projectService.getUserProjects(
-      userId,
-      userRole,
-    );
+    const projects = await projectService.getUserProjects(userId, userRole);
 
     res.status(200).json({
       success: true,
@@ -309,12 +377,11 @@ export const getProjectById = async (
       return;
     }
 
-    const project =
-      await projectService.getProjectById(
-        projectId,
-        userId,
-        userRole,
-      );
+    const project = await projectService.getProjectById(
+      projectId,
+      userId,
+      userRole,
+    );
 
     if (!project) {
       res.status(404).json({
@@ -371,13 +438,7 @@ export const updateProject = async (
       return;
     }
 
-    const {
-      name,
-      description,
-      status,
-      startDate,
-      dueDate,
-    } = req.body;
+    const { name, description, status, startDate, dueDate } = req.body;
 
     // -------------------------------------------------
     // At least one field
@@ -393,8 +454,7 @@ export const updateProject = async (
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message:
-          "At least one field is required to update the project.",
+        message: "At least one field is required to update the project.",
         data: null,
       });
       return;
@@ -423,8 +483,7 @@ export const updateProject = async (
         res.status(400).json({
           success: false,
           code: "VALIDATION_ERROR",
-          message:
-            "Project name must be at least 3 characters long.",
+          message: "Project name must be at least 3 characters long.",
           data: null,
         });
         return;
@@ -434,8 +493,7 @@ export const updateProject = async (
         res.status(400).json({
           success: false,
           code: "VALIDATION_ERROR",
-          message:
-            "Project name cannot exceed 100 characters.",
+          message: "Project name cannot exceed 100 characters.",
           data: null,
         });
         return;
@@ -446,10 +504,7 @@ export const updateProject = async (
     // Description
     // -------------------------------------------------
 
-    if (
-      description !== undefined &&
-      typeof description !== "string"
-    ) {
+    if (description !== undefined && typeof description !== "string") {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
@@ -459,15 +514,11 @@ export const updateProject = async (
       return;
     }
 
-    if (
-      typeof description === "string" &&
-      description.length > 500
-    ) {
+    if (typeof description === "string" && description.length > 500) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message:
-          "Description cannot exceed 500 characters.",
+        message: "Description cannot exceed 500 characters.",
         data: null,
       });
       return;
@@ -538,16 +589,11 @@ export const updateProject = async (
       }
     }
 
-    if (
-      parsedStartDate &&
-      parsedDueDate &&
-      parsedDueDate < parsedStartDate
-    ) {
+    if (parsedStartDate && parsedDueDate && parsedDueDate < parsedStartDate) {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message:
-          "Due date cannot be earlier than start date.",
+        message: "Due date cannot be earlier than start date.",
         data: null,
       });
       return;
@@ -557,22 +603,19 @@ export const updateProject = async (
     // Call SERVICE
     // -------------------------------------------------
 
-    const project =
-      await projectService.updateProject(
-        projectId,
-        userId,
-        userRole,
-        {
-          name: trimmedName,
-          description:
-            typeof description === "string"
-              ? description.trim()
-              : description,
-          status: validatedStatus,
-          startDate: parsedStartDate,
-          dueDate: parsedDueDate,
-        },
-      );
+    const project = await projectService.updateProject(
+      projectId,
+      userId,
+      userRole,
+      {
+        name: trimmedName,
+        description:
+          typeof description === "string" ? description.trim() : description,
+        status: validatedStatus,
+        startDate: parsedStartDate,
+        dueDate: parsedDueDate,
+      },
+    );
 
     if (!project) {
       res.status(404).json({
@@ -631,11 +674,7 @@ export const deleteProject = async (
 
     // IMPORTANT:
     // Call service here, NOT directly as route handler.
-    await projectService.deleteProject(
-      projectId,
-      userId,
-      userRole,
-    );
+    await projectService.deleteProject(projectId, userId, userRole);
 
     res.status(200).json({
       success: true,

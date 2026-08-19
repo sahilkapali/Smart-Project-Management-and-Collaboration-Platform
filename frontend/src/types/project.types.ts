@@ -1,8 +1,21 @@
 /* ============================================================
-   PROJECT TYPES
+   PROJECT STATUS
    ============================================================ */
 
 export type ProjectStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+
+/* ============================================================
+   PROJECT TEAM
+   ============================================================ */
+
+export interface ProjectTeam {
+  _id: string;
+  name: string;
+
+  owner?: string;
+
+  members?: string[];
+}
 
 /* ============================================================
    PROJECT
@@ -15,23 +28,30 @@ export interface Project {
 
   description?: string | null;
 
-  status: ProjectStatus;
+  /**
+   * Populated team object returned by the backend.
+   */
+  team: ProjectTeam | string;
 
-  progress?: number;
+  /**
+   * Team ID kept for compatibility
+   * with existing frontend code.
+   */
+  teamId: string;
+
+  createdBy: string;
+
+  members: string[];
+
+  status: ProjectStatus;
 
   startDate?: string | null;
 
-  endDate?: string | null;
-
-  teamId?: string | null;
+  dueDate?: string | null;
 
   createdAt?: string;
 
   updatedAt?: string;
-
-  members?: any[];
-
-  createdBy?: any;
 }
 
 /* ============================================================
@@ -43,15 +63,13 @@ export interface CreateProjectPayload {
 
   description?: string;
 
-  status: ProjectStatus;
+  teamId: string;
+
+  status?: ProjectStatus;
 
   startDate?: string;
 
-  endDate?: string;
-
-  teamId: string;
-
-  progress?: number;
+  dueDate?: string;
 }
 
 /* ============================================================
@@ -63,13 +81,11 @@ export interface UpdateProjectPayload {
 
   description?: string;
 
+  teamId?: string;
+
   status?: ProjectStatus;
 
   startDate?: string;
 
-  endDate?: string;
-
-  teamId?: string;
-
-  progress?: number;
+  dueDate?: string;
 }
