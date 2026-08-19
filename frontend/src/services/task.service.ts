@@ -12,6 +12,20 @@ import type {
   TaskCommentsResponse,
 } from "../types/task.types";
 
+// ============================================================
+// AI PROJECT PRIORITIZATION RESPONSE
+// ============================================================
+
+export interface AutoPrioritizeProjectTasksResponse {
+  tasks: Task[];
+  message: string;
+  success?: boolean;
+}
+
+// ============================================================
+// TASK SERVICE
+// ============================================================
+
 const taskService = {
   // ==========================================================
   // GET TASKS
@@ -33,7 +47,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // GET TASK
+  // GET SINGLE TASK
   // GET /tasks/:id
   // ==========================================================
 
@@ -53,7 +67,18 @@ const taskService = {
   // ==========================================================
 
   async createTask(data: CreateTaskPayload): Promise<Task> {
-    const response = await api.post<TaskResponse>("/tasks", data);
+    if (!data.project) {
+      throw new Error("Project ID is required.");
+    }
+
+    if (!data.title?.trim()) {
+      throw new Error("Task title is required.");
+    }
+
+    const response = await api.post<TaskResponse>("/tasks", {
+      ...data,
+      title: data.title.trim(),
+    });
 
     return response.data.data;
   },
@@ -87,13 +112,17 @@ const taskService = {
   },
 
   // ==========================================================
-  // UPDATE STATUS
+  // UPDATE TASK STATUS
   // PATCH /tasks/:id/status
   // ==========================================================
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
     if (!taskId) {
       throw new Error("Task ID is required.");
+    }
+
+    if (!status) {
+      throw new Error("Task status is required.");
     }
 
     const response = await api.patch<TaskResponse>(`/tasks/${taskId}/status`, {
@@ -104,7 +133,7 @@ const taskService = {
   },
 
   // ==========================================================
-  // KANBAN
+  // GET KANBAN
   // GET /tasks/project/:projectId/kanban
   // ==========================================================
 
@@ -182,20 +211,128 @@ const taskService = {
   },
 
   // ==========================================================
-  // AI PRIORITIZE
-  // PATCH /tasks/:id/ai-prioritize
+  // AI PROJECT-WIDE AUTO PRIORITIZATION
+  //
+  // BACKEND ROUTE:
+  //
+  // PATCH /api/tasks/project/:projectId/ai-prioritize
+  //
+  // IMPORTANT:
+  // This prioritizes ALL tasks belonging to the project.
+  //
+  // The project ID is NOT a task ID.
   // ==========================================================
 
-  async autoPrioritizeTask(taskId: string): Promise<Task> {
-    if (!taskId) {
-      throw new Error("Task ID is required.");
+  async autoPrioritizeProjectTasks(
+    projectId: string,
+  ): Promise<AutoPrioritizeProjectTasksResponse> {
+    if (!projectId?.trim()) {
+      throw new Error("Project ID is required.");
     }
 
-    const response = await api.patch<TaskResponse>(
-      `/tasks/${taskId}/ai-prioritize`,
-    );
+    // --------------------------------------------------------
+    // Call backend AI prioritization endpoint
+    // --------------------------------------------------------
 
-    return response.data.data;
+    const response = await api.patch<{
+      success?: boolean;
+      message?: string;
+      data?:
+        | Task[]
+        | {
+            tasks?: Task[];
+            message?: string;
+          };
+    }>(`/tasks/project/${projectId}/ai-prioritize`);
+
+    const responseData = response.data;
+
+    // --------------------------------------------------------
+    // Backend normally returns:
+    //
+    // {
+    //   success: true,
+    //   message: "...",
+    //   count: 2,
+    //   data: [
+    //     {
+    //       _id: "...",
+    //       priority: "High"
+    //     },
+    //     {
+    //       _id: "...",
+    //       priority: "Critical"
+    //     }
+    //   ]
+    // }
+    //
+    // Therefore data should normally be an array.
+    // --------------------------------------------------------
+
+    if (Array.isArray(responseData?.data)) {
+      return {
+        success: responseData.success,
+        message:
+          responseData.message ??
+          "AI successfully prioritized the project tasks.",
+        tasks: responseData.data,
+      };
+    }
+
+    // --------------------------------------------------------
+    // Compatibility:
+    //
+    // Some backend implementations may return:
+    //
+    // {
+    //   success: true,
+    //   message: "...",
+    //   data: {
+    //     tasks: [...]
+    //   }
+    // }
+    // --------------------------------------------------------
+
+    if (
+      responseData?.data &&
+      typeof responseData.data === "object" &&
+      !Array.isArray(responseData.data) &&
+      Array.isArray(responseData.data.tasks)
+    ) {
+      return {
+        success: responseData.success,
+        message:
+          responseData.message ??
+          responseData.data.message ??
+          "AI successfully prioritized the project tasks.",
+        tasks: responseData.data.tasks,
+      };
+    }
+
+    // --------------------------------------------------------
+    // Backend completed but did not return tasks.
+    //
+    // Fetch them again so the frontend receives the current
+    // MongoDB priorities.
+    // --------------------------------------------------------
+
+    try {
+      const refreshedTasks = await this.getTasks(projectId);
+
+      return {
+        success: responseData?.success,
+        message:
+          responseData?.message ?? "AI prioritization completed successfully.",
+        tasks: refreshedTasks,
+      };
+    } catch {
+      return {
+        success: responseData?.success,
+        message:
+          responseData?.message ?? "AI prioritization completed successfully.",
+        tasks: [],
+      };
+    }
   },
 };
 

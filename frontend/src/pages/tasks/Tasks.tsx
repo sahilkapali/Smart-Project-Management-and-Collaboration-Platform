@@ -11,8 +11,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -30,6 +30,8 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -143,10 +145,18 @@ const Tasks = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // ==========================================================
-  // AI PRIORITIZATION
+  // AI PROJECT PRIORITIZATION
   // ==========================================================
 
-  const [aiLoadingTaskId, setAiLoadingTaskId] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+
+  const [aiMessage, setAiMessage] = useState("");
+
+  const [aiTasks, setAiTasks] = useState<Task[]>([]);
+
+  const [aiError, setAiError] = useState("");
 
   // ==========================================================
   // DETERMINE PROJECT ID
@@ -159,6 +169,17 @@ const Tasks = () => {
       ? localStorage.getItem(SELECTED_PROJECT_STORAGE_KEY)
       : null;
 
+  /*
+   * IMPORTANT:
+   *
+   * This value MUST be the PROJECT ID.
+   *
+   * The AI endpoint is project-wide:
+   *
+   * PATCH /api/tasks/:projectId/ai-prioritize
+   *
+   * Do NOT pass task.id here.
+   */
   const activeProjectId =
     routeProjectId ||
     queryProjectId ||
@@ -262,12 +283,19 @@ const Tasks = () => {
           }
         }
       }
-    } catch (err: any) {
-      console.error("Loading projects failed:", err);
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
 
       setProjectsError(
-        err?.response?.data?.message ||
-          err?.message ||
+        error?.response?.data?.message ||
+          error?.message ||
           "Unable to load projects.",
       );
 
@@ -338,11 +366,20 @@ const Tasks = () => {
       const data = await taskService.getTasks(activeProjectId);
 
       setTasks(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      console.error("Loading tasks failed:", err);
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
 
       setError(
-        err?.response?.data?.message || err?.message || "Unable to load tasks.",
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load tasks.",
       );
 
       setTasks([]);
@@ -454,7 +491,16 @@ const Tasks = () => {
     }
 
     if (typeof task.assignedTo === "object") {
-      return task.assignedTo.name || "Unassigned";
+      if (task.assignedTo.name) {
+        return task.assignedTo.name;
+      }
+
+      const fullName = [task.assignedTo.firstName, task.assignedTo.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      return fullName || task.assignedTo.email || "Unassigned";
     }
 
     return task.assignedTo;
@@ -482,12 +528,19 @@ const Tasks = () => {
           getTaskId(currentTask) === taskId ? updatedTask : currentTask,
         ),
       );
-    } catch (err: any) {
-      console.error("Failed to update task status:", err);
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
 
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        error?.response?.data?.message ||
+          error?.message ||
           "Failed to update task status.",
       );
     }
@@ -609,12 +662,19 @@ const Tasks = () => {
 
       setEditOpen(false);
       setEditingTask(null);
-    } catch (err: any) {
-      console.error("Failed to update task:", err);
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
 
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        error?.response?.data?.message ||
+          error?.message ||
           "Failed to update task.",
       );
     } finally {
@@ -642,12 +702,19 @@ const Tasks = () => {
       );
 
       setDeleteTaskId(null);
-    } catch (err: any) {
-      console.error("Failed to delete task:", err);
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
 
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        error?.response?.data?.message ||
+          error?.message ||
           "Failed to delete task.",
       );
     } finally {
@@ -656,39 +723,138 @@ const Tasks = () => {
   };
 
   // ==========================================================
-  // AI AUTO PRIORITIZE
+  // AI PROJECT-WIDE AUTO PRIORITIZATION
   // ==========================================================
 
-  const handleAutoPrioritize = async (task: Task) => {
-    const taskId = getTaskId(task);
+  const handleAutoPrioritize = async () => {
+    /*
+     * IMPORTANT:
+     *
+     * NEVER use a task ID here.
+     *
+     * This must be the project ID:
+     *
+     * activeProjectId
+     */
+    if (!activeProjectId) {
+      setError("Please select a project before using AI prioritization.");
 
-    if (!taskId) {
-      setError("Task ID is missing.");
       return;
     }
 
+    // Open dialog immediately so user gets feedback.
+    setAiDialogOpen(true);
+
+    setAiLoading(true);
+
+    setAiMessage("Gemini is analyzing the tasks in this project...");
+
+    setAiTasks([]);
+
+    setAiError("");
+
+    setError("");
+
     try {
-      setAiLoadingTaskId(taskId);
-      setError("");
+      /*
+       * PROJECT-WIDE CALL.
+       *
+       * This calls:
+       *
+       * PATCH /api/tasks/:projectId/ai-prioritize
+       *
+       * The argument MUST be activeProjectId.
+       */
+      const result =
+        await taskService.autoPrioritizeProjectTasks(activeProjectId);
 
-      const updatedTask = await taskService.autoPrioritizeTask(taskId);
+      /*
+       * Your service already converts the backend
+       * response into:
+       *
+       * {
+       *   success,
+       *   message,
+       *   tasks
+       * }
+       *
+       * Therefore DO NOT use:
+       *
+       * result.data
+       */
+      const message =
+        result.message || "AI prioritization completed successfully.";
 
-      setTasks((previousTasks) =>
-        previousTasks.map((currentTask) =>
-          getTaskId(currentTask) === taskId ? updatedTask : currentTask,
-        ),
-      );
-    } catch (err: any) {
-      console.error("AI prioritization failed:", err);
+      const prioritizedTasks = Array.isArray(result.tasks) ? result.tasks : [];
 
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "AI prioritization failed.",
-      );
+      setAiMessage(message);
+
+      setAiTasks(prioritizedTasks);
+
+      /*
+       * If backend returned tasks, immediately update
+       * the Kanban board.
+       */
+      if (prioritizedTasks.length > 0) {
+        setTasks(prioritizedTasks);
+      } else {
+        /*
+         * Some backend implementations perform the update
+         * but don't return the complete task array.
+         *
+         * In that case fetch the project tasks again.
+         */
+        try {
+          const refreshedTasks = await taskService.getTasks(activeProjectId);
+
+          setTasks(refreshedTasks);
+
+          if (refreshedTasks.length > 0) {
+            setAiTasks(refreshedTasks);
+          }
+        } catch {
+          // Keep the successful AI message even if refresh fails.
+        }
+      }
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
+
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "AI prioritization failed.";
+
+      setAiError(message);
+
+      setAiMessage(message);
+
+      /*
+       * Also show the error on the main page.
+       */
+      setError(message);
     } finally {
-      setAiLoadingTaskId(null);
+      setAiLoading(false);
     }
+  };
+
+  // ==========================================================
+  // CLOSE AI DIALOG
+  // ==========================================================
+
+  const handleCloseAiDialog = () => {
+    if (aiLoading) {
+      return;
+    }
+
+    setAiDialogOpen(false);
   };
 
   // ==========================================================
@@ -706,13 +872,28 @@ const Tasks = () => {
   };
 
   // ==========================================================
+  // AI TASK DISPLAY
+  // ==========================================================
+
+  const getAiPriorityTasks = () => {
+    return [...aiTasks].sort((a, b) => {
+      const order: Record<string, number> = {
+        Critical: 1,
+        High: 2,
+        Medium: 3,
+        Low: 4,
+      };
+
+      return (order[a.priority] || 99) - (order[b.priority] || 99);
+    });
+  };
+
+  // ==========================================================
   // TASK CARD
   // ==========================================================
 
   const renderTaskCard = (task: Task) => {
     const taskId = getTaskId(task);
-
-    const isAiLoading = aiLoadingTaskId === taskId;
 
     return (
       <Card
@@ -739,9 +920,7 @@ const Tasks = () => {
           }}
         >
           <Stack spacing={1.5}>
-            {/* ==========================================
-                TITLE + ACTIONS
-            =========================================== */}
+            {/* TITLE + ACTIONS */}
 
             <Stack
               direction="row"
@@ -760,43 +939,36 @@ const Tasks = () => {
               </Typography>
 
               <Stack direction="row" spacing={0.25}>
-                <Tooltip title="AI Auto Prioritize">
-                  <span>
-                    <IconButton
-                      size="small"
-                      onClick={() => void handleAutoPrioritize(task)}
-                      disabled={isAiLoading}
-                    >
-                      {isAiLoading ? (
-                        <CircularProgress size={18} />
-                      ) : (
-                        <AutoAwesomeRoundedIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-
                 <Tooltip title="Edit task">
-                  <IconButton size="small" onClick={() => handleOpenEdit(task)}>
+                  <Button
+                    size="small"
+                    onClick={() => handleOpenEdit(task)}
+                    sx={{
+                      minWidth: 0,
+                      p: 0.5,
+                    }}
+                  >
                     <EditRoundedIcon fontSize="small" />
-                  </IconButton>
+                  </Button>
                 </Tooltip>
 
                 <Tooltip title="Delete task">
-                  <IconButton
+                  <Button
                     size="small"
                     color="error"
                     onClick={() => setDeleteTaskId(taskId)}
+                    sx={{
+                      minWidth: 0,
+                      p: 0.5,
+                    }}
                   >
                     <DeleteRoundedIcon fontSize="small" />
-                  </IconButton>
+                  </Button>
                 </Tooltip>
               </Stack>
             </Stack>
 
-            {/* ==========================================
-                DESCRIPTION
-            =========================================== */}
+            {/* DESCRIPTION */}
 
             <Typography
               variant="body2"
@@ -812,9 +984,7 @@ const Tasks = () => {
               {task.description || "No description available."}
             </Typography>
 
-            {/* ==========================================
-                PRIORITY
-            =========================================== */}
+            {/* PRIORITY */}
 
             <Stack
               direction="row"
@@ -840,9 +1010,7 @@ const Tasks = () => {
               </Typography>
             </Stack>
 
-            {/* ==========================================
-                DUE DATE
-            =========================================== */}
+            {/* DUE DATE */}
 
             <Stack
               direction="row"
@@ -863,9 +1031,7 @@ const Tasks = () => {
               </Typography>
             </Stack>
 
-            {/* ==========================================
-                ASSIGNEE
-            =========================================== */}
+            {/* ASSIGNEE */}
 
             <Stack
               direction="row"
@@ -890,9 +1056,7 @@ const Tasks = () => {
               </Typography>
             </Stack>
 
-            {/* ==========================================
-                STATUS
-            =========================================== */}
+            {/* STATUS */}
 
             <FormControl size="small" fullWidth>
               <Select
@@ -1022,9 +1186,9 @@ const Tasks = () => {
         mx: "auto",
       }}
     >
-      {/* ======================================================
+      {/* =====================================================
           HEADER
-      ======================================================= */}
+      ===================================================== */}
 
       <Stack
         direction={{
@@ -1066,25 +1230,69 @@ const Tasks = () => {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<AddRoundedIcon />}
-          onClick={handleOpenCreateTask}
-          disabled={!activeProjectId}
-          sx={{
-            borderRadius: 2,
-            textTransform: "none",
-            fontWeight: 700,
-            px: 2.5,
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
           }}
+          spacing={1}
         >
-          New Task
-        </Button>
+          {/* =================================================
+              AI PRIORITIZE
+          ================================================= */}
+
+          <Tooltip
+            title={
+              activeProjectId
+                ? "Use AI to prioritize all tasks in this project"
+                : "Select a project first"
+            }
+          >
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={
+                  aiLoading ? (
+                    <CircularProgress size={18} />
+                  ) : (
+                    <AutoAwesomeRoundedIcon />
+                  )
+                }
+                onClick={() => void handleAutoPrioritize()}
+                disabled={!activeProjectId || aiLoading || tasks.length === 0}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                {aiLoading ? "Prioritizing..." : "AI Prioritize"}
+              </Button>
+            </span>
+          </Tooltip>
+
+          {/* NEW TASK */}
+
+          <Button
+            variant="contained"
+            startIcon={<AddRoundedIcon />}
+            onClick={handleOpenCreateTask}
+            disabled={!activeProjectId}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              px: 2.5,
+            }}
+          >
+            New Task
+          </Button>
+        </Stack>
       </Stack>
 
-      {/* ======================================================
+      {/* =====================================================
           PROJECT SELECTOR
-      ======================================================= */}
+      ===================================================== */}
 
       {projects.length > 0 && (
         <Card
@@ -1156,9 +1364,9 @@ const Tasks = () => {
         </Card>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           PROJECT ERROR
-      ======================================================= */}
+      ===================================================== */}
 
       {projectsError && (
         <Alert
@@ -1181,9 +1389,9 @@ const Tasks = () => {
         </Alert>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           NO PROJECTS
-      ======================================================= */}
+      ===================================================== */}
 
       {!projectsLoading && projects.length === 0 && !projectsError && (
         <Card
@@ -1241,9 +1449,9 @@ const Tasks = () => {
         </Card>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           FILTERS
-      ======================================================= */}
+      ===================================================== */}
 
       {activeProjectId && projects.length > 0 && (
         <Stack
@@ -1342,9 +1550,9 @@ const Tasks = () => {
         </Stack>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           TASK ERROR
-      ======================================================= */}
+      ===================================================== */}
 
       {error && (
         <Alert
@@ -1367,9 +1575,9 @@ const Tasks = () => {
         </Alert>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           LOADING TASKS
-      ======================================================= */}
+      ===================================================== */}
 
       {loading && activeProjectId ? (
         <Box
@@ -1469,9 +1677,9 @@ const Tasks = () => {
         )
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           CREATE TASK DIALOG
-      ======================================================= */}
+      ===================================================== */}
 
       {activeProjectId && (
         <CreateTaskDialog
@@ -1482,9 +1690,261 @@ const Tasks = () => {
         />
       )}
 
-      {/* ======================================================
+      {/* =====================================================
+          AI PRIORITIZATION DIALOG
+      ===================================================== */}
+
+      <Dialog
+        open={aiDialogOpen}
+        onClose={handleCloseAiDialog}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            fontWeight: 700,
+          }}
+        >
+          <AutoAwesomeRoundedIcon color="primary" />
+          AI Task Prioritization
+        </DialogTitle>
+
+        <Divider />
+
+        <DialogContent
+          sx={{
+            pt: 3,
+          }}
+        >
+          {/* LOADING */}
+
+          {aiLoading && (
+            <Stack
+              alignItems="center"
+              spacing={2}
+              sx={{
+                py: 4,
+              }}
+            >
+              <CircularProgress />
+
+              <Typography fontWeight={600}>
+                Gemini is analyzing your project tasks...
+              </Typography>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                textAlign="center"
+              >
+                The AI is considering due dates, status, workload, urgency, and
+                task details.
+              </Typography>
+            </Stack>
+          )}
+
+          {/* RESULT */}
+
+          {!aiLoading && (
+            <Stack spacing={2}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: aiError ? "error.light" : "divider",
+                  borderRadius: 3,
+                  bgcolor: aiError ? "error.50" : "background.default",
+                }}
+              >
+                <CardContent>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    {aiError ? (
+                      <WarningRoundedIcon
+                        color="error"
+                        sx={{
+                          mt: 0.2,
+                        }}
+                      />
+                    ) : (
+                      <CheckCircleRoundedIcon
+                        color="success"
+                        sx={{
+                          mt: 0.2,
+                        }}
+                      />
+                    )}
+
+                    <Box>
+                      <Typography
+                        fontWeight={700}
+                        sx={{
+                          mb: 0.5,
+                        }}
+                      >
+                        Gemini Result
+                      </Typography>
+
+                      <Typography
+                        color={aiError ? "error.main" : "text.secondary"}
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {aiMessage || "AI prioritization completed."}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+
+              {/* PRIORITIZED TASKS */}
+
+              {getAiPriorityTasks().length > 0 && (
+                <Box>
+                  <Typography
+                    fontWeight={700}
+                    sx={{
+                      mb: 1.5,
+                    }}
+                  >
+                    Prioritized Tasks
+                  </Typography>
+
+                  <Stack spacing={1}>
+                    {getAiPriorityTasks().map((task, index) => (
+                      <Card
+                        key={getTaskId(task)}
+                        elevation={0}
+                        sx={{
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 2,
+                        }}
+                      >
+                        <CardContent
+                          sx={{
+                            py: 1.5,
+                            "&:last-child": {
+                              pb: 1.5,
+                            },
+                          }}
+                        >
+                          <Stack
+                            direction={{
+                              xs: "column",
+                              sm: "row",
+                            }}
+                            alignItems={{
+                              xs: "flex-start",
+                              sm: "center",
+                            }}
+                            justifyContent="space-between"
+                            spacing={1.5}
+                          >
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                            >
+                              <Typography
+                                variant="body2"
+                                fontWeight={700}
+                                sx={{
+                                  minWidth: 24,
+                                }}
+                              >
+                                {index + 1}.
+                              </Typography>
+
+                              <Box>
+                                <Typography fontWeight={700}>
+                                  {task.title || "Untitled Task"}
+                                </Typography>
+
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {task.overdue
+                                    ? "Overdue"
+                                    : task.dueDate
+                                      ? `Due ${formatDate(task.dueDate)}`
+                                      : "No due date"}
+                                </Typography>
+                              </Box>
+                            </Stack>
+
+                            <Typography
+                              variant="caption"
+                              fontWeight={700}
+                              sx={{
+                                px: 1.5,
+                                py: 0.6,
+                                borderRadius: 2,
+                                bgcolor: "action.hover",
+                              }}
+                            >
+                              {task.priority}
+                            </Typography>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* NO TASKS RETURNED */}
+
+              {getAiPriorityTasks().length === 0 && !aiError && (
+                <Typography variant="body2" color="text.secondary">
+                  The AI completed the prioritization, but the backend did not
+                  return a task list. Refresh the tasks to see the latest
+                  priorities.
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2,
+          }}
+        >
+          {!aiLoading && aiError && (
+            <Button
+              onClick={() => void handleAutoPrioritize()}
+              variant="outlined"
+              sx={{
+                textTransform: "none",
+              }}
+            >
+              Retry
+            </Button>
+          )}
+
+          <Button
+            onClick={handleCloseAiDialog}
+            disabled={aiLoading}
+            variant="contained"
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* =====================================================
           EDIT TASK DIALOG
-      ======================================================= */}
+      ===================================================== */}
 
       <Dialog
         open={editOpen}
@@ -1499,7 +1959,12 @@ const Tasks = () => {
         <DialogTitle>Edit Task</DialogTitle>
 
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack
+            spacing={2}
+            sx={{
+              mt: 1,
+            }}
+          >
             <TextField
               label="Task Title"
               fullWidth
@@ -1607,9 +2072,9 @@ const Tasks = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ======================================================
+      {/* =====================================================
           DELETE CONFIRMATION DIALOG
-      ======================================================= */}
+      ===================================================== */}
 
       <Dialog
         open={Boolean(deleteTaskId)}

@@ -59,13 +59,16 @@ export interface Task {
 
   overdue?: boolean;
 
+  // Returned when AI prioritizes project tasks
+  aiPriorityReason?: string;
+
   createdAt?: string;
 
   updatedAt?: string;
 }
 
 // ============================================================
-// CREATE
+// CREATE TASK
 // ============================================================
 
 export interface CreateTaskPayload {
@@ -83,7 +86,7 @@ export interface CreateTaskPayload {
 }
 
 // ============================================================
-// UPDATE
+// UPDATE TASK
 // ============================================================
 
 export interface UpdateTaskPayload {
@@ -170,4 +173,18 @@ export interface TaskCommentsResponse {
   count?: number;
 
   data: TaskComment[];
+}
+
+// ============================================================
+// AI PROJECT PRIORITIZATION
+// ============================================================
+
+export interface AutoPrioritizeProjectTasksResponse {
+  success: boolean;
+
+  message?: string;
+
+  count?: number;
+
+  data: Task[];
 }
