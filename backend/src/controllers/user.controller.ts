@@ -7,6 +7,8 @@ import {
   changePassword,
 } from "../services/auth.service";
 
+import { updateProfileImage } from "../services/profileImage.service";
+
 import { updateUserRole } from "../services/user.service";
 import { ROLE } from "../types/enum.types";
 
@@ -258,6 +260,74 @@ export const updateUserRoleController = async (
     const result = await updateUserRole(userId, role as ROLE);
 
     return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserProfileImage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    // ========================================================
+    // GET AUTHENTICATED USER ID
+    // ========================================================
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized. User not found.",
+      });
+    }
+
+    // ========================================================
+    // CHECK UPLOADED FILE
+    // ========================================================
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Profile image is required.",
+      });
+    }
+
+    // ========================================================
+    // UPLOAD IMAGE TO CLOUDINARY
+    // ========================================================
+
+    await updateProfileImage(userId, req.file);
+
+    // ========================================================
+    // GET UPDATED USER
+    // ========================================================
+    //
+    // We fetch the user again so the response contains the
+    // complete updated User object expected by the frontend.
+    //
+    // ========================================================
+
+    const updatedUser = await User.findById(userId);
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // ========================================================
+    // RETURN UPDATED USER
+    // ========================================================
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile image updated successfully.",
+      data: updatedUser,
+    });
   } catch (error) {
     next(error);
   }
