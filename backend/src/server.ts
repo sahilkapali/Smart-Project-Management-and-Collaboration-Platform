@@ -29,56 +29,44 @@ import dashboardRoutes from "./routes/dashboard.routes";
 import reportRoutes from "./routes/report.routes";
 import activityRoutes from "./routes/activity.routes";
 
-// Error middleware
 import errorHandler from "./middleware/errorHandler.middleware";
 
 const app = express();
 
-// =====================================================
-// ENVIRONMENT CHECK
-// =====================================================
+// ===============================
+// ENV CHECK
+// ===============================
 
 if (!ENV_CONFIG.mongodb_uri) {
-  throw new Error("MongoDB URI is missing.");
+  throw new Error("MongoDB URI missing");
 }
 
 if (!ENV_CONFIG.jwt_secret) {
-  throw new Error("JWT secret is missing.");
+  throw new Error("JWT secret missing");
 }
 
-// Render automatically provides PORT
 const PORT = Number(process.env.PORT) || Number(ENV_CONFIG.port) || 5000;
 
-// =====================================================
-// FRONTEND URL CONFIGURATION
-// =====================================================
+// ===============================
+// FRONTEND URLS
+// ===============================
 
 const FRONTEND_URL =
   process.env.FRONTEND_URL ||
-  "https://smart-project-management-and-collab.vercel.app";
+  "https://smart-project-management-and-collaboration-platform-qhr08g9th.vercel.app";
 
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-
   FRONTEND_URL,
 ];
 
 console.log("Allowed Origins:");
 console.log(allowedOrigins);
 
-// =====================================================
-// DATABASE
-// =====================================================
-
-connectDatabase(ENV_CONFIG.mongodb_uri);
-
-// =====================================================
-// GLOBAL MIDDLEWARE
-// =====================================================
+// ===============================
+// MIDDLEWARE
+// ===============================
 
 app.use(express.json());
 
@@ -90,40 +78,40 @@ app.use(
 
 app.use(cookieParser());
 
-// =====================================================
+// ===============================
 // CORS
-// =====================================================
+// ===============================
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow Postman / server requests
-      if (!origin) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: (origin: string | undefined, callback: any) => {
+    if (!origin) {
+      return callback(null, true);
+    }
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      console.log("CORS Allowed:", origin);
+      return callback(null, true);
+    }
 
-      console.log("Blocked CORS Origin:", origin);
+    console.log("CORS Blocked:", origin);
+    return callback(null, false);
+  },
 
-      return callback(new Error("CORS blocked this origin"));
-    },
+  credentials: true,
 
-    credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+};
 
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-  }),
-);
+// APPLY CORS
+app.use(cors(corsOptions));
 
-// =====================================================
+// ===============================
 // HEALTH CHECK
-// =====================================================
+// ===============================
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
 
@@ -131,9 +119,9 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// =====================================================
-// API ROUTES
-// =====================================================
+// ===============================
+// ROUTES
+// ===============================
 
 app.use("/api/auth", authRouter);
 
@@ -167,37 +155,42 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 
-// =====================================================
+// ===============================
 // ERROR HANDLER
-// MUST BE LAST
-// =====================================================
+// ===============================
 
 app.use(errorHandler);
 
-// =====================================================
-// HTTP SERVER
-// =====================================================
+// ===============================
+// SERVER
+// ===============================
 
 const server = http.createServer(app);
 
-// =====================================================
-// SOCKET.IO
-// =====================================================
+// Socket.io
 
 initSocket(server);
 
-// =====================================================
-// START SERVER
-// =====================================================
+// ===============================
+// START
+// ===============================
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log("================================");
+const startServer = async () => {
+  try {
+    await connectDatabase(ENV_CONFIG.mongodb_uri);
 
-  console.log("🚀 Backend Started Successfully");
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log("============================");
+      console.log("🚀 Backend Running");
+      console.log(`PORT: ${PORT}`);
+      console.log(`FRONTEND: ${FRONTEND_URL}`);
+      console.log("============================");
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error);
 
-  console.log(`PORT: ${PORT}`);
+    process.exit(1);
+  }
+};
 
-  console.log(`Frontend: ${FRONTEND_URL}`);
-
-  console.log("================================");
-});
+startServer();
