@@ -166,7 +166,9 @@ const AppRoutes: React.FC = () => {
             element={<RepositoryVersionHistoryPage />}
           />
 
-          {/* Issues */}
+          {/* ==================================================
+              ISSUES (WITH BOTH :issueId AND :id FALLBACKS)
+          ================================================== */}
           <Route path={ROUTES.ISSUES || "/issues"} element={<IssuesPage />} />
           <Route
             path={ROUTES.CREATE_ISSUE || "/issues/create"}
@@ -178,14 +180,20 @@ const AppRoutes: React.FC = () => {
               element={<CreateIssuePage />}
             />
           )}
+
+          {/* Issue Details Route Aliases */}
           <Route
-            path={ROUTES.ISSUE_DETAILS || "/issues/:id"}
+            path={ROUTES.ISSUE_DETAILS || "/issues/:issueId"}
             element={<IssueDetailsPage />}
           />
+          <Route path="/issues/:id" element={<IssueDetailsPage />} />
+
+          {/* Edit Issue Route Aliases */}
           <Route
-            path={ROUTES.EDIT_ISSUE || "/issues/:id/edit"}
+            path={ROUTES.EDIT_ISSUE || "/issues/:issueId/edit"}
             element={<EditIssuePage />}
           />
+          <Route path="/issues/:id/edit" element={<EditIssuePage />} />
 
           {/* Activity */}
           <Route

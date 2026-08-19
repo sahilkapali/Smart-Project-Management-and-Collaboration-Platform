@@ -1,3 +1,4 @@
+// activity.types.ts
 export type ActivityAction =
   | "PROJECT_CREATED"
   | "PROJECT_UPDATED"
@@ -34,7 +35,9 @@ export type ActivityEntityType =
 
 export interface ActivityUser {
   _id: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   avatar?: string;
 }
@@ -47,21 +50,13 @@ export interface ActivityProject {
 export interface ActivityItem {
   _id: string;
   id: string;
-
   user: ActivityUser;
-
   project?: ActivityProject;
-
   action: ActivityAction;
-
   description: string;
-
   entityType?: ActivityEntityType;
-
   entityId?: string;
-
   createdAt: string;
-
   updatedAt: string;
 }
 
