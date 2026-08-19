@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -30,7 +30,10 @@ import type {
 
 const EditIssuePage = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+
+  // Support both :issueId (from routes.ts) and :id parameter names
+  const params = useParams<{ id?: string; issueId?: string }>();
+  const id = params.issueId || params.id;
 
   // ============================================================
   // STATE
@@ -53,54 +56,56 @@ const EditIssuePage = () => {
   // LOAD ISSUE
   // ============================================================
 
-  useEffect(() => {
-    const loadIssue = async () => {
-      if (!id) {
-        setError("Issue ID is missing.");
-        setLoading(false);
+  const loadIssue = useCallback(async () => {
+    if (!id) {
+      setError("Issue ID is missing.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const issue = await getIssueById(id);
+
+      if (!issue) {
+        setError("Issue not found.");
         return;
       }
 
-      try {
-        setLoading(true);
-        setError("");
+      setTitle(issue.title || "");
+      setDescription(issue.description || "");
 
-        const issue = await getIssueById(id);
+      setStatus(issue.status || "Open");
+      setPriority(issue.priority || "Medium");
 
-        setTitle(issue.title || "");
-        setDescription(issue.description || "");
-
-        setStatus(issue.status || "Open");
-        setPriority(issue.priority || "Medium");
-
-        // assignedTo can be:
-        // string
-        // populated user object
-        // null
-        // undefined
-
-        if (typeof issue.assignedTo === "string") {
-          setAssignedTo(issue.assignedTo);
-        } else if (issue.assignedTo && typeof issue.assignedTo === "object") {
-          setAssignedTo(issue.assignedTo._id || "");
-        } else {
-          setAssignedTo("");
-        }
-      } catch (err: any) {
-        console.error("Failed to load issue:", err);
-
-        setError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Failed to load issue.",
-        );
-      } finally {
-        setLoading(false);
+      // assignedTo can be: string | populated user object | null | undefined
+      if (typeof issue.assignedTo === "string") {
+        setAssignedTo(issue.assignedTo);
+      } else if (issue.assignedTo && typeof issue.assignedTo === "object") {
+        const userObj = issue.assignedTo as { _id?: string; id?: string };
+        setAssignedTo(userObj._id || userObj.id || "");
+      } else {
+        setAssignedTo("");
       }
-    };
+    } catch (err: any) {
+      console.error("Failed to load issue:", err);
 
-    void loadIssue();
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to load issue.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    void loadIssue();
+  }, [loadIssue]);
 
   // ============================================================
   // SAVE ISSUE
@@ -163,6 +168,7 @@ const EditIssuePage = () => {
 
       setError(
         err?.response?.data?.message ||
+          err?.response?.data?.error ||
           err?.message ||
           "Failed to update issue.",
       );
@@ -180,7 +186,11 @@ const EditIssuePage = () => {
       return;
     }
 
-    navigate(-1);
+    if (id) {
+      navigate(`/issues/${id}`);
+    } else {
+      navigate("/issues");
+    }
   };
 
   // ============================================================
@@ -217,6 +227,7 @@ const EditIssuePage = () => {
         width: "100%",
         maxWidth: 900,
         mx: "auto",
+        pb: 4,
       }}
     >
       {/* ======================================================
@@ -381,7 +392,13 @@ const EditIssuePage = () => {
 
               <Button
                 variant="contained"
-                startIcon={<SaveRoundedIcon />}
+                startIcon={
+                  saving ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <SaveRoundedIcon />
+                  )
+                }
                 onClick={() => void handleSave()}
                 disabled={saving || !title.trim()}
                 sx={{
