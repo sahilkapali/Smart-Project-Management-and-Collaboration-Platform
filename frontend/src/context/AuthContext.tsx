@@ -11,9 +11,17 @@ import type { ReactNode } from "react";
 
 import { loginUser, registerUser, logoutUser } from "../services/auth.service";
 
-import { getUserProfile } from "../services/user.service";
+import {
+  getUserProfile,
+  updateUserProfile as updateUserProfileApi,
+} from "../services/user.service";
 
-import type { LoginData, RegisterData, User } from "../types/user.types";
+import type {
+  LoginData,
+  RegisterData,
+  User,
+  UpdateProfileData,
+} from "../types/user.types";
 
 import { getToken, removeToken, setToken } from "../utils/auth";
 
@@ -37,6 +45,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
 
   refreshUser: () => Promise<User | null>;
+
+  updateUserProfile: (data: UpdateProfileData) => Promise<User>;
 }
 
 // ============================================================
@@ -71,9 +81,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const saveUser = useCallback((userData: User) => {
     setUser(userData);
 
-    // Store only for UI persistence/convenience.
-    // Backend remains the source of truth.
-
     localStorage.setItem("user", JSON.stringify(userData));
   }, []);
 
@@ -92,15 +99,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   // ==========================================================
+  // UPDATE CURRENT USER PROFILE
+  // ==========================================================
+
+  const updateUserProfile = useCallback(
+    async (data: UpdateProfileData): Promise<User> => {
+      const updatedUser = await updateUserProfileApi(data);
+
+      if (!updatedUser) {
+        throw new Error(
+          "Profile update failed: updated user was not returned.",
+        );
+      }
+
+      // Update React state
+      saveUser(updatedUser);
+
+      return updatedUser;
+    },
+    [saveUser],
+  );
+
+  // ==========================================================
   // REFRESH CURRENT USER
   // ==========================================================
 
   const refreshUser = useCallback(async (): Promise<User | null> => {
     const storedToken = getToken();
-
-    // ------------------------------------------------------
-    // No token
-    // ------------------------------------------------------
 
     if (!storedToken) {
       clearSession();
@@ -109,19 +134,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     try {
-      // ----------------------------------------------------
-      // Ask backend for current authenticated user
-      // ----------------------------------------------------
-
       const currentUser = await getUserProfile();
 
       if (!currentUser) {
         throw new Error("User profile was not returned by the server.");
       }
-
-      // ----------------------------------------------------
-      // Update authentication state
-      // ----------------------------------------------------
 
       setTokenState(storedToken);
 
@@ -148,10 +165,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         const storedToken = getToken();
 
-        // ----------------------------------------------------
-        // No stored token
-        // ----------------------------------------------------
-
         if (!storedToken) {
           if (mounted) {
             setTokenState(null);
@@ -161,22 +174,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           return;
         }
 
-        // ----------------------------------------------------
-        // Temporarily restore token
-        // ----------------------------------------------------
-        //
-        // This allows the application to know that a token
-        // exists while we validate the session.
-        //
-        // ----------------------------------------------------
-
         if (mounted) {
           setTokenState(storedToken);
         }
-
-        // ----------------------------------------------------
-        // Validate token through backend
-        // ----------------------------------------------------
 
         const currentUser = await getUserProfile();
 
@@ -187,10 +187,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (!currentUser) {
           throw new Error("Authenticated user profile was not returned.");
         }
-
-        // ----------------------------------------------------
-        // Save authenticated user
-        // ----------------------------------------------------
 
         saveUser(currentUser);
       } catch (error) {
@@ -221,33 +217,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     async (data: LoginData): Promise<User> => {
       const response = await loginUser(data);
 
-      // ------------------------------------------------------
-      // Validate token
-      // ------------------------------------------------------
-
       if (!response?.token) {
         throw new Error("Login failed: authentication token was not returned.");
       }
-
-      // ------------------------------------------------------
-      // Validate user
-      // ------------------------------------------------------
 
       if (!response?.data) {
         throw new Error("Login failed: user data was not returned.");
       }
 
-      // ------------------------------------------------------
-      // Save token
-      // ------------------------------------------------------
-
       setToken(response.token);
 
       setTokenState(response.token);
-
-      // ------------------------------------------------------
-      // Save user
-      // ------------------------------------------------------
 
       saveUser(response.data);
 
@@ -264,35 +244,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     async (data: RegisterData): Promise<User> => {
       const response = await registerUser(data);
 
-      // ------------------------------------------------------
-      // Validate token
-      // ------------------------------------------------------
-
       if (!response?.token) {
         throw new Error(
           "Registration failed: authentication token was not returned.",
         );
       }
 
-      // ------------------------------------------------------
-      // Validate user
-      // ------------------------------------------------------
-
       if (!response?.data) {
         throw new Error("Registration failed: user data was not returned.");
       }
 
-      // ------------------------------------------------------
-      // Save token
-      // ------------------------------------------------------
-
       setToken(response.token);
 
       setTokenState(response.token);
-
-      // ------------------------------------------------------
-      // Save user
-      // ------------------------------------------------------
 
       saveUser(response.data);
 
@@ -342,6 +306,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       logout,
 
       refreshUser,
+
+      updateUserProfile,
     }),
     [
       user,
@@ -352,6 +318,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       register,
       logout,
       refreshUser,
+      updateUserProfile,
     ],
   );
 

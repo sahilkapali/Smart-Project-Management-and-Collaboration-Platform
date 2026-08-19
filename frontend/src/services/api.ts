@@ -19,10 +19,6 @@ const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
   timeout: 30_000,
-
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 /**
@@ -33,10 +29,37 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // --------------------------------------------------------
+    // Authentication token
+    // --------------------------------------------------------
+
     const token = localStorage.getItem("accessToken");
 
     if (token) {
       config.headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    // --------------------------------------------------------
+    // FormData requests
+    // --------------------------------------------------------
+    //
+    // IMPORTANT:
+    // Do NOT manually set Content-Type for FormData.
+    //
+    // The browser/Axios will automatically generate:
+    //
+    // multipart/form-data; boundary=...
+    //
+    // --------------------------------------------------------
+
+    if (config.data instanceof FormData) {
+      config.headers.delete("Content-Type");
+    } else {
+      // ------------------------------------------------------
+      // Normal JSON requests
+      // ------------------------------------------------------
+
+      config.headers.set("Content-Type", "application/json");
     }
 
     return config;
