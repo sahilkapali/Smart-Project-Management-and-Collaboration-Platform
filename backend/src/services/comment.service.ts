@@ -1,8 +1,57 @@
 import Comment from "../models/comment.models";
+import Task from "../models/task.models";
+import { createNotification } from "./notification.service";
+import {
+  NotificationType,
+  NotificationEntityType,
+} from "../types/notification.types";
 
 // Create Comment
 export const createCommentService = async (data: any) => {
-  return await Comment.create(data);
+  const comment = await Comment.create(data);
+  await comment.populate("user", "firstName lastName email");
+
+  const authorId = comment.user?._id?.toString() || data.user?.toString();
+
+  // Dispatch notification if the comment is linked to a task/issue
+  if (comment.issue) {
+    const task = await Task.findById(comment.issue);
+
+    if (task) {
+      const assigneeId = task.assignedTo?.toString();
+      const creatorId = task.createdBy?.toString();
+
+      // Notify Assignee
+      if (assigneeId && assigneeId !== authorId) {
+        await createNotification(
+          assigneeId,
+          `New comment added to task "${task.title}"`,
+          NotificationType.COMMENT_ADDED,
+          authorId,
+          task._id.toString(),
+          NotificationEntityType.TASK
+        );
+      }
+
+      // Notify Creator (if distinct from assignee and author)
+      if (
+        creatorId &&
+        creatorId !== authorId &&
+        creatorId !== assigneeId
+      ) {
+        await createNotification(
+          creatorId,
+          `New comment added to task "${task.title}"`,
+          NotificationType.COMMENT_ADDED,
+          authorId,
+          task._id.toString(),
+          NotificationEntityType.TASK
+        );
+      }
+    }
+  }
+
+  return comment;
 };
 
 // Get All Comments

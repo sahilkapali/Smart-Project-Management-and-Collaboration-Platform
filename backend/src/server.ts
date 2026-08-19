@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import http from "http";
+import { initSocket } from "./utils/socket";
 
 dotenv.config();
 
@@ -43,7 +45,7 @@ if (!ENV_CONFIG.jwt_secret) {
   throw new Error("JWT_SECRET is not configured in the .env file.");
 }
 
-const PORT = ENV_CONFIG.port;
+const PORT = ENV_CONFIG.port || process.env.PORT || 5000;
 
 // =====================================================
 // DATABASE CONNECTION
@@ -111,7 +113,7 @@ app.use("/api/tasks", taskRoutes);
 // =====================================================
 
 app.use("/api/repositories", repositoryRoutes);
-app.use("/api/repository-versions", repositoryVersionRoutes);
+app.use("/api/repositories", repositoryVersionRoutes);
 app.use("/api/repository-files", repositoryFileRoutes);
 
 // =====================================================
@@ -170,9 +172,12 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use(errorHandler);
 
 // =====================================================
-// START SERVER
+// START SERVER WITH SOCKET.IO
 // =====================================================
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

@@ -1,5 +1,3 @@
-// src/services/notification.service.ts
-
 import api from "./api";
 
 import type {
@@ -10,10 +8,14 @@ import type {
   MarkAllNotificationsReadResponse,
 } from "../types/notification.types";
 
+interface DeleteNotificationsResponse {
+  success: boolean;
+  message?: string;
+}
+
 // ============================================================
 // GET MY NOTIFICATIONS
 // ============================================================
-
 export const getMyNotifications = async (): Promise<AppNotification[]> => {
   const response = await api.get<GetNotificationsResponse>("/notifications");
 
@@ -27,15 +29,14 @@ export const getMyNotifications = async (): Promise<AppNotification[]> => {
 // ============================================================
 // GET UNREAD COUNT
 // ============================================================
-
 export const getUnreadNotificationCount = async (): Promise<number> => {
   const response = await api.get<GetUnreadCountResponse>(
-    "/notifications/unread-count",
+    "/notifications/unread-count"
   );
 
   if (!response.data.success) {
     throw new Error(
-      response.data.message || "Failed to load unread notification count.",
+      response.data.message || "Failed to load unread notification count."
     );
   }
 
@@ -45,17 +46,16 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
 // ============================================================
 // MARK ONE NOTIFICATION AS READ
 // ============================================================
-
 export const markNotificationAsRead = async (
-  notificationId: string,
+  notificationId: string
 ): Promise<AppNotification> => {
   const response = await api.patch<MarkNotificationReadResponse>(
-    `/notifications/${notificationId}/read`,
+    `/notifications/${notificationId}/read`
   );
 
   if (!response.data.success) {
     throw new Error(
-      response.data.message || "Failed to mark notification as read.",
+      response.data.message || "Failed to mark notification as read."
     );
   }
 
@@ -65,15 +65,29 @@ export const markNotificationAsRead = async (
 // ============================================================
 // MARK ALL NOTIFICATIONS AS READ
 // ============================================================
-
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   const response = await api.patch<MarkAllNotificationsReadResponse>(
-    "/notifications/read-all",
+    "/notifications/read-all"
   );
 
   if (!response.data.success) {
     throw new Error(
-      response.data.message || "Failed to mark all notifications as read.",
+      response.data.message || "Failed to mark all notifications as read."
+    );
+  }
+};
+
+// ============================================================
+// DELETE ALL NOTIFICATIONS
+// ============================================================
+export const deleteAllNotifications = async (): Promise<void> => {
+  const response = await api.delete<DeleteNotificationsResponse>(
+    "/notifications"
+  );
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || "Failed to delete notifications."
     );
   }
 };

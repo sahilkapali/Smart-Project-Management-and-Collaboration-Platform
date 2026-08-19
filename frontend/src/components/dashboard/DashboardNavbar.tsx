@@ -29,7 +29,6 @@ import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import DoneAllRoundedIcon from "@mui/icons-material/DoneAllRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import NotificationsOffRoundedIcon from "@mui/icons-material/NotificationsOffRounded";
 
 import { useNavigate } from "react-router-dom";
@@ -190,39 +189,9 @@ const DashboardNavbar = ({
     }
   };
 
-  const handleClearNotifications = () => {
-    toast.error(
-      "Clear all is not available yet because the backend delete endpoint has not been added.",
-    );
-  };
-
   const handleNotificationItemClick = async (notification: AppNotification) => {
     if (!notification.isRead) {
       await handleMarkAsRead(notification._id);
-    }
-
-    handleNotificationMenuClose();
-
-    if (notification.relatedEntityId && notification.relatedEntityType) {
-      switch (notification.relatedEntityType) {
-        case "TASK":
-          navigate(`/tasks/${notification.relatedEntityId}`);
-          break;
-        case "PROJECT":
-          navigate(`/projects/${notification.relatedEntityId}`);
-          break;
-        case "COMMENT":
-          navigate(`/comments/${notification.relatedEntityId}`);
-          break;
-        case "TEAM":
-          navigate(`/teams/${notification.relatedEntityId}`);
-          break;
-        case "MEETING":
-          navigate(`/meetings/${notification.relatedEntityId}`);
-          break;
-        default:
-          break;
-      }
     }
   };
 
@@ -766,24 +735,9 @@ const DashboardNavbar = ({
                 py: 0.75,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                gap: 1,
+                justifyContent: "flex-end",
               }}
             >
-              <Button
-                size="small"
-                color="error"
-                startIcon={<DeleteOutlineRoundedIcon fontSize="small" />}
-                onClick={handleClearNotifications}
-                sx={{
-                  textTransform: "none",
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                Clear all
-              </Button>
-
               <Button
                 size="small"
                 onClick={handleViewAllNotifications}

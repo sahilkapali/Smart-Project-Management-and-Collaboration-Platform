@@ -1,7 +1,6 @@
+// activity.service.ts
 import { Types } from "mongoose";
-
 import Activity from "../models/activity.models";
-
 import { ActivityAction, ActivityEntityType } from "../types/activity.types";
 
 interface CreateActivityData {
@@ -48,15 +47,10 @@ export const createActivityService = async (data: CreateActivityData) => {
 
   return Activity.create({
     user: new Types.ObjectId(data.user),
-
     project: data.project ? new Types.ObjectId(data.project) : undefined,
-
     action: data.action,
-
     description: data.description.trim(),
-
     entityType: data.entityType,
-
     entityId: data.entityId ? new Types.ObjectId(data.entityId) : undefined,
   });
 };
@@ -69,11 +63,10 @@ export const getActivitiesService = async (limit = 100) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 100);
 
   return Activity.find()
-    .populate("user", "name email avatar")
+    // ADDED firstName and lastName to populate
+    .populate("user", "name firstName lastName email avatar")
     .populate("project", "name")
-    .sort({
-      createdAt: -1,
-    })
+    .sort({ createdAt: -1 })
     .limit(safeLimit)
     .lean();
 };
@@ -91,14 +84,10 @@ export const getProjectActivitiesService = async (projectId: string) => {
     throw new Error("Invalid project ID");
   }
 
-  return Activity.find({
-    project: new Types.ObjectId(projectId),
-  })
-    .populate("user", "name email avatar")
+  return Activity.find({ project: new Types.ObjectId(projectId) })
+    .populate("user", "name firstName lastName email avatar")
     .populate("project", "name")
-    .sort({
-      createdAt: -1,
-    })
+    .sort({ createdAt: -1 })
     .lean();
 };
 
@@ -115,14 +104,10 @@ export const getUserActivitiesService = async (userId: string) => {
     throw new Error("Invalid user ID");
   }
 
-  return Activity.find({
-    user: new Types.ObjectId(userId),
-  })
-    .populate("user", "name email avatar")
+  return Activity.find({ user: new Types.ObjectId(userId) })
+    .populate("user", "name firstName lastName email avatar")
     .populate("project", "name")
-    .sort({
-      createdAt: -1,
-    })
+    .sort({ createdAt: -1 })
     .limit(100)
     .lean();
 };
@@ -141,7 +126,7 @@ export const getActivityByIdService = async (activityId: string) => {
   }
 
   return Activity.findById(new Types.ObjectId(activityId))
-    .populate("user", "name email avatar")
+    .populate("user", "name firstName lastName email avatar")
     .populate("project", "name")
     .lean();
 };
