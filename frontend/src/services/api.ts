@@ -3,11 +3,21 @@ import type { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 /**
  * ============================================================
- * API CONFIGURATION
+ * API BASE URL
  * ============================================================
+ *
+ * Development:
+ * http://localhost:5000/api
+ *
+ * Production:
+ * Render backend URL
+ *
+ * Example:
+ * https://smart-project-backend.onrender.com/api
+ *
  */
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 /**
  * ============================================================
@@ -17,8 +27,11 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 const api = axios.create({
   baseURL: API_URL,
+
+  // Required because backend uses cookies
   withCredentials: true,
-  timeout: 30_000,
+
+  timeout: 30000,
 });
 
 /**
@@ -29,41 +42,27 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // --------------------------------------------------------
-    // Authentication token
-    // --------------------------------------------------------
-
+    /**
+     * JWT token
+     */
     const token = localStorage.getItem("accessToken");
 
     if (token) {
-      config.headers.set("Authorization", `Bearer ${token}`);
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // --------------------------------------------------------
-    // FormData requests
-    // --------------------------------------------------------
-    //
-    // IMPORTANT:
-    // Do NOT manually set Content-Type for FormData.
-    //
-    // The browser/Axios will automatically generate:
-    //
-    // multipart/form-data; boundary=...
-    //
-    // --------------------------------------------------------
-
+    /**
+     * FormData handling
+     */
     if (config.data instanceof FormData) {
-      config.headers.delete("Content-Type");
+      delete config.headers["Content-Type"];
     } else {
-      // ------------------------------------------------------
-      // Normal JSON requests
-      // ------------------------------------------------------
-
-      config.headers.set("Content-Type", "application/json");
+      config.headers["Content-Type"] = "application/json";
     }
 
     return config;
   },
+
   (error: AxiosError) => {
     return Promise.reject(error);
   },
@@ -76,17 +75,19 @@ api.interceptors.request.use(
  */
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
 
   (error: AxiosError) => {
+    if (error.response) {
+      console.log("API ERROR:", error.response.status, error.response.data);
+    } else {
+      console.log("NETWORK ERROR:", error.message);
+    }
+
     return Promise.reject(error);
   },
 );
-
-/**
- * ============================================================
- * EXPORT
- * ============================================================
- */
 
 export default api;
