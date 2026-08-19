@@ -129,9 +129,12 @@ export const getTeamById = async (
 /**
  * ADD MEMBER
  */
+/**
+ * ADD MEMBER BY EMAIL
+ */
 export const addTeamMember = async (
   teamId: string,
-  userId: string,
+  email: string,
   requesterId: string,
   requesterRole: ROLE,
 ): Promise<ITeam> => {
@@ -139,13 +142,23 @@ export const addTeamMember = async (
     throw new Error("Invalid team ID.");
   }
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
-
   if (!mongoose.Types.ObjectId.isValid(requesterId)) {
     throw new Error("Invalid requester ID.");
   }
+
+  /**
+   * Validate email
+   */
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error("Email is required.");
+  }
+
+  /**
+   * Find team
+   */
 
   const team = await Team.findById(teamId);
 
@@ -153,28 +166,49 @@ export const addTeamMember = async (
     throw new Error("Team not found.");
   }
 
-  // Authorization
+  /**
+   * Authorization
+   */
+
   if (!canManageTeam(team.owner, requesterId, requesterRole)) {
     throw new Error("You do not have permission to add members to this team.");
   }
 
-  const user = await User.findById(userId);
+  /**
+   * Find user by email
+   */
+
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
 
   if (!user) {
-    throw new Error("User not found.");
+    throw new Error("No user found with this email address.");
   }
 
+  /**
+   * Prevent duplicate member
+   */
+
   const alreadyMember = team.members.some(
-    (memberId) => memberId.toString() === userId,
+    (memberId) => memberId.toString() === user._id.toString(),
   );
 
   if (alreadyMember) {
     throw new Error("User is already a member of this team.");
   }
 
-  team.members.push(new mongoose.Types.ObjectId(userId));
+  /**
+   * Add user ID
+   */
+
+  team.members.push(user._id);
 
   await team.save();
+
+  /**
+   * Return populated team
+   */
 
   return (await populateTeam(team._id)) as ITeam;
 };
@@ -184,7 +218,7 @@ export const addTeamMember = async (
  */
 export const removeTeamMember = async (
   teamId: string,
-  userId: string,
+  email: string,
   requesterId: string,
   requesterRole: ROLE,
 ): Promise<ITeam> => {
@@ -192,12 +226,14 @@ export const removeTeamMember = async (
     throw new Error("Invalid team ID.");
   }
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID.");
-  }
-
   if (!mongoose.Types.ObjectId.isValid(requesterId)) {
     throw new Error("Invalid requester ID.");
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error("Email is required.");
   }
 
   const team = await Team.findById(teamId);
@@ -206,20 +242,27 @@ export const removeTeamMember = async (
     throw new Error("Team not found.");
   }
 
-  // Authorization
   if (!canManageTeam(team.owner, requesterId, requesterRole)) {
     throw new Error(
       "You do not have permission to remove members from this team.",
     );
   }
 
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
+
+  if (!user) {
+    throw new Error("No user found with this email address.");
+  }
+
   // Owner cannot be removed
-  if (team.owner.toString() === userId) {
+  if (team.owner.toString() === user._id.toString()) {
     throw new Error("Team owner cannot be removed from the team.");
   }
 
   const isMember = team.members.some(
-    (memberId) => memberId.toString() === userId,
+    (memberId) => memberId.toString() === user._id.toString(),
   );
 
   if (!isMember) {
@@ -227,7 +270,7 @@ export const removeTeamMember = async (
   }
 
   team.members = team.members.filter(
-    (memberId) => memberId.toString() !== userId,
+    (memberId) => memberId.toString() !== user._id.toString(),
   );
 
   await team.save();

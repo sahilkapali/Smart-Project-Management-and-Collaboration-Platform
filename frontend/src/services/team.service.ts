@@ -33,7 +33,9 @@ export const addTeamMember = async (
 ): Promise<Team> => {
   const response = await api.post<TeamResponse<Team>>(
     `/teams/${teamId}/members`,
-    data,
+    {
+      email: data.email,
+    },
   );
 
   return response.data.data;
@@ -41,10 +43,15 @@ export const addTeamMember = async (
 
 export const removeTeamMember = async (
   teamId: string,
-  userId: string,
+  email: string,
 ): Promise<Team> => {
   const response = await api.delete<TeamResponse<Team>>(
-    `/teams/${teamId}/members/${userId}`,
+    `/teams/${teamId}/members`,
+    {
+      data: {
+        email,
+      },
+    },
   );
 
   return response.data.data;

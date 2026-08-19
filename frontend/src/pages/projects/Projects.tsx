@@ -521,22 +521,27 @@ const Projects = () => {
                   </Stack>
 
                   {/* TEAM */}
-                  {project.teamId && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: "block",
-                        mt: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={project.teamId}
-                    >
-                      Team: {project.teamId}
-                    </Typography>
-                  )}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      display: "block",
+                      mt: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={
+                      typeof project.team === "object"
+                        ? project.team.name
+                        : project.teamId
+                    }
+                  >
+                    Team:{" "}
+                    {typeof project.team === "object"
+                      ? project.team.name
+                      : "No team assigned"}
+                  </Typography>
 
                   {/* AVATARS */}
                   <Stack direction="row" spacing={-0.8} sx={{ mt: 2 }}>

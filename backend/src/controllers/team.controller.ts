@@ -201,6 +201,18 @@ export const handleGetTeamById = async (
  * - PROJECT_MANAGER can add to their own team.
  * - TEAM_MEMBER is blocked by route middleware.
  */
+/**
+ * ADD MEMBER TO TEAM USING EMAIL
+ *
+ * Request body:
+ * {
+ *   "email": "user@example.com"
+ * }
+ *
+ * Authorization:
+ * - ADMIN can add to any team.
+ * - PROJECT_MANAGER can add to their own team.
+ */
 export const handleAddTeamMember = async (
   req: AuthRequest,
   res: Response,
@@ -211,7 +223,11 @@ export const handleAddTeamMember = async (
     const requesterRole = req.user?.role;
 
     const { teamId } = req.params;
-    const { userId } = req.body;
+    const { email } = req.body;
+
+    /**
+     * Authentication check
+     */
 
     if (!requesterId || !requesterRole) {
       res.status(401).json({
@@ -220,8 +236,13 @@ export const handleAddTeamMember = async (
         message: "Unauthorized. User information is missing.",
         data: null,
       });
+
       return;
     }
+
+    /**
+     * Team ID validation
+     */
 
     if (!teamId) {
       res.status(400).json({
@@ -230,22 +251,45 @@ export const handleAddTeamMember = async (
         message: "Team ID is required.",
         data: null,
       });
+
       return;
     }
 
-    if (!userId) {
+    /**
+     * Email validation
+     */
+
+    if (!email || typeof email !== "string") {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message: "User ID is required.",
+        message: "Email is required.",
         data: null,
       });
+
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail.includes("@")) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Please provide a valid email address.",
+        data: null,
+      });
+
+      return;
+    }
+
+    /**
+     * Call service
+     */
+
     const team = await teamService.addTeamMember(
       teamId,
-      userId,
+      normalizedEmail,
       requesterId,
       requesterRole,
     );
@@ -261,17 +305,15 @@ export const handleAddTeamMember = async (
 };
 
 /**
- * REMOVE MEMBER FROM TEAM
+ * REMOVE MEMBER FROM TEAM USING EMAIL
  *
  * URL:
- * DELETE /api/teams/:teamId/members/:userId
+ * DELETE /api/teams/:teamId/members
  *
- * Authorization:
- * - ADMIN can remove from any team.
- * - PROJECT_MANAGER can remove from their own team.
- * - TEAM_MEMBER is blocked by route middleware.
- *
- * Team owner cannot be removed.
+ * Body:
+ * {
+ *   "email": "user@example.com"
+ * }
  */
 export const handleRemoveTeamMember = async (
   req: AuthRequest,
@@ -282,8 +324,10 @@ export const handleRemoveTeamMember = async (
     const requesterId = req.user?.id;
     const requesterRole = req.user?.role;
 
-    const { teamId, userId } = req.params;
+    const { teamId } = req.params;
+    const { email } = req.body;
 
+    // Authentication check
     if (!requesterId || !requesterRole) {
       res.status(401).json({
         success: false,
@@ -291,9 +335,11 @@ export const handleRemoveTeamMember = async (
         message: "Unauthorized. User information is missing.",
         data: null,
       });
+
       return;
     }
 
+    // Team ID validation
     if (!teamId) {
       res.status(400).json({
         success: false,
@@ -301,22 +347,38 @@ export const handleRemoveTeamMember = async (
         message: "Team ID is required.",
         data: null,
       });
+
       return;
     }
 
-    if (!userId) {
+    // Email validation
+    if (!email || typeof email !== "string") {
       res.status(400).json({
         success: false,
         code: "VALIDATION_ERROR",
-        message: "User ID is required.",
+        message: "Member email is required.",
         data: null,
       });
+
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail.includes("@")) {
+      res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        message: "Please provide a valid email address.",
+        data: null,
+      });
+
       return;
     }
 
     const team = await teamService.removeTeamMember(
       teamId,
-      userId,
+      normalizedEmail,
       requesterId,
       requesterRole,
     );

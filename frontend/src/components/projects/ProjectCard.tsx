@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   IconButton,
-  LinearProgress,
   Menu,
   MenuItem,
   Paper,
@@ -25,17 +24,7 @@ import type { Project, ProjectStatus } from "../../types/project.types";
 
 interface ProjectCardProps {
   project: Project;
-
-  /**
-   * Called when the user selects Edit.
-   *
-   * The parent page can open EditProjectDialog.
-   */
   onEdit?: (project: Project) => void;
-
-  /**
-   * Called when the user selects Delete.
-   */
   onDelete?: (project: Project) => void;
 }
 
@@ -96,15 +85,71 @@ const formatDate = (value?: string | null): string => {
 };
 
 // ============================================================
-// PROGRESS NORMALIZER
+// TEAM NAME HELPER
 // ============================================================
 
-const normalizeProgress = (progress?: number | null): number => {
-  if (typeof progress !== "number" || Number.isNaN(progress)) {
-    return 0;
+const getTeamName = (project: Project): string => {
+  /*
+   * Preferred:
+   *
+   * Backend returns:
+   *
+   * team: {
+   *   _id: "...",
+   *   name: "Development Team"
+   * }
+   */
+
+  if (
+    project.team &&
+    typeof project.team === "object" &&
+    "name" in project.team
+  ) {
+    const team = project.team as {
+      name?: string | null;
+    };
+
+    if (team.name?.trim()) {
+      return team.name.trim();
+    }
   }
 
-  return Math.min(100, Math.max(0, progress));
+  /*
+   * If backend sends teamName directly,
+   * use it.
+   *
+   * This supports the backend response:
+   *
+   * {
+   *   teamName: "Development Team"
+   * }
+   */
+
+  if (
+    "teamName" in project &&
+    typeof (project as Project & { teamName?: unknown }).teamName === "string"
+  ) {
+    const teamName = (project as Project & { teamName?: string }).teamName;
+
+    if (teamName?.trim()) {
+      return teamName.trim();
+    }
+  }
+
+  /*
+   * If only teamId is available, show that
+   * as the final fallback.
+   */
+
+  if (project.teamId?.trim()) {
+    return project.teamId;
+  }
+
+  /*
+   * Last fallback.
+   */
+
+  return "No team assigned";
 };
 
 // ============================================================
@@ -118,7 +163,11 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
 
   const menuOpen = Boolean(anchorEl);
 
-  const progress = normalizeProgress(project.progress);
+  // ==========================================================
+  // TEAM NAME
+  // ==========================================================
+
+  const teamName = getTeamName(project);
 
   // ==========================================================
   // MENU
@@ -169,12 +218,6 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
   // ==========================================================
   // RENDER
   // ==========================================================
-
-  /*
-   * ============================================================
-   * PROJECT CARD
-   * ============================================================
-   */
 
   return (
     <Paper
@@ -277,9 +320,9 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
             <MoreVertRoundedIcon fontSize="small" />
           </IconButton>
 
-          {/* =================================================
+          {/* ==================================================
               MENU
-          ================================================= */}
+          ================================================== */}
 
           <Menu
             id={`project-menu-${project.id}`}
@@ -355,42 +398,6 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
         </Box>
 
         {/* ==================================================
-            PROGRESS
-        ================================================== */}
-
-        <Box>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{
-              mb: 0.75,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Project Progress
-            </Typography>
-
-            <Typography variant="caption" fontWeight={700} color="text.primary">
-              {progress}%
-            </Typography>
-          </Stack>
-
-          <LinearProgress
-            variant="determinate"
-            value={progress}
-            sx={{
-              height: 7,
-              borderRadius: 10,
-              bgcolor: "action.hover",
-              "& .MuiLinearProgress-bar": {
-                borderRadius: 10,
-              },
-            }}
-          />
-        </Box>
-
-        {/* ==================================================
             TEAM
         ================================================== */}
 
@@ -406,6 +413,7 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
           <Box
             sx={{
               minWidth: 0,
+              flex: 1,
             }}
           >
             <Typography
@@ -420,9 +428,14 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
               variant="body2"
               fontWeight={600}
               noWrap
-              title={project.teamId || undefined}
+              title={teamName}
+              sx={{
+                maxWidth: 220,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
-              {project.teamId || "No team assigned"}
+              {teamName}
             </Typography>
           </Box>
         </Stack>
@@ -453,7 +466,7 @@ const ProjectCard = ({ project, onEdit, onDelete }: ProjectCardProps) => {
             <Typography variant="body2" fontWeight={600}>
               {formatDate(project.startDate)}
               {" — "}
-              {formatDate(project.endDate)}
+              {formatDate(project.dueDate)}
             </Typography>
           </Box>
         </Stack>

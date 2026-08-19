@@ -10,10 +10,8 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
-  Slider,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
@@ -26,9 +24,9 @@ import type {
   UpdateProjectPayload,
 } from "../../types/project.types";
 
-// ============================================================
-// PROPS
-// ============================================================
+/* ============================================================
+   PROPS
+   ============================================================ */
 
 interface EditProjectDialogProps {
   open: boolean;
@@ -40,54 +38,66 @@ interface EditProjectDialogProps {
   onUpdated: () => void;
 }
 
-// ============================================================
-// STATUS OPTIONS
-// ============================================================
+/* ============================================================
+   STATUS OPTIONS
+   ============================================================ */
 
 const STATUS_OPTIONS: Array<{
   value: ProjectStatus;
+
   label: string;
 }> = [
   {
     value: "PLANNING",
+
     label: "Planning",
   },
+
   {
     value: "ACTIVE",
+
     label: "Active",
   },
+
   {
     value: "COMPLETED",
+
     label: "Completed",
   },
+
   {
     value: "ARCHIVED",
+
     label: "Archived",
   },
 ];
 
-// ============================================================
-// API ERROR TYPE
-// ============================================================
+/* ============================================================
+   API ERROR
+   ============================================================ */
 
 interface ApiErrorResponse {
   message?: string;
+
   error?: string;
 }
 
-// ============================================================
-// EDIT PROJECT DIALOG
-// ============================================================
+/* ============================================================
+   EDIT PROJECT DIALOG
+   ============================================================ */
 
 const EditProjectDialog = ({
   open,
+
   project,
+
   onClose,
+
   onUpdated,
 }: EditProjectDialogProps) => {
-  // ==========================================================
-  // FORM STATE
-  // ==========================================================
+  /* ==========================================================
+     FORM STATE
+     ========================================================== */
 
   const [name, setName] = useState("");
 
@@ -97,24 +107,22 @@ const EditProjectDialog = ({
 
   const [startDate, setStartDate] = useState("");
 
-  const [endDate, setEndDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
-  const [progress, setProgress] = useState(0);
-
-  // ==========================================================
-  // UI STATE
-  // ==========================================================
+  /* ==========================================================
+     UI STATE
+     ========================================================== */
 
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
 
-  // ==========================================================
-  // POPULATE FORM
-  // ==========================================================
+  /* ==========================================================
+     LOAD PROJECT
+     ========================================================== */
 
   useEffect(() => {
-    if (!open || !project) {
+    if (!open) {
       return;
     }
 
@@ -126,20 +134,14 @@ const EditProjectDialog = ({
 
     setStartDate(project.startDate ? project.startDate.slice(0, 10) : "");
 
-    setEndDate(project.endDate ? project.endDate.slice(0, 10) : "");
-
-    setProgress(
-      typeof project.progress === "number"
-        ? Math.min(100, Math.max(0, project.progress))
-        : 0,
-    );
+    setDueDate(project.dueDate ? project.dueDate.slice(0, 10) : "");
 
     setError("");
   }, [project, open]);
 
-  // ==========================================================
-  // CLOSE
-  // ==========================================================
+  /* ==========================================================
+     CLOSE
+     ========================================================== */
 
   const handleClose = () => {
     if (loading) {
@@ -151,18 +153,18 @@ const EditProjectDialog = ({
     onClose();
   };
 
-  // ==========================================================
-  // SUBMIT
-  // ==========================================================
+  /* ==========================================================
+     SUBMIT
+     ========================================================== */
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setError("");
 
-    // --------------------------------------------------------
-    // Project name validation
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       NAME
+       -------------------------------------------------------- */
 
     if (!name.trim()) {
       setError("Project name is required.");
@@ -170,29 +172,41 @@ const EditProjectDialog = ({
       return;
     }
 
-    // --------------------------------------------------------
-    // Date validation
-    // --------------------------------------------------------
-
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      setError("End date cannot be earlier than the start date.");
+    if (name.trim().length < 3) {
+      setError("Project name must be at least 3 characters long.");
 
       return;
     }
 
-    // --------------------------------------------------------
-    // Progress validation
-    // --------------------------------------------------------
-
-    if (progress < 0 || progress > 100) {
-      setError("Project progress must be between 0 and 100.");
+    if (name.trim().length > 100) {
+      setError("Project name cannot exceed 100 characters.");
 
       return;
     }
 
-    // --------------------------------------------------------
-    // Update payload
-    // --------------------------------------------------------
+    /* --------------------------------------------------------
+       DESCRIPTION
+       -------------------------------------------------------- */
+
+    if (description.length > 500) {
+      setError("Description cannot exceed 500 characters.");
+
+      return;
+    }
+
+    /* --------------------------------------------------------
+       DATES
+       -------------------------------------------------------- */
+
+    if (startDate && dueDate && startDate > dueDate) {
+      setError("Project deadline cannot be before the start date.");
+
+      return;
+    }
+
+    /* --------------------------------------------------------
+       PAYLOAD
+       -------------------------------------------------------- */
 
     const updateData: UpdateProjectPayload = {
       name: name.trim(),
@@ -201,33 +215,35 @@ const EditProjectDialog = ({
 
       status,
 
-      progress,
-
       ...(startDate
         ? {
             startDate,
           }
         : {}),
 
-      ...(endDate
+      ...(dueDate
         ? {
-            endDate,
+            dueDate,
           }
         : {}),
     };
 
+    /* ========================================================
+       API
+       ======================================================== */
+
     try {
       setLoading(true);
 
-      // ------------------------------------------------------
-      // UPDATE PROJECT
-      // ------------------------------------------------------
+      await projectService.updateProject(
+        project.id,
 
-      await projectService.updateProject(project.id, updateData);
+        updateData,
+      );
 
-      // ------------------------------------------------------
-      // SUCCESS
-      // ------------------------------------------------------
+      /* ------------------------------------------------------
+         SUCCESS
+         ------------------------------------------------------ */
 
       onUpdated();
 
@@ -239,10 +255,14 @@ const EditProjectDialog = ({
         response?: {
           data?: ApiErrorResponse;
         };
+
+        message?: string;
       };
 
       const backendMessage =
-        axiosError.response?.data?.message || axiosError.response?.data?.error;
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        axiosError.message;
 
       setError(backendMessage || "Failed to update project. Please try again.");
     } finally {
@@ -250,9 +270,9 @@ const EditProjectDialog = ({
     }
   };
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+  /* ==========================================================
+     RENDER
+     ========================================================== */
 
   return (
     <Dialog
@@ -274,6 +294,7 @@ const EditProjectDialog = ({
         <DialogTitle
           sx={{
             fontWeight: 700,
+
             fontSize: "1.5rem",
           }}
         >
@@ -319,9 +340,9 @@ const EditProjectDialog = ({
               onChange={(event) => setName(event.target.value)}
               disabled={loading}
               inputProps={{
-                maxLength: 150,
+                maxLength: 100,
               }}
-              helperText={`${name.length}/150`}
+              helperText={`${name.length}/100`}
             />
 
             {/* ==================================================
@@ -337,9 +358,9 @@ const EditProjectDialog = ({
               onChange={(event) => setDescription(event.target.value)}
               disabled={loading}
               inputProps={{
-                maxLength: 1000,
+                maxLength: 500,
               }}
-              helperText={`${description.length}/1000`}
+              helperText={`${description.length}/500`}
             />
 
             {/* ==================================================
@@ -373,12 +394,17 @@ const EditProjectDialog = ({
 
                 gridTemplateColumns: {
                   xs: "1fr",
+
                   sm: "1fr 1fr",
                 },
 
                 gap: 2,
               }}
             >
+              {/* ------------------------------------------------
+                  START DATE
+              ------------------------------------------------ */}
+
               <TextField
                 label="Start Date"
                 type="date"
@@ -391,58 +417,20 @@ const EditProjectDialog = ({
                 }}
               />
 
+              {/* ------------------------------------------------
+                  DEADLINE
+              ------------------------------------------------ */}
+
               <TextField
                 label="Project Deadline"
                 type="date"
                 fullWidth
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
                 disabled={loading}
                 InputLabelProps={{
                   shrink: true,
                 }}
-              />
-            </Box>
-
-            {/* ==================================================
-                PROGRESS
-            ================================================== */}
-
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{
-                  mb: 1,
-                }}
-              >
-                <Typography variant="body2" fontWeight={600}>
-                  Project Progress
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  color="primary.main"
-                >
-                  {progress}%
-                </Typography>
-              </Stack>
-
-              <Slider
-                value={progress}
-                onChange={(_event, value) => {
-                  if (typeof value === "number") {
-                    setProgress(value);
-                  }
-                }}
-                min={0}
-                max={100}
-                step={5}
-                valueLabelDisplay="auto"
-                disabled={loading}
-                aria-label="Project progress"
               />
             </Box>
           </Stack>
@@ -455,7 +443,9 @@ const EditProjectDialog = ({
         <DialogActions
           sx={{
             px: 3,
+
             pb: 3,
+
             pt: 1,
           }}
         >
@@ -465,7 +455,9 @@ const EditProjectDialog = ({
             color="inherit"
             sx={{
               fontWeight: 600,
+
               textTransform: "none",
+
               borderRadius: 2,
             }}
           >
@@ -486,14 +478,15 @@ const EditProjectDialog = ({
             }
             sx={{
               minWidth: 150,
+
               fontWeight: 600,
+
               textTransform: "none",
+
               borderRadius: 2,
             }}
           >
-            {loading
-              ? "Saving..."
-              : "Save Changes"}
+            {loading ? "Saving..." : "Save Changes"}
           </Button>
         </DialogActions>
       </Box>

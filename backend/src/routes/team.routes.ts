@@ -32,7 +32,7 @@ router.post(
 );
 
 router.delete(
-  "/:teamId/members/:userId",
+  "/:teamId/members",
   authenticateUser([ROLE.ADMIN, ROLE.PROJECT_MANAGER]),
   handleRemoveTeamMember,
 );
