@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
+
 import { getIssuesByRepository } from "../../services/issues.service";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -52,41 +54,54 @@ import {
   Typography,
 } from "@mui/material";
 
-// Services
 import {
   getRepository,
   getRepositoryFiles,
   getRepositoryVersions,
 } from "../../services/repository.service";
 
-// Types
 import type {
   Repository,
   RepositoryFile,
   RepositoryVersion,
 } from "../../types/repository.types";
+
 import type { Issue } from "../../types/issue.types";
 
-// Modals
 import UploadVersionModal from "./UploadVersionModal";
 
 // ============================================================
-// HELPER FUNCTIONS & UTILS
+// HELPERS
 // ============================================================
 
 const formatRelativeDate = (dateString?: string): string => {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "N/A";
+
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
 
   const now = new Date();
+
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return "Just now";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  if (diffInSeconds < 2592000)
+  if (diffInSeconds < 60) {
+    return "Just now";
+  }
+
+  if (diffInSeconds < 3600) {
+    return `${Math.floor(diffInSeconds / 60)}m ago`;
+  }
+
+  if (diffInSeconds < 86400) {
+    return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  }
+
+  if (diffInSeconds < 2592000) {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  }
 
   return date.toLocaleDateString("en-US", {
     month: "short",
@@ -96,21 +111,30 @@ const formatRelativeDate = (dateString?: string): string => {
 };
 
 const formatBytes = (bytes?: number): string => {
-  if (bytes === undefined || bytes === null || isNaN(bytes) || bytes === 0) {
+  if (
+    bytes === undefined ||
+    bytes === null ||
+    Number.isNaN(bytes) ||
+    bytes === 0
+  ) {
     return "0 B";
   }
+
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
+
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
 const getFileIcon = (fileName: string = "", type: string = "") => {
   if (type === "folder") {
-    return <FolderIcon sx={{ color: "#ffca28", fontSize: 20 }} />;
+    return <FolderIcon color="warning" sx={{ fontSize: 20 }} />;
   }
 
   const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+
   switch (extension) {
     case "ts":
     case "tsx":
@@ -125,30 +149,35 @@ const getFileIcon = (fileName: string = "", type: string = "") => {
     case "html":
     case "css":
     case "scss":
-      return <CodeIcon sx={{ color: "#64b5f6", fontSize: 20 }} />;
+      return <CodeIcon color="info" sx={{ fontSize: 20 }} />;
+
     case "json":
     case "yml":
     case "yaml":
     case "toml":
     case "env":
     case "config":
-      return <TerminalIcon sx={{ color: "#ffd54f", fontSize: 20 }} />;
+      return <TerminalIcon color="warning" sx={{ fontSize: 20 }} />;
+
     case "png":
     case "jpg":
     case "jpeg":
     case "svg":
     case "gif":
     case "webp":
-      return <ImageIcon sx={{ color: "#81c784", fontSize: 20 }} />;
+      return <ImageIcon color="success" sx={{ fontSize: 20 }} />;
+
     case "pdf":
-      return <PictureAsPdfIcon sx={{ color: "#e57373", fontSize: 20 }} />;
+      return <PictureAsPdfIcon color="error" sx={{ fontSize: 20 }} />;
+
     case "md":
     case "txt":
     case "doc":
     case "docx":
-      return <DescriptionIcon sx={{ color: "#ba68c8", fontSize: 20 }} />;
+      return <DescriptionIcon color="secondary" sx={{ fontSize: 20 }} />;
+
     default:
-      return <InsertDriveFileIcon sx={{ color: "#90caf9", fontSize: 20 }} />;
+      return <InsertDriveFileIcon color="info" sx={{ fontSize: 20 }} />;
   }
 };
 
@@ -166,38 +195,82 @@ interface ApiErrorResponse {
 // ============================================================
 
 const RepositoryDetailPage: React.FC = () => {
-  const params = useParams<{ repositoryId?: string; id?: string }>();
-  // Safely fallback to an empty string to keep repositoryId strictly typed as 'string'
-  const repositoryId: string = params.repositoryId ?? params.id ?? "";
-
+  const theme = useTheme();
   const navigate = useNavigate();
 
-  // Data States
+  const params = useParams<{
+    repositoryId?: string;
+    id?: string;
+  }>();
+
+  const repositoryId: string = params.repositoryId ?? params.id ?? "";
+
+  const isDarkMode = theme.palette.mode === "dark";
+
+  // ==========================================================
+  // THEME COLORS
+  // ==========================================================
+
+  const pageBackground = theme.palette.background.default;
+
+  const cardBackground = theme.palette.background.paper;
+
+  const subtleBackground = isDarkMode
+    ? theme.palette.background.default
+    : theme.palette.grey[50];
+
+  const tableHeaderBackground = isDarkMode
+    ? theme.palette.background.default
+    : theme.palette.grey[100];
+
+  const borderColor = theme.palette.divider;
+
+  const primarySoftBackground = isDarkMode
+    ? "rgba(124, 77, 255, 0.12)"
+    : "rgba(124, 77, 255, 0.08)";
+
+  // ==========================================================
+  // STATE
+  // ==========================================================
+
   const [repository, setRepository] = useState<Repository | null>(null);
+
   const [versions, setVersions] = useState<RepositoryVersion[]>([]);
+
   const [selectedVersionId, setSelectedVersionId] = useState<string>("");
+
   const [files, setFiles] = useState<RepositoryFile[]>([]);
-  
-  // Issues State
+
   const [issues, setIssues] = useState<Issue[]>([]);
+
   const [issuesLoading, setIssuesLoading] = useState<boolean>(false);
 
-  // Navigation & UI States
   const [currentPath, setCurrentPath] = useState<string>("");
+
   const [searchQuery, setSearchQuery] = useState<string>("");
+
   const [activeTab, setActiveTab] = useState<number>(0);
+
   const [loading, setLoading] = useState<boolean>(true);
+
   const [filesLoading, setFilesLoading] = useState<boolean>(false);
+
   const [error, setError] = useState<string | null>(null);
+
   const [copiedId, setCopiedId] = useState<boolean>(false);
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
 
-  // Derived state for latest version object
+  // ==========================================================
+  // LATEST VERSION
+  // ==========================================================
+
   const latestVersion = useMemo(() => versions[0] || null, [versions]);
 
   // ==========================================================
-  // FETCH REPOSITORY DATA
+  // FETCH REPOSITORY
   // ==========================================================
+
   const fetchRepositoryData = useCallback(async () => {
     if (!repositoryId) {
       setError("Invalid route: Repository ID is missing from the URL.");
@@ -217,27 +290,34 @@ const RepositoryDetailPage: React.FC = () => {
       setRepository(repoData);
 
       const verList = versionsData || [];
+
       setVersions(verList);
 
       let targetVersionId = "";
+
       if (verList.length > 0) {
         const firstVersion = verList[0];
+
         targetVersionId = firstVersion._id ?? firstVersion.id ?? "";
+
         setSelectedVersionId(targetVersionId);
       }
 
       const fileList = await getRepositoryFiles(
         repositoryId,
-        targetVersionId || undefined
+        targetVersionId || undefined,
       );
+
       setFiles(fileList || []);
     } catch (err: unknown) {
       console.error("Failed to load repository details:", err);
+
       const apiErr = err as ApiErrorResponse;
+
       setError(
         apiErr?.response?.data?.message ||
           apiErr?.message ||
-          "Failed to load repository details."
+          "Failed to load repository details.",
       );
     } finally {
       setLoading(false);
@@ -247,18 +327,25 @@ const RepositoryDetailPage: React.FC = () => {
   useEffect(() => {
     setCurrentPath("");
     setSearchQuery("");
-    fetchRepositoryData();
+
+    void fetchRepositoryData();
   }, [fetchRepositoryData]);
 
-  // Fetch files when switching version dropdown
+  // ==========================================================
+  // VERSION CHANGE
+  // ==========================================================
+
   const handleVersionChange = async (versionId: string) => {
     if (!repositoryId) return;
+
     try {
       setFilesLoading(true);
       setSelectedVersionId(versionId);
       setCurrentPath("");
       setSearchQuery("");
+
       const fileList = await getRepositoryFiles(repositoryId, versionId);
+
       setFiles(fileList || []);
     } catch (err) {
       console.error("Failed to load version files:", err);
@@ -270,14 +357,18 @@ const RepositoryDetailPage: React.FC = () => {
   // ==========================================================
   // FETCH ISSUES
   // ==========================================================
+
   useEffect(() => {
     const fetchIssues = async () => {
-      // Only fetch issues if the issues tab is active
-      if (!repositoryId || activeTab !== 1) return;
-      
+      if (!repositoryId || activeTab !== 1) {
+        return;
+      }
+
       try {
         setIssuesLoading(true);
+
         const data = await getIssuesByRepository(repositoryId);
+
         setIssues(data || []);
       } catch (err) {
         console.error("Failed to load issues:", err);
@@ -286,44 +377,66 @@ const RepositoryDetailPage: React.FC = () => {
       }
     };
 
-    fetchIssues();
+    void fetchIssues();
   }, [repositoryId, activeTab]);
 
   // ==========================================================
-  // COPY ID TO CLIPBOARD
+  // COPY REPOSITORY ID
   // ==========================================================
+
   const handleCopyId = async () => {
     if (!repositoryId) return;
+
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(repositoryId);
       } else {
         const textArea = document.createElement("textarea");
+
         textArea.value = repositoryId;
+
         document.body.appendChild(textArea);
+
         textArea.select();
+
         document.execCommand("copy");
+
         document.body.removeChild(textArea);
       }
+
       setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
+
+      setTimeout(() => {
+        setCopiedId(false);
+      }, 2000);
     } catch (err) {
       console.error("Failed to copy repository ID:", err);
     }
   };
 
-  // Safe Owner & Project Name Extraction
+  // ==========================================================
+  // OWNER NAME
+  // ==========================================================
+
   const ownerName = useMemo(() => {
     if (
       repository?.createdBy &&
       typeof repository.createdBy === "object" &&
       "name" in repository.createdBy
     ) {
-      const createdByObj = repository.createdBy as { name?: string };
+      const createdByObj = repository.createdBy as {
+        name?: string;
+      };
+
       return createdByObj.name ?? "Admin";
     }
+
     return "Admin";
   }, [repository?.createdBy]);
+
+  // ==========================================================
+  // PROJECT NAME
+  // ==========================================================
 
   const projectName = useMemo(() => {
     if (
@@ -331,19 +444,27 @@ const RepositoryDetailPage: React.FC = () => {
       typeof repository.project === "object" &&
       "name" in repository.project
     ) {
-      const projectObj = repository.project as { name?: string };
+      const projectObj = repository.project as {
+        name?: string;
+      };
+
       return projectObj.name ?? "Default Project";
     }
+
     return "Default Project";
   }, [repository?.project]);
 
-  // Filter and sort files by current path and search query
+  // ==========================================================
+  // FILTER FILES
+  // ==========================================================
+
   const visibleFiles = useMemo(() => {
     const cleanCurrentPath = currentPath.trim().replace(/^\/+|\/+$/g, "");
 
     return files
       .filter((file) => {
         const filePath = file.path ?? "";
+
         const cleanFilePath = filePath.trim().replace(/^\/+|\/+$/g, "");
 
         if (!cleanCurrentPath) {
@@ -355,11 +476,16 @@ const RepositoryDetailPage: React.FC = () => {
         }
 
         const relativePath = cleanFilePath.slice(cleanCurrentPath.length + 1);
+
         return relativePath.length > 0 && !relativePath.includes("/");
       })
       .filter((file) => {
-        if (!searchQuery.trim()) return true;
+        if (!searchQuery.trim()) {
+          return true;
+        }
+
         const fileName = file.name ?? "";
+
         return fileName
           .toLowerCase()
           .includes(searchQuery.toLowerCase().trim());
@@ -367,17 +493,22 @@ const RepositoryDetailPage: React.FC = () => {
       .sort((a, b) => {
         const nameA = a.name ?? "";
         const nameB = b.name ?? "";
+
         if (a.type === b.type) {
           return nameA.localeCompare(nameB, undefined, {
             numeric: true,
             sensitivity: "base",
           });
         }
+
         return a.type === "folder" ? -1 : 1;
       });
   }, [files, currentPath, searchQuery]);
 
-  // Render Path Breadcrumbs
+  // ==========================================================
+  // BREADCRUMBS
+  // ==========================================================
+
   const renderPathBreadcrumbs = () => {
     const pathSegments = currentPath.split("/").filter(Boolean);
 
@@ -388,37 +519,53 @@ const RepositoryDetailPage: React.FC = () => {
           startIcon={<ArrowBackIcon />}
           onClick={() => {
             const parts = currentPath.split("/").filter(Boolean);
+
             parts.pop();
+
             setCurrentPath(parts.join("/"));
           }}
-          sx={{ color: "#7c4dff", textTransform: "none", mr: 1 }}
+          sx={{
+            color: theme.palette.primary.main,
+            textTransform: "none",
+            mr: 1,
+          }}
         >
           Back
         </Button>
+
         <Breadcrumbs
           separator="/"
           sx={{
-            color: "grey.400",
+            color: theme.palette.text.secondary,
+
             fontSize: "0.875rem",
-            "& .MuiBreadcrumbs-separator": { color: "grey.600" },
+
+            "& .MuiBreadcrumbs-separator": {
+              color: theme.palette.text.disabled,
+            },
           }}
         >
           <Link
             underline="hover"
-            color="#7c4dff"
-            sx={{ cursor: "pointer", fontWeight: 600 }}
+            color="primary"
+            sx={{
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
             onClick={() => setCurrentPath("")}
           >
             root
           </Link>
+
           {pathSegments.map((segment, index) => {
             const segmentPath = pathSegments.slice(0, index + 1).join("/");
+
             const isLast = index === pathSegments.length - 1;
 
             return isLast ? (
               <Typography
                 key={segmentPath}
-                color="#ffffff"
+                color="text.primary"
                 fontWeight={600}
                 variant="body2"
               >
@@ -428,8 +575,10 @@ const RepositoryDetailPage: React.FC = () => {
               <Link
                 key={segmentPath}
                 underline="hover"
-                color="#7c4dff"
-                sx={{ cursor: "pointer" }}
+                color="primary"
+                sx={{
+                  cursor: "pointer",
+                }}
                 onClick={() => setCurrentPath(segmentPath)}
               >
                 {segment}
@@ -441,6 +590,10 @@ const RepositoryDetailPage: React.FC = () => {
     );
   };
 
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
   if (loading) {
     return (
       <Box
@@ -448,22 +601,29 @@ const RepositoryDetailPage: React.FC = () => {
         justifyContent="center"
         alignItems="center"
         minHeight="60vh"
+        bgcolor={pageBackground}
       >
-        <CircularProgress sx={{ color: "#7c4dff" }} size={48} />
+        <CircularProgress size={48} />
       </Box>
     );
   }
 
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
   if (error || !repository) {
     return (
-      <Box p={3}>
-        <Alert severity="error" sx={{ bgcolor: "#2c1c1d", color: "#f87171" }}>
-          {error || "Repository not found."}
-        </Alert>
+      <Box p={3} bgcolor={pageBackground} minHeight="60vh">
+        <Alert severity="error">{error || "Repository not found."}</Alert>
+
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate("/repository")}
-          sx={{ mt: 2, color: "#7c4dff" }}
+          sx={{
+            mt: 2,
+            textTransform: "none",
+          }}
         >
           Back to Repositories
         </Button>
@@ -471,47 +631,83 @@ const RepositoryDetailPage: React.FC = () => {
     );
   }
 
+  // ==========================================================
+  // MAIN UI
+  // ==========================================================
+
   return (
     <Box
-      sx={{ color: "#ffffff", p: { xs: 2, md: 3 }, maxWidth: 1400, mx: "auto" }}
+      sx={{
+        color: theme.palette.text.primary,
+        bgcolor: pageBackground,
+        minHeight: "100%",
+        p: {
+          xs: 2,
+          md: 3,
+        },
+        maxWidth: 1400,
+        mx: "auto",
+      }}
     >
-      {/* PAGE BREADCRUMBS */}
+      {/* =====================================================
+          PAGE BREADCRUMBS
+      ===================================================== */}
+
       <Stack direction="row" alignItems="center" spacing={1} mb={2}>
         <Breadcrumbs
           sx={{
-            color: "grey.400",
-            "& .MuiBreadcrumbs-separator": { color: "grey.600" },
+            color: theme.palette.text.secondary,
+
+            "& .MuiBreadcrumbs-separator": {
+              color: theme.palette.text.disabled,
+            },
           }}
         >
           <Link
             underline="hover"
             color="inherit"
-            sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+            sx={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+            }}
             onClick={() => navigate("/repository")}
           >
             Repositories
           </Link>
-          <Typography color="#ffffff" fontWeight={600}>
+
+          <Typography color="text.primary" fontWeight={600}>
             {repository.name}
           </Typography>
         </Breadcrumbs>
       </Stack>
 
-      {/* HEADER CARD */}
+      {/* =====================================================
+          HEADER CARD
+      ===================================================== */}
+
       <Paper
         elevation={0}
         sx={{
-          bgcolor: "#1e2532",
-          border: "1px solid #2d3545",
+          bgcolor: cardBackground,
+          color: theme.palette.text.primary,
+          border: `1px solid ${borderColor}`,
           borderRadius: 3,
           p: 3,
           mb: 3,
+          boxShadow: isDarkMode ? "none" : "0 2px 12px rgba(0,0,0,0.04)",
         }}
       >
         <Stack
-          direction={{ xs: "column", md: "row" }}
+          direction={{
+            xs: "column",
+            md: "row",
+          }}
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", md: "center" }}
+          alignItems={{
+            xs: "flex-start",
+            md: "center",
+          }}
           spacing={2}
         >
           <Box>
@@ -528,14 +724,10 @@ const RepositoryDetailPage: React.FC = () => {
               <Chip
                 label="Repository"
                 size="small"
-                icon={
-                  <StorageIcon
-                    sx={{ fontSize: "14px !important", color: "#9e9e9e" }}
-                  />
-                }
+                icon={<StorageIcon fontSize="small" />}
                 sx={{
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  color: "#b0bec5",
+                  bgcolor: theme.palette.action.hover,
+                  color: theme.palette.text.secondary,
                   fontSize: "0.75rem",
                 }}
               />
@@ -544,8 +736,8 @@ const RepositoryDetailPage: React.FC = () => {
                 label={`Project: ${projectName}`}
                 size="small"
                 sx={{
-                  bgcolor: "rgba(124, 77, 255, 0.15)",
-                  color: "#b388ff",
+                  bgcolor: primarySoftBackground,
+                  color: theme.palette.primary.main,
                   fontWeight: 600,
                   fontSize: "0.75rem",
                 }}
@@ -555,7 +747,10 @@ const RepositoryDetailPage: React.FC = () => {
                 <Chip
                   icon={
                     <TagIcon
-                      sx={{ fontSize: "14px !important", color: "#00e676" }}
+                      sx={{
+                        fontSize: "14px !important",
+                        color: theme.palette.success.main,
+                      }}
                     />
                   }
                   label={
@@ -565,8 +760,10 @@ const RepositoryDetailPage: React.FC = () => {
                   }
                   size="small"
                   sx={{
-                    bgcolor: "rgba(0, 230, 118, 0.1)",
-                    color: "#00e676",
+                    bgcolor: isDarkMode
+                      ? "rgba(0,230,118,0.10)"
+                      : "rgba(0,150,80,0.08)",
+                    color: theme.palette.success.main,
                     fontWeight: 700,
                     fontSize: "0.75rem",
                   }}
@@ -574,7 +771,7 @@ const RepositoryDetailPage: React.FC = () => {
               )}
             </Stack>
 
-            <Typography variant="body2" color="grey.400" mt={1}>
+            <Typography variant="body2" color="text.secondary" mt={1}>
               {repository.description ||
                 "No description provided for this repository."}
             </Typography>
@@ -582,11 +779,14 @@ const RepositoryDetailPage: React.FC = () => {
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap">
             <IconButton
-              onClick={fetchRepositoryData}
+              onClick={() => void fetchRepositoryData()}
               sx={{
-                bgcolor: "#2d3545",
-                color: "#fff",
-                "&:hover": { bgcolor: "#3e485e" },
+                bgcolor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+
+                "&:hover": {
+                  bgcolor: theme.palette.action.selected,
+                },
               }}
               aria-label="Refresh Repository"
             >
@@ -600,9 +800,12 @@ const RepositoryDetailPage: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{
-                  bgcolor: "#2d3545",
-                  color: "#fff",
-                  "&:hover": { bgcolor: "#3e485e" },
+                  bgcolor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+
+                  "&:hover": {
+                    bgcolor: theme.palette.action.selected,
+                  },
                 }}
                 aria-label="GitHub Repository"
               >
@@ -615,13 +818,13 @@ const RepositoryDetailPage: React.FC = () => {
               startIcon={<HistoryIcon />}
               onClick={() => navigate(`/repository/${repositoryId}/history`)}
               sx={{
-                borderColor: "#3e485e",
-                color: "#e0e0e0",
                 borderRadius: 2,
                 textTransform: "none",
+                borderColor: borderColor,
+
                 "&:hover": {
-                  borderColor: "#7c4dff",
-                  bgcolor: "rgba(124, 77, 255, 0.08)",
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: primarySoftBackground,
                 },
               }}
             >
@@ -633,12 +836,9 @@ const RepositoryDetailPage: React.FC = () => {
               startIcon={<CloudUploadIcon />}
               onClick={() => setIsUploadModalOpen(true)}
               sx={{
-                bgcolor: "#673ab7",
-                color: "#fff",
                 borderRadius: 2,
                 textTransform: "none",
                 fontWeight: 600,
-                "&:hover": { bgcolor: "#5e35b1" },
               }}
             >
               New Release
@@ -647,26 +847,50 @@ const RepositoryDetailPage: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* GRID LAYOUT */}
+      {/* =====================================================
+          GRID
+      ===================================================== */}
+
       <Box
         display="grid"
-        gridTemplateColumns={{ xs: "1fr", md: "1fr 320px", lg: "1fr 360px" }}
+        gridTemplateColumns={{
+          xs: "1fr",
+          md: "1fr 320px",
+          lg: "1fr 360px",
+        }}
         gap={3}
       >
-        {/* MAIN TAB CONTENT */}
+        {/* ===================================================
+            MAIN CONTENT
+        =================================================== */}
+
         <Box minWidth={0}>
-          <Box sx={{ borderBottom: 1, borderColor: "#2d3545", mb: 2 }}>
+          {/* TABS */}
+
+          <Box
+            sx={{
+              borderBottom: 1,
+              borderColor,
+              mb: 2,
+            }}
+          >
             <Tabs
               value={activeTab}
               onChange={(_, newValue) => setActiveTab(newValue)}
               sx={{
                 "& .MuiTab-root": {
-                  color: "grey.400",
+                  color: theme.palette.text.secondary,
                   textTransform: "none",
                   fontWeight: 600,
                 },
-                "& .Mui-selected": { color: "#7c4dff" },
-                "& .MuiTabs-indicator": { backgroundColor: "#7c4dff" },
+
+                "& .Mui-selected": {
+                  color: theme.palette.primary.main,
+                },
+
+                "& .MuiTabs-indicator": {
+                  backgroundColor: theme.palette.primary.main,
+                },
               }}
             >
               <Tab
@@ -674,6 +898,7 @@ const RepositoryDetailPage: React.FC = () => {
                 iconPosition="start"
                 label="Code & Files"
               />
+
               <Tab
                 icon={<BugReportIcon fontSize="small" />}
                 iconPosition="start"
@@ -682,64 +907,90 @@ const RepositoryDetailPage: React.FC = () => {
             </Tabs>
           </Box>
 
-          {/* CODE & FILES TAB */}
+          {/* =================================================
+              CODE & FILES
+          ================================================= */}
+
           {activeTab === 0 && (
             <Paper
               elevation={0}
               sx={{
-                bgcolor: "#1e2532",
-                border: "1px solid #2d3545",
+                bgcolor: cardBackground,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 3,
                 overflow: "hidden",
+                boxShadow: isDarkMode ? "none" : "0 2px 12px rgba(0,0,0,0.04)",
               }}
             >
-              {/* FILE EXPLORER TOOLBAR */}
+              {/* FILE TOOLBAR */}
+
               <Box
                 sx={{
                   p: 2,
-                  bgcolor: "#181d28",
-                  borderBottom: "1px solid #2d3545",
+                  bgcolor: subtleBackground,
+                  borderBottom: `1px solid ${borderColor}`,
                 }}
               >
                 <Stack
-                  direction={{ xs: "column", sm: "row" }}
+                  direction={{
+                    xs: "column",
+                    sm: "row",
+                  }}
                   justifyContent="space-between"
-                  alignItems={{ xs: "stretch", sm: "center" }}
+                  alignItems={{
+                    xs: "stretch",
+                    sm: "center",
+                  }}
                   spacing={2}
                 >
                   <Box flexGrow={1}>
                     {currentPath ? (
                       renderPathBreadcrumbs()
                     ) : (
-                      <Typography variant="subtitle2" color="grey.400">
+                      <Typography variant="subtitle2" color="text.secondary">
                         Root Directory
                       </Typography>
                     )}
                   </Box>
 
                   <Stack direction="row" spacing={1.5} alignItems="center">
-                    {/* VERSION SELECTOR DROPDOWN */}
+                    {/* VERSION SELECTOR */}
+
                     {versions.length > 0 && (
-                      <FormControl size="small" sx={{ minWidth: 130 }}>
+                      <FormControl
+                        size="small"
+                        sx={{
+                          minWidth: 130,
+                        }}
+                      >
                         <Select
                           value={selectedVersionId}
-                          onChange={(e) => handleVersionChange(e.target.value)}
+                          onChange={(e) =>
+                            void handleVersionChange(e.target.value)
+                          }
                           sx={{
-                            color: "#fff",
-                            bgcolor: "#1e2532",
-                            fontSize: "0.8rem",
+                            color: theme.palette.text.primary,
+                            bgcolor: cardBackground,
+
                             "& .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "#2d3545",
+                              borderColor,
                             },
+
                             "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "#7c4dff",
+                              borderColor: theme.palette.primary.main,
+                            },
+
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                              borderColor: theme.palette.primary.main,
                             },
                           }}
                         >
                           {versions.map((ver) => {
                             const verId = ver._id ?? ver.id ?? "";
+
                             const verLabel =
                               ver.versionNumber ?? ver.version ?? "v1.0.0";
+
                             return (
                               <MenuItem key={verId} value={verId}>
                                 {verLabel}
@@ -750,7 +1001,8 @@ const RepositoryDetailPage: React.FC = () => {
                       </FormControl>
                     )}
 
-                    {/* SEARCH FILTER */}
+                    {/* FILE SEARCH */}
+
                     <TextField
                       size="small"
                       placeholder="Filter files..."
@@ -760,20 +1012,37 @@ const RepositoryDetailPage: React.FC = () => {
                         startAdornment: (
                           <InputAdornment position="start">
                             <SearchIcon
-                              sx={{ color: "grey.500", fontSize: 18 }}
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                fontSize: 18,
+                              }}
                             />
                           </InputAdornment>
                         ),
                       }}
                       sx={{
-                        width: { xs: "100%", sm: 180 },
+                        width: {
+                          xs: "100%",
+                          sm: 180,
+                        },
+
                         "& .MuiInputBase-root": {
-                          bgcolor: "#1e2532",
-                          color: "#fff",
+                          bgcolor: cardBackground,
+                          color: theme.palette.text.primary,
                           fontSize: "0.8rem",
                         },
+
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2d3545",
+                          borderColor,
+                        },
+
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: theme.palette.primary.main,
+                        },
+
+                        "& .MuiInputBase-input::placeholder": {
+                          color: theme.palette.text.secondary,
+                          opacity: 1,
                         },
                       }}
                     />
@@ -781,51 +1050,70 @@ const RepositoryDetailPage: React.FC = () => {
                 </Stack>
               </Box>
 
+              {/* FILE LOADING */}
+
               {filesLoading ? (
                 <Box display="flex" justifyContent="center" py={6}>
-                  <CircularProgress size={32} sx={{ color: "#7c4dff" }} />
+                  <CircularProgress size={32} />
                 </Box>
               ) : visibleFiles.length > 0 ? (
                 <TableContainer>
-                  <Table sx={{ minWidth: 500 }}>
-                    <TableHead sx={{ bgcolor: "#181d28" }}>
+                  <Table
+                    sx={{
+                      minWidth: 500,
+                    }}
+                  >
+                    <TableHead
+                      sx={{
+                        bgcolor: tableHeaderBackground,
+                      }}
+                    >
                       <TableRow>
                         <TableCell
                           sx={{
-                            color: "grey.400",
-                            borderColor: "#2d3545",
+                            color: theme.palette.text.secondary,
+                            borderColor,
                             py: 1.5,
+                            fontWeight: 600,
                           }}
                         >
                           Name
                         </TableCell>
+
                         <TableCell
                           sx={{
-                            color: "grey.400",
-                            borderColor: "#2d3545",
+                            color: theme.palette.text.secondary,
+                            borderColor,
                             py: 1.5,
+                            fontWeight: 600,
                           }}
                         >
                           Last Modified
                         </TableCell>
+
                         <TableCell
                           align="right"
                           sx={{
-                            color: "grey.400",
-                            borderColor: "#2d3545",
+                            color: theme.palette.text.secondary,
+                            borderColor,
                             py: 1.5,
+                            fontWeight: 600,
                           }}
                         >
                           Size
                         </TableCell>
                       </TableRow>
                     </TableHead>
+
                     <TableBody>
                       {visibleFiles.map((file) => {
                         const fileKey =
                           file._id ?? file.id ?? file.path ?? file.name ?? "";
+
                         const fileName = file.name ?? "";
+
                         const fileType = file.type ?? "";
+
                         const filePath = file.path ?? "";
 
                         return (
@@ -835,21 +1123,23 @@ const RepositoryDetailPage: React.FC = () => {
                             sx={{
                               cursor:
                                 fileType === "folder" ? "pointer" : "default",
+
                               "&:hover": {
-                                bgcolor: "rgba(255, 255, 255, 0.03)",
+                                bgcolor: theme.palette.action.hover,
                               },
                             }}
                             onClick={() => {
                               if (fileType === "folder") {
                                 setCurrentPath(filePath);
+
                                 setSearchQuery("");
                               }
                             }}
                           >
                             <TableCell
                               sx={{
-                                color: "#fff",
-                                borderColor: "#2d3545",
+                                color: theme.palette.text.primary,
+                                borderColor,
                                 py: 1.5,
                               }}
                             >
@@ -859,6 +1149,7 @@ const RepositoryDetailPage: React.FC = () => {
                                 spacing={1.5}
                               >
                                 {getFileIcon(fileName, fileType)}
+
                                 <Typography variant="body2" fontWeight={500}>
                                   {fileName}
                                 </Typography>
@@ -867,8 +1158,8 @@ const RepositoryDetailPage: React.FC = () => {
 
                             <TableCell
                               sx={{
-                                color: "grey.400",
-                                borderColor: "#2d3545",
+                                color: theme.palette.text.secondary,
+                                borderColor,
                                 py: 1.5,
                               }}
                             >
@@ -888,8 +1179,8 @@ const RepositoryDetailPage: React.FC = () => {
                             <TableCell
                               align="right"
                               sx={{
-                                color: "grey.400",
-                                borderColor: "#2d3545",
+                                color: theme.palette.text.secondary,
+                                borderColor,
                                 py: 1.5,
                               }}
                             >
@@ -906,26 +1197,35 @@ const RepositoryDetailPage: React.FC = () => {
                   </Table>
                 </TableContainer>
               ) : (
+                /* EMPTY FILE STATE */
+
                 <Box textAlign="center" py={7} px={3}>
                   <Box
                     sx={{
                       display: "inline-flex",
-                      bgcolor: "rgba(124, 77, 255, 0.1)",
+                      bgcolor: primarySoftBackground,
                       p: 2,
                       borderRadius: "50%",
                       mb: 2,
+                      color: theme.palette.primary.main,
                     }}
                   >
-                    <CodeIcon sx={{ fontSize: 40, color: "#7c4dff" }} />
+                    <CodeIcon
+                      sx={{
+                        fontSize: 40,
+                      }}
+                    />
                   </Box>
+
                   <Typography variant="h6" fontWeight={700} gutterBottom>
                     {searchQuery
                       ? "No matching files found"
                       : "Repository Archive Explorer"}
                   </Typography>
+
                   <Typography
                     variant="body2"
-                    color="grey.400"
+                    color="text.secondary"
                     maxWidth={500}
                     mx="auto"
                     mb={3}
@@ -934,17 +1234,21 @@ const RepositoryDetailPage: React.FC = () => {
                       ? `No files matching "${searchQuery}" were found in this directory.`
                       : "No expanded source tree found for this version. You can download the full release archive or create a new release version above."}
                   </Typography>
+
                   {!searchQuery && (
                     <Button
                       variant="outlined"
                       startIcon={<CloudUploadIcon />}
                       onClick={() => setIsUploadModalOpen(true)}
                       sx={{
-                        borderColor: "#7c4dff",
-                        color: "#7c4dff",
+                        borderColor: theme.palette.primary.main,
+                        color: theme.palette.primary.main,
                         textTransform: "none",
                         borderRadius: 2,
-                        "&:hover": { bgcolor: "rgba(124, 77, 255, 0.08)" },
+
+                        "&:hover": {
+                          bgcolor: primarySoftBackground,
+                        },
                       }}
                     >
                       Upload Release Package
@@ -955,88 +1259,194 @@ const RepositoryDetailPage: React.FC = () => {
             </Paper>
           )}
 
-          {/* ISSUES TAB */}
+          {/* =================================================
+              ISSUES
+          ================================================= */}
+
           {activeTab === 1 && (
             <Paper
               elevation={0}
               sx={{
-                bgcolor: "#1e2532",
-                border: "1px solid #2d3545",
+                bgcolor: cardBackground,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 3,
                 overflow: "hidden",
+                boxShadow: isDarkMode ? "none" : "0 2px 12px rgba(0,0,0,0.04)",
               }}
             >
               {issuesLoading ? (
                 <Box display="flex" justifyContent="center" py={6}>
-                  <CircularProgress size={32} sx={{ color: "#7c4dff" }} />
+                  <CircularProgress size={32} />
                 </Box>
               ) : issues.length > 0 ? (
                 <TableContainer>
-                  <Table sx={{ minWidth: 500 }}>
-                    <TableHead sx={{ bgcolor: "#181d28" }}>
+                  <Table
+                    sx={{
+                      minWidth: 500,
+                    }}
+                  >
+                    <TableHead
+                      sx={{
+                        bgcolor: tableHeaderBackground,
+                      }}
+                    >
                       <TableRow>
-                        <TableCell sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            borderColor,
+                            py: 1.5,
+                            fontWeight: 600,
+                          }}
+                        >
                           Issue Title
                         </TableCell>
-                        <TableCell sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
+
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            borderColor,
+                            py: 1.5,
+                            fontWeight: 600,
+                          }}
+                        >
                           Status
                         </TableCell>
-                        <TableCell sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
+
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            borderColor,
+                            py: 1.5,
+                            fontWeight: 600,
+                          }}
+                        >
                           Priority
                         </TableCell>
-                        <TableCell align="right" sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
+
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            borderColor,
+                            py: 1.5,
+                            fontWeight: 600,
+                          }}
+                        >
                           Created
                         </TableCell>
                       </TableRow>
                     </TableHead>
+
                     <TableBody>
-                      {issues.map((issue) => (
-                        <TableRow
-                          key={issue.id || issue._id}
-                          hover
-                          sx={{ cursor: "pointer", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.03)" } }}
-                          onClick={() => navigate(`/issues/${issue.id || issue._id}`)}
-                        >
-                          <TableCell sx={{ color: "#fff", borderColor: "#2d3545", py: 1.5, fontWeight: 500 }}>
-                            {issue.title}
-                          </TableCell>
-                          <TableCell sx={{ borderColor: "#2d3545", py: 1.5 }}>
-                            <Chip 
-                              label={issue.status || "Open"} 
-                              size="small" 
-                              sx={{ bgcolor: "rgba(124, 77, 255, 0.1)", color: "#b388ff", fontSize: "0.75rem", fontWeight: 600 }} 
-                            />
-                          </TableCell>
-                          <TableCell sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
-                            {issue.priority || "Medium"}
-                          </TableCell>
-                          <TableCell align="right" sx={{ color: "grey.400", borderColor: "#2d3545", py: 1.5 }}>
-                            {formatRelativeDate(issue.createdAt)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {issues.map((issue) => {
+                        const issueId = issue.id ?? issue._id;
+
+                        return (
+                          <TableRow
+                            key={issueId}
+                            hover
+                            sx={{
+                              cursor: "pointer",
+
+                              "&:hover": {
+                                bgcolor: theme.palette.action.hover,
+                              },
+                            }}
+                            onClick={() => navigate(`/issues/${issueId}`)}
+                          >
+                            <TableCell
+                              sx={{
+                                color: theme.palette.text.primary,
+                                borderColor,
+                                py: 1.5,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {issue.title}
+                            </TableCell>
+
+                            <TableCell
+                              sx={{
+                                borderColor,
+                                py: 1.5,
+                              }}
+                            >
+                              <Chip
+                                label={issue.status || "Open"}
+                                size="small"
+                                sx={{
+                                  bgcolor: primarySoftBackground,
+                                  color: theme.palette.primary.main,
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+
+                            <TableCell
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                borderColor,
+                                py: 1.5,
+                              }}
+                            >
+                              {issue.priority || "Medium"}
+                            </TableCell>
+
+                            <TableCell
+                              align="right"
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                borderColor,
+                                py: 1.5,
+                              }}
+                            >
+                              {formatRelativeDate(issue.createdAt)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
               ) : (
                 <Box textAlign="center" py={7} px={3}>
-                  <BugReportIcon sx={{ fontSize: 48, color: "grey.600", mb: 1 }} />
+                  <BugReportIcon
+                    sx={{
+                      fontSize: 48,
+                      color: theme.palette.text.disabled,
+                      mb: 1,
+                    }}
+                  />
+
                   <Typography variant="h6" fontWeight={600} gutterBottom>
                     No Issues Recorded
                   </Typography>
-                  <Typography variant="body2" color="grey.400" mb={3}>
+
+                  <Typography variant="body2" color="text.secondary" mb={3}>
                     Issues linked to this repository will appear here.
                   </Typography>
+
                   <Button
                     variant="outlined"
                     startIcon={<BugReportIcon />}
-                    onClick={() => navigate("/issues/new", { state: { repositoryId } })}
+                    onClick={() =>
+                      navigate("/issues/new", {
+                        state: {
+                          repositoryId,
+                        },
+                      })
+                    }
                     sx={{
-                      borderColor: "#7c4dff",
-                      color: "#7c4dff",
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
                       textTransform: "none",
                       borderRadius: 2,
-                      "&:hover": { bgcolor: "rgba(124, 77, 255, 0.08)" },
+
+                      "&:hover": {
+                        bgcolor: primarySoftBackground,
+                      },
                     }}
                   >
                     Create Issue
@@ -1047,16 +1457,24 @@ const RepositoryDetailPage: React.FC = () => {
           )}
         </Box>
 
-        {/* SIDEBAR METADATA */}
+        {/* ===================================================
+            SIDEBAR
+        =================================================== */}
+
         <Box>
           <Stack spacing={2.5}>
+            {/* =================================================
+                REPOSITORY DETAILS
+            ================================================= */}
+
             <Paper
               elevation={0}
               sx={{
-                bgcolor: "#1e2532",
-                border: "1px solid #2d3545",
+                bgcolor: cardBackground,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 3,
                 p: 2.5,
+                boxShadow: isDarkMode ? "none" : "0 2px 12px rgba(0,0,0,0.04)",
               }}
             >
               <Typography variant="subtitle1" fontWeight={700} mb={2}>
@@ -1065,28 +1483,36 @@ const RepositoryDetailPage: React.FC = () => {
 
               <Stack
                 spacing={2}
-                divider={<Divider sx={{ borderColor: "#2d3545" }} />}
+                divider={
+                  <Divider
+                    sx={{
+                      borderColor,
+                    }}
+                  />
+                }
               >
                 {/* REPOSITORY ID */}
+
                 <Box>
                   <Typography
                     variant="caption"
-                    color="grey.400"
+                    color="text.secondary"
                     display="block"
                     gutterBottom
                   >
                     Repository ID
                   </Typography>
+
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography
                       variant="body2"
                       sx={{
                         fontFamily: "monospace",
-                        bgcolor: "#181d28",
+                        bgcolor: subtleBackground,
                         p: 0.8,
                         borderRadius: 1,
                         fontSize: "0.8rem",
-                        color: "#b0bec5",
+                        color: theme.palette.text.secondary,
                         flexGrow: 1,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -1094,13 +1520,20 @@ const RepositoryDetailPage: React.FC = () => {
                     >
                       {repositoryId || "N/A"}
                     </Typography>
+
                     <Tooltip title={copiedId ? "Copied!" : "Copy ID"}>
                       <IconButton
                         size="small"
                         onClick={handleCopyId}
                         sx={{
-                          bgcolor: "#2d3545",
-                          color: copiedId ? "#00e676" : "#fff",
+                          bgcolor: theme.palette.action.hover,
+                          color: copiedId
+                            ? theme.palette.success.main
+                            : theme.palette.text.primary,
+
+                          "&:hover": {
+                            bgcolor: theme.palette.action.selected,
+                          },
                         }}
                         aria-label="Copy Repository ID"
                       >
@@ -1115,26 +1548,29 @@ const RepositoryDetailPage: React.FC = () => {
                 </Box>
 
                 {/* CREATED BY */}
+
                 <Box>
                   <Typography
                     variant="caption"
-                    color="grey.400"
+                    color="text.secondary"
                     display="block"
                     mb={0.5}
                   >
                     Created By
                   </Typography>
+
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Avatar
                       sx={{
                         width: 28,
                         height: 28,
-                        bgcolor: "#7c4dff",
+                        bgcolor: theme.palette.primary.main,
                         fontSize: "0.8rem",
                       }}
                     >
                       {ownerName.charAt(0).toUpperCase()}
                     </Avatar>
+
                     <Typography variant="body2" fontWeight={600}>
                       {ownerName}
                     </Typography>
@@ -1142,20 +1578,26 @@ const RepositoryDetailPage: React.FC = () => {
                 </Box>
 
                 {/* TIMESTAMPS */}
+
                 <Box>
                   <Stack spacing={1.5}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <CalendarTodayIcon
-                        sx={{ fontSize: 16, color: "grey.500" }}
+                        sx={{
+                          fontSize: 16,
+                          color: theme.palette.text.secondary,
+                        }}
                       />
+
                       <Box>
                         <Typography
                           variant="caption"
-                          color="grey.400"
+                          color="text.secondary"
                           display="block"
                         >
                           Created
                         </Typography>
+
                         <Tooltip
                           title={
                             repository.createdAt
@@ -1171,15 +1613,22 @@ const RepositoryDetailPage: React.FC = () => {
                     </Stack>
 
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <HistoryIcon sx={{ fontSize: 16, color: "grey.500" }} />
+                      <HistoryIcon
+                        sx={{
+                          fontSize: 16,
+                          color: theme.palette.text.secondary,
+                        }}
+                      />
+
                       <Box>
                         <Typography
                           variant="caption"
-                          color="grey.400"
+                          color="text.secondary"
                           display="block"
                         >
                           Last Updated
                         </Typography>
+
                         <Tooltip
                           title={
                             repository.updatedAt
@@ -1198,27 +1647,28 @@ const RepositoryDetailPage: React.FC = () => {
               </Stack>
             </Paper>
 
-            {/* LATEST RELEASE CARD */}
+            {/* =================================================
+                LATEST RELEASE
+            ================================================= */}
+
             {latestVersion && (
               <Paper
                 elevation={0}
                 sx={{
-                  bgcolor: "#1e2532",
-                  border: "1px solid #2d3545",
+                  bgcolor: cardBackground,
+                  border: `1px solid ${borderColor}`,
                   borderRadius: 3,
                   p: 2.5,
+                  boxShadow: isDarkMode
+                    ? "none"
+                    : "0 2px 12px rgba(0,0,0,0.04)",
                 }}
               >
                 <Typography variant="subtitle1" fontWeight={700} mb={1}>
                   Latest Release
                 </Typography>
 
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                  mb={1.5}
-                >
+                <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
                   <Chip
                     label={
                       latestVersion.versionNumber ??
@@ -1226,9 +1676,13 @@ const RepositoryDetailPage: React.FC = () => {
                       "v1.0.0"
                     }
                     size="small"
-                    sx={{ bgcolor: "#7c4dff", color: "#fff", fontWeight: 700 }}
+                    color="primary"
+                    sx={{
+                      fontWeight: 700,
+                    }}
                   />
-                  <Typography variant="caption" color="grey.400">
+
+                  <Typography variant="caption" color="text.secondary">
                     {formatRelativeDate(latestVersion.createdAt)}
                   </Typography>
                 </Stack>
@@ -1240,7 +1694,7 @@ const RepositoryDetailPage: React.FC = () => {
                 {latestVersion.changelog && (
                   <Typography
                     variant="caption"
-                    color="grey.400"
+                    color="text.secondary"
                     sx={{
                       display: "-webkit-box",
                       WebkitLineClamp: 3,
@@ -1263,10 +1717,13 @@ const RepositoryDetailPage: React.FC = () => {
                     download
                     sx={{
                       mt: 1,
-                      borderColor: "#3e485e",
-                      color: "#90caf9",
+                      borderColor,
                       textTransform: "none",
-                      "&:hover": { borderColor: "#90caf9" },
+
+                      "&:hover": {
+                        borderColor: theme.palette.primary.main,
+                        bgcolor: primarySoftBackground,
+                      },
                     }}
                   >
                     Download Package
@@ -1278,7 +1735,10 @@ const RepositoryDetailPage: React.FC = () => {
         </Box>
       </Box>
 
-      {/* UPLOAD VERSION MODAL */}
+      {/* =====================================================
+          UPLOAD VERSION MODAL
+      ===================================================== */}
+
       {repositoryId ? (
         <UploadVersionModal
           open={isUploadModalOpen}
@@ -1286,7 +1746,7 @@ const RepositoryDetailPage: React.FC = () => {
           onClose={() => setIsUploadModalOpen(false)}
           onSuccess={() => {
             setIsUploadModalOpen(false);
-            fetchRepositoryData();
+            void fetchRepositoryData();
           }}
         />
       ) : null}
