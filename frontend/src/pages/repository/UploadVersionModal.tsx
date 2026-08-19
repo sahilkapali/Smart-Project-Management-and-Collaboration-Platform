@@ -1,143 +1,209 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import React, { useEffect, useState } from "react";
 
-import AttachFileIcon from "@mui/icons-material/AttachFile";
-import CloseIcon from "@mui/icons-material/Close";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 
-import toast from "react-hot-toast";
+// Import types from repository.types
+import type {
+  RepositoryVersion,
+  UploadVersionModalProps,
+} from "../../types/repository.types";
 
-import { createRepositoryVersion } from "../../services/repository.service";
-import type { UploadVersionModalProps } from "../../types/repository.types";
+// Import version service methods
+import {
+  createRepositoryVersion,
+  getRepositoryVersions,
+} from "../../services/repository.service";
 
-const UploadVersionModal = ({
+// Helper: Parse Semantic Versioning and suggest next options
+const parseSemver = (versionStr?: string) => {
+  if (!versionStr) {
+    return {
+      patch: "1.0.0",
+      minor: "1.1.0",
+      major: "2.0.0",
+    };
+  }
+
+  const hasVPrefix = versionStr.toLowerCase().startsWith("v");
+  const cleaned = versionStr.replace(/^v/i, "").trim();
+  const parts = cleaned.split(".").map((p) => parseInt(p, 10));
+
+  if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+    const [major, minor, patch] = parts;
+    const prefix = hasVPrefix ? "v" : "";
+
+    return {
+      patch: `${prefix}${major}.${minor}.${patch + 1}`,
+      minor: `${prefix}${major}.${minor + 1}.0`,
+      major: `${prefix}${major + 1}.0.0`,
+    };
+  }
+
+  return {
+    patch: "1.0.0",
+    minor: "1.1.0",
+    major: "2.0.0",
+  };
+};
+
+const UploadVersionModal: React.FC<UploadVersionModalProps> = ({
   open,
-  onClose,
   repositoryId,
+  onClose,
   onSuccess,
-}: UploadVersionModalProps) => {
-  // ==========================================================
-  // FORM STATE
-  // ==========================================================
-  const [versionNumber, setVersionNumber] = useState("");
-  const [title, setTitle] = useState("");
-  const [changelog, setChangelog] = useState("");
-  const [commitHash, setCommitHash] = useState("");
-  const [file, setFile] = useState<File | undefined>();
+}) => {
+  // Form State
+  const [versionNumber, setVersionNumber] = useState<string>("");
+  const [releaseTitle, setReleaseTitle] = useState<string>("");
+  const [changelog, setChangelog] = useState<string>("");
+  const [commitHash, setCommitHash] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // UI State
+  const [fetchingLatest, setFetchingLatest] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Quick increment options state
+  const [versionOptions, setVersionOptions] = useState<{
+    patch: string;
+    minor: string;
+    major: string;
+  }>({ patch: "1.0.0", minor: "1.1.0", major: "2.0.0" });
 
   // ==========================================================
-  // GENERAL STATE
+  // FETCH LATEST VERSION & AUTO-INCREMENT ON OPEN
   // ==========================================================
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!open || !repositoryId) return;
+
+    const fetchLatestVersion = async () => {
+      setFetchingLatest(true);
+      setError(null);
+
+      try {
+        const versions: RepositoryVersion[] =
+          await getRepositoryVersions(repositoryId);
+
+        let latestVersionStr: string | undefined;
+
+        if (Array.isArray(versions) && versions.length > 0) {
+          // Strictly access versionNumber (with version as a fallback alias)
+          latestVersionStr =
+            versions[0]?.versionNumber || versions[0]?.version;
+        }
+
+        const options = parseSemver(latestVersionStr);
+        setVersionOptions(options);
+
+        // Pre-fill with auto-incremented patch version
+        setVersionNumber(options.patch);
+        setReleaseTitle(`Release ${options.patch}`);
+      } catch (err: any) {
+        console.error("Failed to fetch version history:", err);
+        setVersionNumber("1.0.0");
+        setReleaseTitle("Release 1.0.0");
+      } finally {
+        setFetchingLatest(false);
+      }
+    };
+
+    fetchLatestVersion();
+  }, [open, repositoryId]);
 
   // ==========================================================
   // RESET FORM
   // ==========================================================
-  const resetForm = () => {
+  const handleReset = () => {
     setVersionNumber("");
-    setTitle("");
+    setReleaseTitle("");
     setChangelog("");
     setCommitHash("");
-    setFile(undefined);
-    setError("");
+    setSelectedFile(null);
+    setError(null);
   };
 
-  // ==========================================================
-  // CLOSE HANDLER
-  // ==========================================================
   const handleClose = () => {
-    if (loading) return;
-    resetForm();
+    handleReset();
     onClose();
   };
 
   // ==========================================================
   // FILE SELECTION
   // ==========================================================
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setError("");
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
     }
   };
 
-  const handleClearFile = () => {
-    setFile(undefined);
-  };
-
-  // Helper to format file sizes nicely
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
   // ==========================================================
-  // SUBMIT HANDLER
+  // SUBMIT FORM
   // ==========================================================
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (!versionNumber.trim()) {
       setError("Version number is required.");
       return;
     }
 
-    if (!title.trim()) {
-      setError("Version title is required.");
+    if (!releaseTitle.trim()) {
+      setError("Release title is required.");
       return;
     }
 
     try {
-      setLoading(true);
+      setSubmitting(true);
+      setError(null);
 
-      const version = await createRepositoryVersion(repositoryId, {
-        versionNumber: versionNumber.trim(),
-        title: title.trim(),
-        changelog: changelog.trim(),
-        commitHash: commitHash.trim(),
-        file,
-      });
+      const formData = new FormData();
+      formData.append("repositoryId", repositoryId);
+      formData.append("versionNumber", versionNumber.trim());
+      formData.append("title", releaseTitle.trim());
 
-      toast.success("New version release uploaded successfully!");
-
-      if (onSuccess) {
-        await onSuccess(version);
+      if (changelog.trim()) {
+        formData.append("changelog", changelog.trim());
+      }
+      if (commitHash.trim()) {
+        formData.append("commitHash", commitHash.trim());
+      }
+      if (selectedFile) {
+        formData.append("file", selectedFile);
       }
 
-      resetForm();
-      onClose();
-    } catch (err: any) {
-      console.error("Failed to create repository version:", err);
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Failed to upload repository version.";
+      // Pass repositoryId and formData to support both service signatures
+      const createdVersion: RepositoryVersion =
+        await createRepositoryVersion(repositoryId, formData);
 
-      setError(message);
-      toast.error(message);
+      handleReset();
+
+      if (onSuccess) {
+        await onSuccess(createdVersion);
+      }
+    } catch (err: any) {
+      console.error("Failed to upload version:", err);
+      setError(
+        err?.response?.data?.message || "Failed to upload new release version.",
+      );
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -148,153 +214,225 @@ const UploadVersionModal = ({
       fullWidth
       maxWidth="sm"
       PaperProps={{
-        sx: { borderRadius: 3 },
+        sx: {
+          bgcolor: "#232936",
+          color: "#ffffff",
+          borderRadius: 3,
+          p: 1,
+        },
       }}
     >
+      {/* HEADER */}
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          pb: 1,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Box
+            sx={{
+              bgcolor: "rgba(103, 58, 183, 0.2)",
+              p: 1,
+              borderRadius: 2,
+              display: "flex",
+            }}
+          >
+            <CloudUploadIcon sx={{ color: "#7c4dff" }} />
+          </Box>
+          <Typography variant="h6" fontWeight={700}>
+            Upload New Release
+          </Typography>
+        </Stack>
+
+        <IconButton
+          onClick={handleClose}
+          sx={{ color: "grey.500", "&:hover": { color: "#fff" } }}
+        >
+          ✕
+        </IconButton>
+      </DialogTitle>
+
       <form onSubmit={handleSubmit}>
-        {/* DIALOG HEADER */}
-        <DialogTitle sx={{ m: 0, p: 2, px: 3 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <CloudUploadIcon sx={{ color: "#5e35b1" }} />
-              <Typography variant="h6" fontWeight={700}>
-                Upload New Release
-              </Typography>
-            </Stack>
-            <IconButton
-              aria-label="close"
-              onClick={handleClose}
-              disabled={loading}
-              sx={{ color: (theme) => theme.palette.grey[500] }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-        {/* DIALOG CONTENT */}
-        <DialogContent dividers sx={{ p: 3 }}>
           <Stack spacing={2.5}>
-            {error && <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>}
+            {/* VERSION NUMBER WITH AUTO-INCREMENT CHIPS */}
+            <Box>
+              <TextField
+                label="Version Number *"
+                fullWidth
+                value={versionNumber}
+                onChange={(e) => setVersionNumber(e.target.value)}
+                placeholder="e.g. 1.0.1"
+                disabled={fetchingLatest}
+                InputProps={{
+                  endAdornment: fetchingLatest ? (
+                    <CircularProgress size={20} sx={{ color: "#7c4dff" }} />
+                  ) : null,
+                }}
+                sx={textFieldStyle}
+              />
 
-            {/* VERSION NUMBER */}
-            <TextField
-              label="Version Number"
-              placeholder="e.g. v1.0.0"
-              value={versionNumber}
-              onChange={(e) => {
-                setVersionNumber(e.target.value);
-                setError("");
-              }}
-              fullWidth
-              required
-              autoFocus
-              disabled={loading}
-              InputProps={{ sx: { borderRadius: 2 } }}
-            />
+              {/* QUICK INCREMENT CHIPS */}
+              {!fetchingLatest && (
+                <Stack direction="row" spacing={1} mt={1} alignItems="center">
+                  <Typography variant="caption" color="grey.400">
+                    Auto-suggest:
+                  </Typography>
+                  <Chip
+                    label={`Patch: ${versionOptions.patch}`}
+                    size="small"
+                    clickable
+                    onClick={() => {
+                      setVersionNumber(versionOptions.patch);
+                      setReleaseTitle(`Release ${versionOptions.patch}`);
+                    }}
+                    sx={{
+                      bgcolor:
+                        versionNumber === versionOptions.patch
+                          ? "#7c4dff"
+                          : "#2d3545",
+                      color: "#fff",
+                      fontSize: "0.75rem",
+                      "&:hover": { bgcolor: "#673ab7" },
+                    }}
+                  />
+                  <Chip
+                    label={`Minor: ${versionOptions.minor}`}
+                    size="small"
+                    clickable
+                    onClick={() => {
+                      setVersionNumber(versionOptions.minor);
+                      setReleaseTitle(`Release ${versionOptions.minor}`);
+                    }}
+                    sx={{
+                      bgcolor:
+                        versionNumber === versionOptions.minor
+                          ? "#7c4dff"
+                          : "#2d3545",
+                      color: "#fff",
+                      fontSize: "0.75rem",
+                      "&:hover": { bgcolor: "#673ab7" },
+                    }}
+                  />
+                  <Chip
+                    label={`Major: ${versionOptions.major}`}
+                    size="small"
+                    clickable
+                    onClick={() => {
+                      setVersionNumber(versionOptions.major);
+                      setReleaseTitle(`Release ${versionOptions.major}`);
+                    }}
+                    sx={{
+                      bgcolor:
+                        versionNumber === versionOptions.major
+                          ? "#7c4dff"
+                          : "#2d3545",
+                      color: "#fff",
+                      fontSize: "0.75rem",
+                      "&:hover": { bgcolor: "#673ab7" },
+                    }}
+                  />
+                </Stack>
+              )}
+            </Box>
 
-            {/* VERSION TITLE */}
+            {/* RELEASE TITLE */}
             <TextField
-              label="Release Title"
-              placeholder="e.g. Initial Major Release"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setError("");
-              }}
+              label="Release Title *"
               fullWidth
-              required
-              disabled={loading}
-              InputProps={{ sx: { borderRadius: 2 } }}
+              value={releaseTitle}
+              onChange={(e) => setReleaseTitle(e.target.value)}
+              placeholder="e.g. Release 1.0.1"
+              sx={textFieldStyle}
             />
 
             {/* CHANGELOG */}
             <TextField
               label="Changelog / Release Notes"
-              placeholder="Describe bug fixes, features, or breaking changes in this version..."
-              value={changelog}
-              onChange={(e) => setChangelog(e.target.value)}
               fullWidth
               multiline
-              rows={4}
-              disabled={loading}
-              InputProps={{ sx: { borderRadius: 2 } }}
+              rows={3}
+              value={changelog}
+              onChange={(e) => setChangelog(e.target.value)}
+              placeholder="Describe key features or changes in this version..."
+              sx={textFieldStyle}
             />
 
             {/* COMMIT HASH */}
             <TextField
               label="Commit Hash"
-              placeholder="e.g. a1b2c3d4 (Optional)"
+              fullWidth
               value={commitHash}
               onChange={(e) => setCommitHash(e.target.value)}
-              fullWidth
-              disabled={loading}
-              InputProps={{
-                sx: { borderRadius: 2, fontFamily: "monospace" },
-              }}
+              placeholder="e.g. a1b2c3d"
+              sx={textFieldStyle}
             />
 
-            {/* FILE UPLOAD SECTION */}
-            <Stack spacing={1}>
-              <Typography variant="body2" fontWeight={600} color="text.secondary">
+            {/* FILE UPLOAD BOX */}
+            <Box>
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                color="grey.300"
+                mb={1}
+              >
                 Release Archive File (Optional)
               </Typography>
 
-              {!file ? (
-                <Button
-                  variant="outlined"
-                  component="label"
-                  disabled={loading}
-                  startIcon={<AttachFileIcon />}
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    py: 1.2,
-                    borderStyle: "dashed",
-                  }}
-                >
-                  Select File (.zip, .tar.gz, etc.)
-                  <input hidden type="file" onChange={handleFileChange} />
-                </Button>
-              ) : (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    bgcolor: "action.hover",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ overflow: "hidden" }}>
-                    <AttachFileIcon color="action" />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" fontWeight={600} noWrap>
-                        {file.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatFileSize(file.size)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-
-                  <IconButton size="small" onClick={handleClearFile} disabled={loading} color="error">
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Paper>
-              )}
-            </Stack>
+              <Button
+                component="label"
+                fullWidth
+                variant="outlined"
+                startIcon={
+                  selectedFile ? (
+                    <InsertDriveFileIcon />
+                  ) : (
+                    <CloudUploadIcon />
+                  )
+                }
+                sx={{
+                  py: 1.8,
+                  borderRadius: 2,
+                  borderStyle: "dashed",
+                  borderColor: selectedFile ? "#7c4dff" : "#3e485e",
+                  color: selectedFile ? "#7c4dff" : "#5d87ff",
+                  bgcolor: "rgba(255, 255, 255, 0.02)",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "#7c4dff",
+                    bgcolor: "rgba(124, 77, 255, 0.08)",
+                  },
+                }}
+              >
+                {selectedFile
+                  ? selectedFile.name
+                  : "Select File (.zip, .tar.gz, etc.)"}
+                <input
+                  type="file"
+                  hidden
+                  onChange={handleFileChange}
+                  accept=".zip,.tar.gz,.gz,.rar,.7z"
+                />
+              </Button>
+            </Box>
           </Stack>
         </DialogContent>
 
-        {/* DIALOG ACTIONS */}
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        {/* ACTIONS */}
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
           <Button
             onClick={handleClose}
-            disabled={loading}
-            sx={{ textTransform: "none", color: "text.secondary", borderRadius: 2 }}
+            sx={{ color: "grey.400", textTransform: "none" }}
+            disabled={submitting}
           >
             Cancel
           </Button>
@@ -302,21 +440,18 @@ const UploadVersionModal = ({
           <Button
             type="submit"
             variant="contained"
-            disabled={loading || !versionNumber.trim() || !title.trim()}
+            disabled={submitting || fetchingLatest}
             sx={{
               bgcolor: "#5e35b1",
-              textTransform: "none",
-              fontWeight: 600,
-              borderRadius: 2,
+              color: "#fff",
               px: 3,
+              borderRadius: 2,
+              textTransform: "none",
               "&:hover": { bgcolor: "#4527a0" },
             }}
           >
-            {loading ? (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <CircularProgress size={18} color="inherit" />
-                <span>Uploading...</span>
-              </Stack>
+            {submitting ? (
+              <CircularProgress size={24} sx={{ color: "#fff" }} />
             ) : (
               "Upload Version"
             )}
@@ -325,6 +460,30 @@ const UploadVersionModal = ({
       </form>
     </Dialog>
   );
+};
+
+// Reusable Dark Input Field Styling
+const textFieldStyle = {
+  "& .MuiInputBase-root": {
+    color: "#fff",
+    bgcolor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 2,
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#3e485e",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#7c4dff",
+  },
+  "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#7c4dff",
+  },
+  "& .MuiInputLabel-root": {
+    color: "#9e9e9e",
+  },
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "#7c4dff",
+  },
 };
 
 export default UploadVersionModal;
