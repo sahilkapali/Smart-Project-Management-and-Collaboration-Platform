@@ -2,40 +2,78 @@ import api from "./api";
 
 import type {
   Project,
-  ProjectStatus,
   CreateProjectPayload,
   UpdateProjectPayload,
-  ProjectTeam,
 } from "../types/project.types";
 
 /* ============================================================
-   BACKEND PROJECT
+   BACKEND PROJECT TYPES
+   ============================================================ */
 
 interface BackendProject extends Omit<Project, "id"> {
-  id?: string;
-  name?: string | null;
-}
-
-interface BackendUser {
   _id?: string;
+
+  id?: string;
 
   progress?: number;
 
-  members?: unknown[];
+  endDate?: string | null;
 
-  createdBy?: unknown;
+  dueDate?: string | null;
 }
 
 /* ============================================================
-   NORMALIZE PROJECT
+   HELPERS
+   ============================================================ */
 
+/**
+ * Extract MongoDB/User IDs safely
+ */
+const getId = (value: unknown): string => {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const object = value as {
+      _id?: string;
+      id?: string;
+    };
+
+    return object._id ?? object.id ?? "";
+  }
+
+  return "";
+};
+
+/**
+ * Normalize backend project
+ * into frontend Project format
+ */
 const normalizeProject = (project: BackendProject): Project => {
   return {
     id: project.id ?? project._id ?? "",
 
-    name: project.name,
+    name: project.name ?? "",
 
     description: project.description ?? null,
+
+    team: project.team ?? "",
+
+    teamId:
+      typeof project.team === "object" && project.team !== null
+        ? getId(project.team)
+        : (project.teamId ?? ""),
+
+    createdBy: getId(project.createdBy),
+
+    members: Array.isArray(project.members)
+      ? project.members.map((member) => getId(member))
+      : [],
 
     status: project.status,
 
@@ -43,54 +81,67 @@ const normalizeProject = (project: BackendProject): Project => {
 
     startDate: project.startDate ?? null,
 
-    endDate: project.endDate ?? null,
+    endDate: project.endDate ?? project.dueDate ?? null,
 
-    teamId: project.teamId ?? null,
+    dueDate: project.dueDate ?? project.endDate ?? null,
 
-    members: project.members ?? [],
+    createdAt: project.createdAt ?? "",
 
-    createdBy: project.createdBy,
-
-    createdAt: project.createdAt,
-
-    updatedAt: project.updatedAt,
+    updatedAt: project.updatedAt ?? "",
   };
+};
+
+/**
+ * Extract API response safely
+ */
+const extractData = <T>(response: unknown): T => {
+  const axiosResponse = response as {
+    data?: unknown;
+  };
+
+  const body = axiosResponse.data;
+
+  if (typeof body === "object" && body !== null && "data" in body) {
+    return (
+      body as {
+        data: T;
+      }
+    ).data;
+  }
+
+  return body as T;
 };
 
 /* ============================================================
    PROJECT SERVICE
+   ============================================================ */
 
 const projectService = {
-  /* ==========================================================
-     GET CURRENT USER PROJECTS
-     
-     IMPORTANT:
-     The backend decides which projects the user is allowed
-     to see according to their role.
-  ========================================================== */
+  /**
+   * GET ALL PROJECTS
+   */
+  async getProjects(): Promise<Project[]> {
+    const response = await api.get("/projects");
 
-const normalizeProject = (data: BackendProject): Project => {
-  const teamId = getTeamId(data);
+    const rawData = extractData<
+      | BackendProject[]
+      | {
+          projects?: BackendProject[];
+        }
+    >(response);
 
-  const team = normalizeTeam(data);
-
-    const projectsData = Array.isArray(rawData)
+    const projects = Array.isArray(rawData)
       ? rawData
-      : Array.isArray(rawData?.data)
-        ? rawData.data
-        : Array.isArray(rawData?.projects)
-          ? rawData.projects
-          : [];
+      : (rawData.projects ?? []);
 
-    return projectsData
-      .map((project: BackendProject) => normalizeProject(project))
-      .filter((project: Project) => Boolean(project.id));
+    return projects
+      .map(normalizeProject)
+      .filter((project) => Boolean(project.id));
   },
 
-  /* ==========================================================
-     GET PROJECT BY ID
-  ========================================================== */
-
+  /**
+   * GET PROJECT BY ID
+   */
   async getProjectById(projectId: string): Promise<Project> {
     if (!projectId) {
       throw new Error("Project ID is required.");
@@ -98,42 +149,25 @@ const normalizeProject = (data: BackendProject): Project => {
 
     const response = await api.get(`/projects/${projectId}`);
 
-    members: (data.members ?? []).map((member) => getId(member)),
+    const project = extractData<BackendProject>(response);
 
-    const project =
-      rawData?.data ??
-      rawData?.project ??
-      rawData;
+    return normalizeProject(project);
+  },
 
-    startDate: data.startDate ?? null,
-
-  /* ==========================================================
-     CREATE PROJECT
-  ========================================================== */
-
-  async createProject(
-    data: CreateProjectPayload,
-  ): Promise<Project> {
+  /**
+   * CREATE PROJECT
+   */
+  async createProject(data: CreateProjectPayload): Promise<Project> {
     const response = await api.post("/projects", data);
 
-    updatedAt: data.updatedAt ?? "",
-  };
-};
+    const project = extractData<BackendProject>(response);
 
-    const project =
-      rawData?.data ??
-      rawData?.project ??
-      rawData;
+    return normalizeProject(project);
+  },
 
-const extractData = <T>(response: unknown): T => {
-  const result = response as {
-    data?: T | { data?: T };
-  };
-
-  /* ==========================================================
-     UPDATE PROJECT
-  ========================================================== */
-
+  /**
+   * UPDATE PROJECT
+   */
   async updateProject(
     projectId: string,
     data: UpdateProjectPayload,
@@ -142,24 +176,16 @@ const extractData = <T>(response: unknown): T => {
       throw new Error("Project ID is required.");
     }
 
-    const response = await api.put(
-      `/projects/${projectId}`,
-      data,
-    );
+    const response = await api.put(`/projects/${projectId}`, data);
 
-  getProjects,
+    const project = extractData<BackendProject>(response);
 
-    const project =
-      rawData?.data ??
-      rawData?.project ??
-      rawData;
+    return normalizeProject(project);
+  },
 
-  updateProject,
-
-  /* ==========================================================
-     DELETE PROJECT
-  ========================================================== */
-
+  /**
+   * DELETE PROJECT
+   */
   async deleteProject(projectId: string): Promise<void> {
     if (!projectId) {
       throw new Error("Project ID is required.");

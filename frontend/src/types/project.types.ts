@@ -29,13 +29,12 @@ export interface Project {
   description?: string | null;
 
   /**
-   * Populated team object returned by the backend.
+   * Populated team object returned by backend.
    */
   team: ProjectTeam | string;
 
   /**
-   * Team ID kept for compatibility
-   * with existing frontend code.
+   * Team ID compatibility field.
    */
   teamId: string;
 
@@ -45,8 +44,21 @@ export interface Project {
 
   status: ProjectStatus;
 
+  /**
+   * Project completion percentage.
+   */
+  progress?: number;
+
   startDate?: string | null;
 
+  /**
+   * Backend/UI uses endDate.
+   */
+  endDate?: string | null;
+
+  /**
+   * Keep dueDate for backward compatibility.
+   */
   dueDate?: string | null;
 
   createdAt?: string;
@@ -69,6 +81,8 @@ export interface CreateProjectPayload {
 
   startDate?: string;
 
+  endDate?: string;
+
   dueDate?: string;
 }
 
@@ -86,6 +100,8 @@ export interface UpdateProjectPayload {
   status?: ProjectStatus;
 
   startDate?: string;
+
+  endDate?: string;
 
   dueDate?: string;
 }
