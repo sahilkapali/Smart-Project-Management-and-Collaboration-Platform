@@ -2,15 +2,29 @@ import { Request, Response, NextFunction } from "express";
 
 import * as notificationService from "../services/notification.service";
 
-/**
- * ============================================================
- * GET MY NOTIFICATIONS
- * ============================================================
- *
- * GET /api/notifications
- *
- * Returns notifications belonging to the logged-in user.
- */
+// ============================================================
+// HELPER
+// ============================================================
+
+const getNotificationId = (req: Request): string | null => {
+  const value = req.params.id;
+
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  return value;
+};
+
+// ============================================================
+// GET MY NOTIFICATIONS
+// ============================================================
+//
+// GET /api/notifications
+//
+// Returns notifications belonging to the logged-in user.
+// ============================================================
+
 export const getMyNotifications = async (
   req: Request,
   res: Response,
@@ -39,15 +53,15 @@ export const getMyNotifications = async (
   }
 };
 
-/**
- * ============================================================
- * GET ONE NOTIFICATION
- * ============================================================
- *
- * GET /api/notifications/:id
- *
- * Only the recipient can view their notification.
- */
+// ============================================================
+// GET ONE NOTIFICATION
+// ============================================================
+//
+// GET /api/notifications/:id
+//
+// Only the recipient can view their notification.
+// ============================================================
+
 export const getMyNotificationById = async (
   req: Request,
   res: Response,
@@ -64,7 +78,7 @@ export const getMyNotificationById = async (
       return;
     }
 
-    const notificationId = req.params.id as string;
+    const notificationId = getNotificationId(req);
 
     if (!notificationId) {
       res.status(400).json({
@@ -96,13 +110,13 @@ export const getMyNotificationById = async (
   }
 };
 
-/**
- * ============================================================
- * GET UNREAD NOTIFICATION COUNT
- * ============================================================
- *
- * GET /api/notifications/unread-count
- */
+// ============================================================
+// GET UNREAD NOTIFICATION COUNT
+// ============================================================
+//
+// GET /api/notifications/unread-count
+// ============================================================
+
 export const getUnreadNotificationCount = async (
   req: Request,
   res: Response,
@@ -132,13 +146,13 @@ export const getUnreadNotificationCount = async (
   }
 };
 
-/**
- * ============================================================
- * MARK ONE NOTIFICATION AS READ
- * ============================================================
- *
- * PATCH /api/notifications/:id/read
- */
+// ============================================================
+// MARK ONE NOTIFICATION AS READ
+// ============================================================
+//
+// PATCH /api/notifications/:id/read
+// ============================================================
+
 export const readNotification = async (
   req: Request,
   res: Response,
@@ -155,7 +169,7 @@ export const readNotification = async (
       return;
     }
 
-    const notificationId = req.params.id as string;
+    const notificationId = getNotificationId(req);
 
     if (!notificationId) {
       res.status(400).json({
@@ -188,13 +202,13 @@ export const readNotification = async (
   }
 };
 
-/**
- * ============================================================
- * MARK ALL NOTIFICATIONS AS READ
- * ============================================================
- *
- * PATCH /api/notifications/read-all
- */
+// ============================================================
+// MARK ALL NOTIFICATIONS AS READ
+// ============================================================
+//
+// PATCH /api/notifications/read-all
+// ============================================================
+
 export const readAllNotifications = async (
   req: Request,
   res: Response,
@@ -223,15 +237,15 @@ export const readAllNotifications = async (
   }
 };
 
-/**
- * ============================================================
- * DELETE ONE NOTIFICATION
- * ============================================================
- *
- * DELETE /api/notifications/:id
- *
- * A user can only delete their own notification.
- */
+// ============================================================
+// DELETE ONE NOTIFICATION
+// ============================================================
+//
+// DELETE /api/notifications/:id
+//
+// A user can only delete their own notification.
+// ============================================================
+
 export const deleteMyNotification = async (
   req: Request,
   res: Response,
@@ -248,7 +262,7 @@ export const deleteMyNotification = async (
       return;
     }
 
-    const notificationId = req.params.id as string;
+    const notificationId = getNotificationId(req);
 
     if (!notificationId) {
       res.status(400).json({
@@ -281,16 +295,16 @@ export const deleteMyNotification = async (
   }
 };
 
-/**
- * ============================================================
- * CLEAR READ NOTIFICATIONS
- * ============================================================
- *
- * DELETE /api/notifications/read
- *
- * Deletes all notifications that the current user
- * has already read.
- */
+// ============================================================
+// CLEAR READ NOTIFICATIONS
+// ============================================================
+//
+// DELETE /api/notifications/read
+//
+// Deletes all notifications that the current user
+// has already read.
+// ============================================================
+
 export const clearReadNotifications = async (
   req: Request,
   res: Response,
@@ -307,7 +321,8 @@ export const clearReadNotifications = async (
       return;
     }
 
-    const result = await notificationService.clearReadNotifications(userId);
+    const result =
+      await notificationService.clearReadNotifications(userId);
 
     res.status(200).json({
       success: true,

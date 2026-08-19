@@ -13,9 +13,8 @@ import {
   deleteTaskService,
   getKanbanService,
   requireTaskProjectAccess,
+  autoPrioritizeProjectTasksService,
 } from "../services/task.service";
-
-import * as aiService from "../services/gemini.service";
 
 // ============================================================
 // CREATE TASK
@@ -34,7 +33,6 @@ export const createTask = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -46,7 +44,6 @@ export const createTask = async (
         success: false,
         message: "Project and Task title are required.",
       });
-
       return;
     }
 
@@ -81,7 +78,6 @@ export const getTasks = async (
 ): Promise<void> => {
   try {
     const projectId = req.query.project as string | undefined;
-
     const userId = req.user?.id;
 
     if (!projectId) {
@@ -89,7 +85,6 @@ export const getTasks = async (
         success: false,
         message: "Project ID is required.",
       });
-
       return;
     }
 
@@ -98,7 +93,6 @@ export const getTasks = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -131,7 +125,6 @@ export const getTaskById = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -146,7 +139,6 @@ export const getTaskById = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -176,7 +168,6 @@ export const updateTask = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -187,7 +178,6 @@ export const updateTask = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -218,7 +208,6 @@ export const deleteTask = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -229,11 +218,9 @@ export const deleteTask = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
-    // Delete task comments
     await TaskComment.deleteMany({
       task: req.params.id,
     });
@@ -264,7 +251,6 @@ export const updateKanbanStatus = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -277,7 +263,6 @@ export const updateKanbanStatus = async (
         success: false,
         message: "Invalid task status.",
       });
-
       return;
     }
 
@@ -288,7 +273,6 @@ export const updateKanbanStatus = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -303,7 +287,6 @@ export const updateKanbanStatus = async (
         success: false,
         message: "You are not allowed to modify this task.",
       });
-
       return;
     }
 
@@ -314,11 +297,11 @@ export const updateKanbanStatus = async (
     await task.populate([
       {
         path: "assignedTo",
-        select: "firstName lastName email role",
+        select: "firstName lastName name email role",
       },
       {
         path: "createdBy",
-        select: "firstName lastName email role",
+        select: "firstName lastName name email role",
       },
       {
         path: "project",
@@ -353,7 +336,6 @@ export const getKanban = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -369,7 +351,7 @@ export const getKanban = async (
 };
 
 // ============================================================
-// ADD COMMENT
+// ADD TASK COMMENT
 // ============================================================
 
 export const addTaskComment = async (
@@ -385,7 +367,6 @@ export const addTaskComment = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -396,7 +377,6 @@ export const addTaskComment = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -409,7 +389,6 @@ export const addTaskComment = async (
         success: false,
         message: "Comment text is required.",
       });
-
       return;
     }
 
@@ -419,7 +398,7 @@ export const addTaskComment = async (
       text,
     });
 
-    await comment.populate("user", "firstName lastName email role");
+    await comment.populate("user", "firstName lastName name email role");
 
     res.status(201).json({
       success: true,
@@ -432,7 +411,7 @@ export const addTaskComment = async (
 };
 
 // ============================================================
-// GET COMMENTS
+// GET TASK COMMENTS
 // ============================================================
 
 export const getTaskComments = async (
@@ -448,7 +427,6 @@ export const getTaskComments = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -459,7 +437,6 @@ export const getTaskComments = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -468,7 +445,7 @@ export const getTaskComments = async (
     const comments = await TaskComment.find({
       task: task._id,
     })
-      .populate("user", "firstName lastName email role")
+      .populate("user", "firstName lastName name email role")
       .sort({
         createdAt: 1,
       });
@@ -484,7 +461,7 @@ export const getTaskComments = async (
 };
 
 // ============================================================
-// DELETE COMMENT
+// DELETE TASK COMMENT
 // ============================================================
 
 export const deleteTaskComment = async (
@@ -500,7 +477,6 @@ export const deleteTaskComment = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
@@ -511,7 +487,6 @@ export const deleteTaskComment = async (
         success: false,
         message: "Comment not found.",
       });
-
       return;
     }
 
@@ -522,7 +497,6 @@ export const deleteTaskComment = async (
         success: false,
         message: "Task not found.",
       });
-
       return;
     }
 
@@ -533,7 +507,6 @@ export const deleteTaskComment = async (
         success: false,
         message: "Not allowed to delete this comment.",
       });
-
       return;
     }
 
@@ -549,10 +522,11 @@ export const deleteTaskComment = async (
 };
 
 // ============================================================
-// AI PRIORITIZATION
+// AI PRIORITIZE PROJECT TASKS
+// PATCH /tasks/project/:projectId/ai-prioritize
 // ============================================================
 
-export const autoPrioritizeTask = async (
+export const autoPrioritizeProjectTasks = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
@@ -565,91 +539,26 @@ export const autoPrioritizeTask = async (
         success: false,
         message: "Unauthorized.",
       });
-
       return;
     }
 
-    const task = await Task.findById(req.params.id);
+    const { projectId } = req.params;
 
-    if (!task) {
-      res.status(404).json({
+    if (!projectId) {
+      res.status(400).json({
         success: false,
-        message: "Task not found.",
+        message: "Project ID is required.",
       });
-
       return;
     }
 
-    await requireTaskProjectAccess(task.project.toString(), userId);
-
-    const taskContext = `
-Task Title: ${task.title}
-
-Description:
-${task.description || "No description provided"}
-
-Due Date:
-${task.dueDate ? new Date(task.dueDate).toISOString() : "No due date"}
-
-Status:
-${task.status}
-
-Current Priority:
-${task.priority}
-`;
-
-    const aiPriority = await aiService.generateTaskPriority(taskContext);
-
-    const normalizedPriority =
-      String(aiPriority)
-        .trim()
-        .replace(/[^a-zA-Z]/g, "")
-        .charAt(0)
-        .toUpperCase() +
-      String(aiPriority)
-        .trim()
-        .replace(/[^a-zA-Z]/g, "")
-        .slice(1)
-        .toLowerCase();
-
-    const allowedPriorities = ["Low", "Medium", "High", "Critical"];
-
-    if (!allowedPriorities.includes(normalizedPriority)) {
-      res.status(500).json({
-        success: false,
-        message: "AI returned an invalid task priority.",
-      });
-
-      return;
-    }
-
-    task.priority = normalizedPriority as
-      | "Low"
-      | "Medium"
-      | "High"
-      | "Critical";
-
-    await task.save();
-
-    await task.populate([
-      {
-        path: "assignedTo",
-        select: "firstName lastName email role",
-      },
-      {
-        path: "createdBy",
-        select: "firstName lastName email role",
-      },
-      {
-        path: "project",
-        select: "name description",
-      },
-    ]);
+    const tasks = await autoPrioritizeProjectTasksService(projectId, userId);
 
     res.status(200).json({
       success: true,
-      message: `Task priority auto-updated to ${normalizedPriority}.`,
-      data: task,
+      message: "Project tasks prioritized successfully using AI.",
+      count: tasks.length,
+      data: tasks,
     });
   } catch (error) {
     next(error);

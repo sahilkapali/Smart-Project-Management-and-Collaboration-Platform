@@ -1,5 +1,3 @@
-// src/pages/notification/NotificationsPage.tsx
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -41,6 +39,8 @@ import type {
   AppNotification,
   NotificationType,
 } from "../../types/notification.types";
+
+import { ROUTES } from "../../utils/routes";
 
 // ============================================================
 // NOTIFICATION TITLE
@@ -121,7 +121,6 @@ const formatNotificationDate = (date: string | Date): string => {
 
   const diff = now.getTime() - notificationDate.getTime();
 
-  // Future date
   if (diff < 0) {
     return notificationDate.toLocaleDateString(undefined, {
       year: "numeric",
@@ -202,6 +201,10 @@ const getAvatarLetter = (notification: AppNotification): string => {
 const NotificationsPage = () => {
   const navigate = useNavigate();
 
+  // ==========================================================
+  // STATE
+  // ==========================================================
+
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -211,7 +214,7 @@ const NotificationsPage = () => {
   const [markingAll, setMarkingAll] = useState(false);
 
   // ==========================================================
-  // LOAD REAL NOTIFICATIONS
+  // LOAD NOTIFICATIONS
   // ==========================================================
 
   const loadNotifications = useCallback(async () => {
@@ -219,10 +222,6 @@ const NotificationsPage = () => {
       setLoading(true);
 
       const data = await getMyNotifications();
-
-      // IMPORTANT:
-      // Only backend data is used.
-      // No dummy/fallback notifications.
 
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -318,28 +317,102 @@ const NotificationsPage = () => {
   };
 
   // ==========================================================
+  // OPEN RELATED ENTITY
+  // ==========================================================
+
+  const openRelatedEntity = (notification: AppNotification) => {
+    const entityId = notification.relatedEntityId;
+
+    /*
+     * If the backend notification doesn't contain a related
+     * entity, there is nowhere specific to navigate.
+     */
+    if (!entityId) {
+      return;
+    }
+
+    const entityType = notification.relatedEntityType?.toUpperCase();
+
+    // ========================================================
+    // TASK
+    // ========================================================
+
+    if (
+      entityType === "TASK" ||
+      notification.type === "TASK_ASSIGNED" ||
+      notification.type === "TASK_UPDATED"
+    ) {
+      navigate(ROUTES.TASKS);
+
+      return;
+    }
+
+    // ========================================================
+    // PROJECT
+    // ========================================================
+
+    if (entityType === "PROJECT") {
+      navigate(`/projects/${entityId}`);
+
+      return;
+    }
+
+    // ========================================================
+    // MEETING
+    // ========================================================
+
+    if (
+      entityType === "MEETING" ||
+      notification.type === "MEETING_INVITATION"
+    ) {
+      navigate(`/meetings/${entityId}`);
+
+      return;
+    }
+
+    // ========================================================
+    // TEAM
+    // ========================================================
+
+    if (entityType === "TEAM") {
+      navigate(ROUTES.TEAMS);
+
+      return;
+    }
+
+    // ========================================================
+    // COMMENT
+    // ========================================================
+
+    if (entityType === "COMMENT") {
+      /*
+       * There is currently no dedicated comment route in
+       * ROUTES, so we don't invent one.
+       */
+      return;
+    }
+  };
+
+  // ==========================================================
   // NOTIFICATION CLICK
   // ==========================================================
 
   const handleNotificationClick = async (notification: AppNotification) => {
-    await handleMarkAsRead(notification);
+    try {
+      /*
+       * Mark unread notifications as read before navigating.
+       */
+      await handleMarkAsRead(notification);
 
-    /*
-     * We intentionally DO NOT use:
-     *
-     * notification.title
-     * notification.link
-     *
-     * because your backend does not provide
-     * those properties.
-     *
-     * Your backend provides:
-     *
-     * relatedEntityId
-     * relatedEntityType
-     *
-     * Those can be connected to real routes later.
-     */
+      /*
+       * Then navigate to the relevant module.
+       */
+      openRelatedEntity(notification);
+    } catch (error) {
+      console.error("Failed to handle notification click:", error);
+
+      toast.error("Unable to open this notification.");
+    }
   };
 
   // ==========================================================
@@ -428,7 +501,12 @@ const NotificationsPage = () => {
               )}
             </Stack>
 
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography
+              color="text.secondary"
+              sx={{
+                mt: 0.5,
+              }}
+            >
               Stay updated with your project activity.
             </Typography>
           </Box>
@@ -441,6 +519,10 @@ const NotificationsPage = () => {
           }
           onClick={handleMarkAllAsRead}
           disabled={markingAll || unreadCount === 0}
+          sx={{
+            textTransform: "none",
+            borderRadius: 2,
+          }}
         >
           Mark all as read
         </Button>
@@ -476,13 +558,18 @@ const NotificationsPage = () => {
             No notifications
           </Typography>
 
-          <Typography color="text.secondary" sx={{ mt: 1 }}>
+          <Typography
+            color="text.secondary"
+            sx={{
+              mt: 1,
+            }}
+          >
             You're all caught up.
           </Typography>
         </Paper>
       ) : (
         /* ===================================================
-           REAL BACKEND NOTIFICATIONS
+           NOTIFICATION LIST
         =================================================== */
 
         <Paper
@@ -509,6 +596,15 @@ const NotificationsPage = () => {
               <Box key={notification._id}>
                 <Box
                   onClick={() => void handleNotificationClick(notification)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+
+                      void handleNotificationClick(notification);
+                    }
+                  }}
                   sx={{
                     px: {
                       xs: 2,
@@ -516,36 +612,53 @@ const NotificationsPage = () => {
                     },
                     py: 2,
                     cursor: "pointer",
+
                     bgcolor: notification.isRead
                       ? "background.paper"
                       : "action.hover",
+
                     transition: "background-color 0.2s ease",
 
                     "&:hover": {
                       bgcolor: "action.selected",
                     },
+
+                    "&:focus-visible": {
+                      outline: "2px solid",
+                      outlineColor: "primary.main",
+                      outlineOffset: "-2px",
+                    },
                   }}
                 >
                   <Stack direction="row" spacing={2} alignItems="flex-start">
-                    {/* AVATAR */}
+                    {/* =================================================
+                          AVATAR
+                      ================================================= */}
 
                     <Avatar
                       sx={{
                         width: 46,
                         height: 46,
+
                         bgcolor: notification.isRead
                           ? "action.disabledBackground"
                           : "primary.main",
+
                         color: notification.isRead
                           ? "text.secondary"
                           : "primary.contrastText",
+
                         fontWeight: 700,
+
+                        flexShrink: 0,
                       }}
                     >
                       {avatarLetter}
                     </Avatar>
 
-                    {/* CONTENT */}
+                    {/* =================================================
+                          CONTENT
+                      ================================================= */}
 
                     <Box
                       sx={{
@@ -566,6 +679,7 @@ const NotificationsPage = () => {
                             sx={{
                               display: "flex",
                               alignItems: "center",
+
                               color: notification.isRead
                                 ? "text.secondary"
                                 : "primary.main",
@@ -597,6 +711,8 @@ const NotificationsPage = () => {
                         </Typography>
                       </Stack>
 
+                      {/* MESSAGE */}
+
                       <Typography
                         variant="body2"
                         color="text.secondary"
@@ -608,6 +724,8 @@ const NotificationsPage = () => {
                         {notification.message}
                       </Typography>
 
+                      {/* SENDER */}
+
                       <Typography
                         variant="caption"
                         color="text.disabled"
@@ -618,6 +736,8 @@ const NotificationsPage = () => {
                       >
                         From {senderName}
                       </Typography>
+
+                      {/* ENTITY */}
 
                       {notification.relatedEntityType && (
                         <Typography
@@ -633,7 +753,9 @@ const NotificationsPage = () => {
                       )}
                     </Box>
 
-                    {/* MARK AS READ */}
+                    {/* =================================================
+                          MARK AS READ
+                      ================================================= */}
 
                     {!notification.isRead && (
                       <Tooltip title="Mark as read">
@@ -642,6 +764,12 @@ const NotificationsPage = () => {
                             size="small"
                             disabled={isProcessing}
                             onClick={(event) => {
+                              /*
+                               * IMPORTANT:
+                               *
+                               * Prevent the click from
+                               * opening the notification.
+                               */
                               event.stopPropagation();
 
                               void handleMarkAsRead(notification);
