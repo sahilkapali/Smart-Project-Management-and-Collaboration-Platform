@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import CloseIcon from "@mui/icons-material/Close";
+import FolderIcon from "@mui/icons-material/Folder";
 import {
   Alert,
   Box,
@@ -10,19 +12,22 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
+  Stack,
   TextField,
+  Typography,
 } from "@mui/material";
 
 import toast from "react-hot-toast";
 
-import { createRepository } from "../../services/repository.service";
 import projectService from "../../services/project.service";
+import { createRepository } from "../../services/repository.service";
 
-import type { CreateRepositoryPayload } from "../../types/repository.types";
 import type { Project } from "../../types/project.types";
+import type { CreateRepositoryPayload } from "../../types/repository.types";
 
 interface CreateRepositoryModalProps {
   open: boolean;
@@ -38,7 +43,6 @@ const CreateRepositoryModal = ({
   // ============================================================
   // FORM STATE
   // ============================================================
-
   const [project, setProject] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -47,21 +51,18 @@ const CreateRepositoryModal = ({
   // ============================================================
   // PROJECT STATE
   // ============================================================
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
   // ============================================================
   // GENERAL STATE
   // ============================================================
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // ============================================================
   // LOAD PROJECTS
   // ============================================================
-
   useEffect(() => {
     if (!open) return;
 
@@ -71,11 +72,9 @@ const CreateRepositoryModal = ({
         setError("");
 
         const data = await projectService.getProjects();
-
         setProjects(data);
       } catch (err: any) {
         console.error("Failed to load projects:", err);
-
         const message =
           err?.response?.data?.message ||
           err?.message ||
@@ -94,7 +93,6 @@ const CreateRepositoryModal = ({
   // ============================================================
   // RESET FORM
   // ============================================================
-
   const resetForm = () => {
     setProject("");
     setName("");
@@ -106,10 +104,8 @@ const CreateRepositoryModal = ({
   // ============================================================
   // CLOSE MODAL
   // ============================================================
-
   const handleClose = () => {
     if (loading) return;
-
     resetForm();
     onClose();
   };
@@ -117,16 +113,11 @@ const CreateRepositoryModal = ({
   // ============================================================
   // SUBMIT
   // ============================================================
-
   const handleSubmit = async () => {
     const trimmedProject = project.trim();
     const trimmedName = name.trim();
     const trimmedDescription = description.trim();
     const trimmedGithubUrl = githubUrl.trim();
-
-    // ----------------------------------------------------------
-    // VALIDATION
-    // ----------------------------------------------------------
 
     if (!trimmedProject) {
       setError("Please select a project.");
@@ -137,10 +128,6 @@ const CreateRepositoryModal = ({
       setError("Repository name is required.");
       return;
     }
-
-    // ----------------------------------------------------------
-    // CREATE REPOSITORY
-    // ----------------------------------------------------------
 
     try {
       setLoading(true);
@@ -153,20 +140,14 @@ const CreateRepositoryModal = ({
         githubUrl: trimmedGithubUrl || undefined,
       };
 
-      console.log("Creating repository with payload:", payload);
-
       await createRepository(payload);
 
       toast.success("Repository created successfully.");
-
       resetForm();
-
       await onSuccess();
-
       onClose();
     } catch (err: any) {
       console.error("Failed to create repository:", err);
-
       const message =
         err?.response?.data?.message ||
         err?.message ||
@@ -179,40 +160,55 @@ const CreateRepositoryModal = ({
     }
   };
 
-  // ============================================================
-  // UI
-  // ============================================================
-
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontWeight: 700 }}>Create Repository</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: { borderRadius: 3 },
+      }}
+    >
+      {/* DIALOG HEADER */}
+      <DialogTitle sx={{ m: 0, p: 2, px: 3 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FolderIcon sx={{ color: "#5e35b1" }} />
+            <Typography variant="h6" fontWeight={700}>
+              Create Repository
+            </Typography>
+          </Stack>
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            disabled={loading}
+            sx={{ color: (theme) => theme.palette.grey[500] }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
 
-      <DialogContent>
-        <Box
-          sx={{
-            pt: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          {/* ERROR MESSAGE */}
-          {error && <Alert severity="error">{error}</Alert>}
+      {/* DIALOG CONTENT */}
+      <DialogContent dividers sx={{ p: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+          {error && <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>}
 
           {/* PROJECT SELECTION */}
           <FormControl fullWidth required>
             <InputLabel id="repository-project-label">Project</InputLabel>
-
             <Select
               labelId="repository-project-label"
               id="repository-project"
               value={project}
               label="Project"
-              onChange={(event) => {
-                setProject(event.target.value);
+              onChange={(e) => {
+                setProject(e.target.value);
                 setError("");
               }}
               disabled={loading || projectsLoading}
+              sx={{ borderRadius: 2 }}
             >
               {projectsLoading ? (
                 <MenuItem disabled value="">
@@ -223,11 +219,14 @@ const CreateRepositoryModal = ({
                   No projects available
                 </MenuItem>
               ) : (
-                projects.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))
+                projects.map((item) => {
+                  const projectId = item.id || (item as any)._id;
+                  return (
+                    <MenuItem key={projectId} value={projectId}>
+                      {item.name}
+                    </MenuItem>
+                  );
+                })
               )}
             </Select>
           </FormControl>
@@ -236,49 +235,51 @@ const CreateRepositoryModal = ({
           <TextField
             label="Repository Name"
             value={name}
-            onChange={(event) => {
-              setName(event.target.value);
+            onChange={(e) => {
+              setName(e.target.value);
               setError("");
             }}
             fullWidth
             required
             autoFocus
             disabled={loading}
-            placeholder="e.g. frontend"
+            placeholder="e.g. frontend-core"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
 
           {/* DESCRIPTION */}
           <TextField
             label="Description"
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(e) => setDescription(e.target.value)}
             fullWidth
             multiline
             minRows={3}
             disabled={loading}
-            placeholder="Describe this repository"
+            placeholder="Briefly describe the contents or purpose of this repository"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
 
           {/* GITHUB URL */}
           <TextField
             label="GitHub URL"
             value={githubUrl}
-            onChange={(event) => setGithubUrl(event.target.value)}
+            onChange={(e) => setGithubUrl(e.target.value)}
             fullWidth
             disabled={loading}
             type="url"
-            placeholder="https://github.com/username/repository"
+            placeholder="https://github.com/organization/repository"
+            InputProps={{ sx: { borderRadius: 2 } }}
           />
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      {/* DIALOG ACTIONS */}
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button
           onClick={handleClose}
           disabled={loading}
-          sx={{
-            textTransform: "none",
-          }}
+          sx={{ textTransform: "none", color: "text.secondary", borderRadius: 2 }}
         >
           Cancel
         </Button>
@@ -290,15 +291,19 @@ const CreateRepositoryModal = ({
             loading || projectsLoading || !name.trim() || !project.trim()
           }
           sx={{
+            bgcolor: "#5e35b1",
             textTransform: "none",
             fontWeight: 600,
+            borderRadius: 2,
+            px: 3,
+            "&:hover": { bgcolor: "#4527a0" },
           }}
         >
           {loading ? (
-            <>
-              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-              Creating...
-            </>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <CircularProgress size={18} color="inherit" />
+              <span>Creating...</span>
+            </Stack>
           ) : (
             "Create Repository"
           )}

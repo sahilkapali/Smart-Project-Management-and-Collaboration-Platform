@@ -1,21 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
+import { IRepositoryFile } from "../types/repository.types";
 
-export interface IRepositoryFile extends Document {
-  repository: mongoose.Types.ObjectId;
-  version?: mongoose.Types.ObjectId;
-
-  name: string;
-  path: string;
-
-  type: "file";
-
-  size: number;
-  mimeType?: string;
-
-  content?: string;
-
-  isBinary: boolean;
-}
 
 const repositoryFileSchema = new Schema<IRepositoryFile>(
   {
@@ -29,6 +14,13 @@ const repositoryFileSchema = new Schema<IRepositoryFile>(
     version: {
       type: Schema.Types.ObjectId,
       ref: "RepositoryVersion",
+      index: true,
+    },
+
+    uploadedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
       index: true,
     },
 
@@ -46,7 +38,7 @@ const repositoryFileSchema = new Schema<IRepositoryFile>(
 
     type: {
       type: String,
-      enum: ["file"],
+      enum: ["file", "folder"],
       default: "file",
     },
 
@@ -61,6 +53,11 @@ const repositoryFileSchema = new Schema<IRepositoryFile>(
       default: "",
     },
 
+    url: {
+      type: String,
+      trim: true,
+    },
+
     content: {
       type: String,
       default: undefined,
@@ -73,20 +70,22 @@ const repositoryFileSchema = new Schema<IRepositoryFile>(
   },
   {
     timestamps: true,
-  },
+  }
 );
+
 
 repositoryFileSchema.index(
   {
     repository: 1,
+    version: 1, 
     path: 1,
   },
   {
     unique: true,
-  },
+  }
 );
 
 export default mongoose.model<IRepositoryFile>(
   "RepositoryFile",
-  repositoryFileSchema,
+  repositoryFileSchema
 );

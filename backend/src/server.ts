@@ -16,6 +16,7 @@ import teamRoutes from "./routes/team.routes";
 import taskRoutes from "./routes/task.routes";
 import repositoryRoutes from "./routes/repository.routes";
 import repositoryVersionRoutes from "./routes/repositoryVersion.routes";
+import repositoryFileRoutes from "./routes/repositoryFile.routes";
 import issueRoutes from "./routes/issue.routes";
 import commentRoutes from "./routes/comment.routes";
 import meetingRouter from "./routes/meeting.routes";
@@ -110,7 +111,8 @@ app.use("/api/tasks", taskRoutes);
 // =====================================================
 
 app.use("/api/repositories", repositoryRoutes);
-app.use("/api/repositories", repositoryVersionRoutes);
+app.use("/api/repository-versions", repositoryVersionRoutes);
+app.use("/api/repository-files", repositoryFileRoutes);
 
 // =====================================================
 // ISSUE ROUTES

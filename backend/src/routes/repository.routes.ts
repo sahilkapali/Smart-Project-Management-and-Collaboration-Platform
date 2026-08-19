@@ -20,7 +20,7 @@ const router = Router();
 // Every repository endpoint requires a logged-in user.
 //
 
-router.use(authenticateUser);
+router.use(authenticateUser());
 
 // =====================================================
 // CREATE REPOSITORY
