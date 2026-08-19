@@ -939,16 +939,6 @@ export const autoSummarizeMeeting = async (
 // PATCH /api/meetings/:id/action-items
 // =====================================================
 
-// =====================================================
-// EXTRACT ACTION ITEMS
-// PATCH /api/meetings/:id/action-items
-// =====================================================
-
-// =====================================================
-// EXTRACT ACTION ITEMS
-// PATCH /api/meetings/:id/action-items
-// =====================================================
-
 export const extractMeetingActionItems = async (
   req: Request,
   res: Response,
@@ -1029,7 +1019,13 @@ export const extractMeetingActionItems = async (
     // GEMINI ACTION ITEMS
     // =================================================
 
-    const actionItems = await aiService.generateActionItems(combinedNotes);
+    const actionItemsText = await aiService.generateActionItems(combinedNotes);
+
+    // Split the text block into an array, trim, and remove empty lines
+    const actionItemsArray = actionItemsText
+      .split("\n")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
 
     // =================================================
     // SAVE ACTION ITEMS
@@ -1038,7 +1034,7 @@ export const extractMeetingActionItems = async (
     const updatedMeeting = await meetingService.updateMeeting(
       id,
       {
-        actionItems,
+        actionItems: actionItemsArray,
       },
       userId,
     );

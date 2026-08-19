@@ -643,24 +643,21 @@ export const generateActionItems = async (
   meetingText: string,
 ): Promise<string> => {
   const prompt = `
-You are an AI project management assistant.
+You are an expert project manager and AI assistant.
 
-Extract actionable tasks from the following meeting notes/transcript.
+Review the following meeting notes and extract all actionable tasks.
+Assign an importance level (High, Medium, Low) to each task.
+Sort the extracted list strictly by importance: High first, then Medium, then Low.
 
 Meeting content:
 ${meetingText}
 
-Return:
+Return the extracted items as a clean numbered list.
+Format each item exactly like this:
+1. [HIGH] Task description (Assignee: Name or 'Unassigned')
+2. [MEDIUM] Task description (Assignee: Name or 'Unassigned')
 
-Action Items:
-
-1. Task
-2. Task
-3. Task
-
-For each task include an assignee if one is explicitly mentioned.
-
-Do not invent assignees.
+Do not invent assignees if they are not explicitly mentioned.
 `;
 
   return generateAIResponse(prompt);
