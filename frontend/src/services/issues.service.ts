@@ -39,6 +39,37 @@ export const getIssues = async (): Promise<Issue[]> => {
 };
 
 // ============================================================
+// GET ISSUES BY REPOSITORY
+// GET /issues?repository=:repositoryId
+// ============================================================
+
+export const getIssuesByRepository = async (
+  repositoryId: string,
+): Promise<Issue[]> => {
+  const id = repositoryId?.trim();
+
+  if (!id) {
+    throw new Error("Repository ID is required.");
+  }
+
+  // Attempts backend parameter filtering with client-side fallback
+  const response = await api.get<IssuesResponse>(`/issues?repository=${id}`);
+  const issues = response.data?.data;
+
+  if (!Array.isArray(issues)) {
+    return [];
+  }
+
+  return issues
+    .filter((issue) => {
+      const repo = issue.repository;
+      const repoId = typeof repo === "object" ? repo?._id || repo?._id : repo;
+      return !repoId || repoId === id;
+    })
+    .map(normalizeIssue);
+};
+
+// ============================================================
 // GET ISSUE BY ID
 // GET /issues/:id
 // ============================================================

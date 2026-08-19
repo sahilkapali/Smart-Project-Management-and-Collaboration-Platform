@@ -93,36 +93,45 @@ export const deleteRepository = async (repositoryId: string): Promise<void> => {
 
 export const createRepositoryVersion = async (
   repositoryId: string,
-  data: Omit<CreateRepositoryVersionRequest, "repositoryId">,
+  data: Omit<CreateRepositoryVersionRequest, "repositoryId"> | FormData,
 ): Promise<RepositoryVersion> => {
   if (!repositoryId) {
     throw new Error("Repository ID is required.");
   }
-  if (!data.versionNumber?.trim()) {
-    throw new Error("Version number is required.");
-  }
-  if (!data.title?.trim()) {
-    throw new Error("Version title is required.");
-  }
 
-  const formData = new FormData();
-  formData.append("versionNumber", data.versionNumber.trim());
-  formData.append("title", data.title.trim());
+  let payload: FormData;
 
-  if (data.changelog?.trim()) {
-    formData.append("changelog", data.changelog.trim());
-  }
-  if (data.commitHash?.trim()) {
-    formData.append("commitHash", data.commitHash.trim());
-  }
-  if (data.file) {
-    formData.append("file", data.file);
+  if (data instanceof FormData) {
+    // Directly use provided FormData instance
+    payload = data;
+  } else {
+    // Construct FormData from object
+    if (!data.versionNumber?.trim()) {
+      throw new Error("Version number is required.");
+    }
+    if (!data.title?.trim()) {
+      throw new Error("Version title is required.");
+    }
+
+    payload = new FormData();
+    payload.append("versionNumber", data.versionNumber.trim());
+    payload.append("title", data.title.trim());
+
+    if (data.changelog?.trim()) {
+      payload.append("changelog", data.changelog.trim());
+    }
+    if (data.commitHash?.trim()) {
+      payload.append("commitHash", data.commitHash.trim());
+    }
+    if (data.file) {
+      payload.append("file", data.file);
+    }
   }
 
   // Axios automatically sets content-type with multi-part boundary when passed FormData
   const response = await api.post(
     `/repositories/${encodeURIComponent(repositoryId)}/versions`,
-    formData,
+    payload,
   );
 
   return extractData<RepositoryVersion>(response);
