@@ -72,6 +72,8 @@ export interface RepositoryVersion {
 
   versionNumber: string;
 
+  version?: string;
+
   title: string;
 
   changelog?: string;

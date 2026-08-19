@@ -44,10 +44,9 @@ import SettingsPage from "../pages/settings/SettingsPage";
 /* =========================================================
    USER MANAGEMENT
 ========================================================= */
-
-import UserManagement from "../pages/users/UserManagement";
 import Tasks from "../pages/tasks/Tasks";
 import Teams from "../pages/teams/Teams";
+import UserManagement from "../pages/users/UserManagement";
 
 /* =========================================================
    ROUTES CONSTANTS
@@ -85,92 +84,138 @@ const AppRoutes: React.FC = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           {/* Dashboard */}
-          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route
+            path={ROUTES.DASHBOARD || "/dashboard"}
+            element={<Dashboard />}
+          />
 
           {/* ==================================================
               CALENDAR
           ================================================== */}
-
           <Route path="/calendar" element={<CalendarPage />} />
 
           {/* ==================================================
               PROFILE
           ================================================== */}
-
-          <Route path={ROUTES.PROFILE} element={<Profile />} />
-          <Route path={ROUTES.EDIT_PROFILE} element={<EditProfile />} />
-          <Route path={ROUTES.CHANGE_PASSWORD} element={<ChangePassword />} />
+          <Route path={ROUTES.PROFILE || "/profile"} element={<Profile />} />
+          <Route
+            path={ROUTES.EDIT_PROFILE || "/profile/edit"}
+            element={<EditProfile />}
+          />
+          <Route
+            path={ROUTES.CHANGE_PASSWORD || "/profile/change-password"}
+            element={<ChangePassword />}
+          />
 
           {/* Projects */}
-          <Route path={ROUTES.PROJECTS} element={<Projects />} />
-          <Route path={ROUTES.PROJECT_DETAILS} element={<ProjectDetails />} />
+          <Route path={ROUTES.PROJECTS || "/projects"} element={<Projects />} />
+          <Route
+            path={ROUTES.PROJECT_DETAILS || "/projects/:id"}
+            element={<ProjectDetails />}
+          />
 
           {/* Tasks */}
-          <Route path={ROUTES.TASKS} element={<Tasks />} />
+          <Route path={ROUTES.TASKS || "/tasks"} element={<Tasks />} />
           {ROUTES.PROJECT_TASKS && (
             <Route path={ROUTES.PROJECT_TASKS} element={<Tasks />} />
           )}
 
           {/* Teams */}
-          <Route path={ROUTES.TEAMS} element={<Teams />} />
+          <Route path={ROUTES.TEAMS || "/teams"} element={<Teams />} />
 
           {/* User Management */}
-          <Route path={ROUTES.USERS} element={<UserManagement />} />
+          <Route path={ROUTES.USERS || "/users"} element={<UserManagement />} />
 
           {/* Reports */}
-          <Route path={ROUTES.REPORTS} element={<Reports />} />
+          <Route path={ROUTES.REPORTS || "/reports"} element={<Reports />} />
 
           {/* Notifications */}
-          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
-
-          {/* Repositories */}
-          <Route path={ROUTES.REPOSITORY} element={<RepositoryPage />} />
           <Route
-            path={ROUTES.REPOSITORY_DETAILS}
+            path={ROUTES.NOTIFICATIONS || "/notifications"}
+            element={<NotificationsPage />}
+          />
+
+          {/* ==================================================
+              REPOSITORIES (WITH ROBUST FALLBACK ROUTES)
+          ================================================== */}
+          <Route
+            path={ROUTES.REPOSITORY || "/repositories"}
+            element={<RepositoryPage />}
+          />
+          <Route path="/repository" element={<RepositoryPage />} />
+
+          {/* Detail View */}
+          <Route
+            path={ROUTES.REPOSITORY_DETAILS || "/repository/:repositoryId"}
             element={<RepositoryDetailPage />}
           />
           <Route
-            path={ROUTES.REPOSITORY_HISTORY}
+            path="/repositories/:repositoryId"
+            element={<RepositoryDetailPage />}
+          />
+
+          {/* Version History View */}
+          <Route
+            path={
+              ROUTES.REPOSITORY_HISTORY || "/repository/:repositoryId/history"
+            }
+            element={<RepositoryVersionHistoryPage />}
+          />
+          <Route
+            path="/repositories/:repositoryId/history"
             element={<RepositoryVersionHistoryPage />}
           />
 
           {/* Issues */}
-          <Route path={ROUTES.ISSUES} element={<IssuesPage />} />
-          <Route path={ROUTES.CREATE_ISSUE} element={<CreateIssuePage />} />
+          <Route path={ROUTES.ISSUES || "/issues"} element={<IssuesPage />} />
+          <Route
+            path={ROUTES.CREATE_ISSUE || "/issues/create"}
+            element={<CreateIssuePage />}
+          />
           {ROUTES.CREATE_ISSUE_NEW && (
             <Route
               path={ROUTES.CREATE_ISSUE_NEW}
               element={<CreateIssuePage />}
             />
           )}
-          <Route path={ROUTES.ISSUE_DETAILS} element={<IssueDetailsPage />} />
-          <Route path={ROUTES.EDIT_ISSUE} element={<EditIssuePage />} />
+          <Route
+            path={ROUTES.ISSUE_DETAILS || "/issues/:id"}
+            element={<IssueDetailsPage />}
+          />
+          <Route
+            path={ROUTES.EDIT_ISSUE || "/issues/:id/edit"}
+            element={<EditIssuePage />}
+          />
 
           {/* Activity */}
-          <Route path={ROUTES.ACTIVITY} element={<ActivityFeedPage />} />
+          <Route
+            path={ROUTES.ACTIVITY || "/activity"}
+            element={<ActivityFeedPage />}
+          />
 
           {/* ==================================================
               MEETINGS
           ================================================== */}
-
-          {/* Global meeting list */}
-          <Route path={ROUTES.MEETINGS} element={<MeetingListPage />} />
-
-          {/* Global meeting creation */}
+          <Route
+            path={ROUTES.MEETINGS || "/meetings"}
+            element={<MeetingListPage />}
+          />
           <Route
             path={ROUTES.CREATE_MEETING_GLOBAL || "/meetings/create"}
             element={<CreateMeetingPage />}
           />
-
-          {/* Project meeting list */}
-          <Route path={ROUTES.PROJECT_MEETINGS} element={<MeetingListPage />} />
-
-          {/* Project meeting creation */}
-          <Route path={ROUTES.CREATE_MEETING} element={<CreateMeetingPage />} />
-
-          {/* Meeting details */}
           <Route
-            path={ROUTES.MEETING_DETAILS}
+            path={ROUTES.PROJECT_MEETINGS || "/projects/:projectId/meetings"}
+            element={<MeetingListPage />}
+          />
+          <Route
+            path={
+              ROUTES.CREATE_MEETING || "/projects/:projectId/meetings/create"
+            }
+            element={<CreateMeetingPage />}
+          />
+          <Route
+            path={ROUTES.MEETING_DETAILS || "/meetings/:id"}
             element={<MeetingDetailsPage />}
           />
 
@@ -180,7 +225,10 @@ const AppRoutes: React.FC = () => {
           )}
 
           {/* Settings */}
-          <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+          <Route
+            path={ROUTES.SETTINGS || "/settings"}
+            element={<SettingsPage />}
+          />
         </Route>
       </Route>
 

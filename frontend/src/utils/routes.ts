@@ -29,7 +29,7 @@ export const ROUTES = {
 
   REPOSITORY: "/repository",
   REPOSITORY_DETAILS: "/repository/:id",
-  REPOSITORY_HISTORY: "/repository/:id/history",
+  REPOSITORY_HISTORY: "/repository/:repositoryId/history",
 
   ISSUES: "/issues",
   CREATE_ISSUE: "/issues/create",
