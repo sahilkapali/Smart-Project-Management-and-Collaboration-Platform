@@ -43,10 +43,7 @@ export interface DashboardTask {
   deadline: string;
   dueDate?: string | null;
   progress: number;
-  status:
-    | "TODO"
-    | "IN_PROGRESS"
-    | "DONE";
+  status: "TODO" | "IN_PROGRESS" | "DONE";
 }
 
 /* ============================================================
@@ -86,32 +83,18 @@ const idOf = (value: unknown): string => {
 };
 
 /* ============================================================
-   TASK PROJECT ID
+   TASK / REPOSITORY / ISSUE HELPERS
 ============================================================ */
 
-const projectIdOfTask = (
-  task: Task,
-): string => {
+const projectIdOfTask = (task: Task): string => {
   return idOf(task.project);
 };
 
-/* ============================================================
-   REPOSITORY PROJECT ID
-============================================================ */
-
-const projectIdOfRepository = (
-  repository: Repository,
-): string => {
+const projectIdOfRepository = (repository: Repository): string => {
   return idOf(repository.project);
 };
 
-/* ============================================================
-   ISSUE REPOSITORY ID
-============================================================ */
-
-const repositoryIdOfIssue = (
-  issue: Issue,
-): string => {
+const repositoryIdOfIssue = (issue: Issue): string => {
   return idOf(issue.repository);
 };
 
@@ -124,13 +107,10 @@ const safeRequest = async <T>(
   fallback: T,
 ): Promise<T> => {
   try {
-    return await request();
+    const res = await request();
+    return res ?? fallback;
   } catch (error) {
-    console.warn(
-      "Dashboard module request failed:",
-      error,
-    );
-
+    console.warn("Dashboard module request failed:", error);
     return fallback;
   }
 };
@@ -164,64 +144,35 @@ const calculateMetrics = (
 
     if (
       task.dueDate &&
-      new Date(task.dueDate).getTime() <
-        now.getTime() &&
+      new Date(task.dueDate).getTime() < now.getTime() &&
       task.status !== "Completed"
     ) {
       overdueTasks += 1;
     }
   });
 
-  const openIssues = issues.filter(
-    (issue) =>
-      issue.status === "Open",
-  ).length;
+  const openIssues = issues.filter((issue) => issue.status === "Open").length;
 
   const resolvedIssues = issues.filter(
-    (issue) =>
-      issue.status === "Resolved" ||
-      issue.status === "Closed",
+    (issue) => issue.status === "Resolved" || issue.status === "Closed",
   ).length;
 
-  const upcomingMeetings =
-    meetings.filter(
-      (meeting) => {
-        const time = new Date(
-          meeting.startTime,
-        ).getTime();
-
-        return (
-          !Number.isNaN(time) &&
-          time > now.getTime()
-        );
-      },
-    ).length;
+  const upcomingMeetings = meetings.filter((meeting) => {
+    const time = new Date(meeting.startTime).getTime();
+    return !Number.isNaN(time) && time > now.getTime();
+  }).length;
 
   return {
-    totalProjects:
-      projects.length,
-
-    totalTasks:
-      tasks.length,
-
+    totalProjects: projects.length,
+    totalTasks: tasks.length,
     completedTasks,
-
     inProgressTasks,
-
     pendingTodoTasks,
-
     overdueTasks,
-
-    totalIssues:
-      issues.length,
-
+    totalIssues: issues.length,
     openIssues,
-
     resolvedIssues,
-
-    repositoriesCount:
-      repositories.length,
-
+    repositoriesCount: repositories.length,
     upcomingMeetings,
   };
 };
@@ -231,324 +182,189 @@ const calculateMetrics = (
 ============================================================ */
 
 const dashboardService = {
-  /* ==========================================================
-     GET COMPLETE DASHBOARD
-
-     IMPORTANT:
-     GET /projects is the source of truth for project access.
-
-     Therefore:
-     - Member sees only projects returned for that member.
-     - Project manager sees only projects returned for them.
-     - Admin sees projects returned for the admin.
-
-     We do NOT modify backend permissions here.
-  ========================================================== */
-
   async getDashboardData(): Promise<DashboardData> {
-    const [
-      user,
-      projects,
-      repositories,
-      allIssues,
-    ] = await Promise.all([
+    const [user, rawProjects, repositories, allIssues] = await Promise.all([
       getUserProfile(),
-
       projectService.getProjects(),
-
-      safeRequest(
-        getRepositories,
-        [] as Repository[],
-      ),
-
-      safeRequest(
-        getIssues,
-        [] as Issue[],
-      ),
+      safeRequest(getRepositories, [] as Repository[]),
+      safeRequest(getIssues, [] as Issue[]),
     ]);
+
+    const projects = Array.isArray(rawProjects) ? rawProjects : [];
 
     /* ========================================================
        AUTHORIZED PROJECT IDS
     ======================================================== */
 
-    const accessibleProjectIds =
-      new Set(
-        projects
-          .map(
-            (project) =>
-              project.id,
-          )
-          .filter(Boolean),
-      );
+    const accessibleProjectIds = new Set(
+      projects.map((project) => idOf(project)).filter(Boolean),
+    );
 
     /* ========================================================
        REPOSITORIES
     ======================================================== */
 
-    const scopedRepositories =
-      repositories.filter(
-        (repository) =>
-          accessibleProjectIds.has(
-            projectIdOfRepository(
-              repository,
-            ),
-          ),
-      );
+    const scopedRepositories = (
+      Array.isArray(repositories) ? repositories : []
+    ).filter((repository) =>
+      accessibleProjectIds.has(projectIdOfRepository(repository)),
+    );
 
     /* ========================================================
        AUTHORIZED REPOSITORY IDS
     ======================================================== */
 
-    const accessibleRepositoryIds =
-      new Set(
-        scopedRepositories
-          .map(
-            (repository) =>
-              repository._id,
-          )
-          .filter(Boolean),
-      );
+    const accessibleRepositoryIds = new Set(
+      scopedRepositories.map((repository) => idOf(repository)).filter(Boolean),
+    );
 
     /* ========================================================
        ISSUES
     ======================================================== */
 
-    const scopedIssues =
-      allIssues.filter(
-        (issue) =>
-          accessibleRepositoryIds.has(
-            repositoryIdOfIssue(
-              issue,
-            ),
-          ),
-      );
+    const scopedIssues = (Array.isArray(allIssues) ? allIssues : []).filter(
+      (issue) => accessibleRepositoryIds.has(repositoryIdOfIssue(issue)),
+    );
 
     /* ========================================================
        TASKS
-
-       Only load tasks for accessible projects.
     ======================================================== */
 
-    const taskResults =
-      await Promise.all(
-        projects.map(
-          (project) =>
-            safeRequest(
-              () =>
-                taskService.getTasks(
-                  project.id,
-                ),
-              [] as Task[],
-            ),
-        ),
-      );
+    const taskResults = await Promise.all(
+      projects.map((project) => {
+        const projectId = idOf(project);
+        if (!projectId) return Promise.resolve([] as Task[]);
 
-    const tasks =
-      taskResults
-        .flat()
-        .filter((task) => {
-          const projectId =
-            projectIdOfTask(task);
+        return safeRequest(
+          () => taskService.getTasks(projectId),
+          [] as Task[],
+        );
+      }),
+    );
 
-          /*
-           * IMPORTANT:
-           * A task without a valid project ID
-           * must NOT be displayed.
-           */
-          return (
-            Boolean(projectId) &&
-            accessibleProjectIds.has(
-              projectId,
-            )
-          );
-        });
+    const tasks = taskResults.flat().filter((task) => {
+      const projectId = projectIdOfTask(task);
+      return Boolean(projectId) && accessibleProjectIds.has(projectId);
+    });
 
     /* ========================================================
        MEETINGS
     ======================================================== */
 
-    const meetingResults =
-      await Promise.all(
-        projects.map(
-          (project) =>
-            safeRequest(
-              () =>
-                meetingService.getProjectMeetings(
-                  project.id,
-                ),
-              [] as Meeting[],
-            ),
-        ),
-      );
+    const meetingResults = await Promise.all(
+      projects.map((project) => {
+        const projectId = idOf(project);
+        if (!projectId) return Promise.resolve([] as Meeting[]);
 
-    const meetings =
-      meetingResults
-        .flat()
-        .filter(
-          (meeting) =>
-            accessibleProjectIds.has(
-              meeting.projectId,
-            ),
+        return safeRequest(
+          () => meetingService.getProjectMeetings(projectId),
+          [] as Meeting[],
         );
+      }),
+    );
+
+    const meetings = meetingResults.flat().filter((meeting) => {
+      const projectId = idOf(meeting.projectId ?? (meeting as any).project);
+      return accessibleProjectIds.has(projectId);
+    });
 
     /* ========================================================
        ACTIVITIES
     ======================================================== */
 
-    const activityResults =
-      await Promise.all(
-        projects.map(
-          (project) =>
-            safeRequest(
-              () =>
-                getProjectActivities(
-                  project.id,
-                ),
-              [] as ActivityItem[],
-            ),
-        ),
-      );
+    const activityResults = await Promise.all(
+      projects.map((project) => {
+        const projectId = idOf(project);
+        if (!projectId) return Promise.resolve([] as ActivityItem[]);
 
-    const activities =
-      activityResults.flat();
+        return safeRequest(
+          () => getProjectActivities(projectId),
+          [] as ActivityItem[],
+        );
+      }),
+    );
+
+    const activities = activityResults.flat();
 
     /* ========================================================
        METRICS
     ======================================================== */
 
-    const metrics =
-      calculateMetrics(
-        projects,
-        tasks,
-        scopedRepositories,
-        scopedIssues,
-        meetings,
-      );
+    const metrics = calculateMetrics(
+      projects,
+      tasks,
+      scopedRepositories,
+      scopedIssues,
+      meetings,
+    );
 
     return {
       user,
-
       projects,
-
       tasks,
-
-      repositories:
-        scopedRepositories,
-
-      issues:
-        scopedIssues,
-
+      repositories: scopedRepositories,
+      issues: scopedIssues,
       meetings,
-
       activities,
-
       metrics,
     };
   },
 
-  /* ==========================================================
-     GET METRICS
-  ========================================================== */
-
   async getMetrics(): Promise<DashboardMetrics> {
-    const data =
-      await this.getDashboardData();
-
+    const data = await this.getDashboardData();
     return data.metrics;
   },
-
-  /* ==========================================================
-     CONVERT TASKS FOR DASHBOARD
-  ========================================================== */
 
   toDashboardTasks(
     tasks: Task[],
     projects: Project[],
   ): DashboardTask[] {
-    const projectMap =
-      new Map(
-        projects.map(
-          (project) => [
-            project.id,
-            project.name,
-          ],
-        ),
-      );
+    const projectMap = new Map(
+      (Array.isArray(projects) ? projects : []).map((project) => [
+        idOf(project),
+        project.name,
+      ]),
+    );
 
-    return tasks
+    return (Array.isArray(tasks) ? tasks : [])
       .slice()
       .sort((a, b) => {
         const aTime = a.dueDate
-          ? new Date(
-              a.dueDate,
-            ).getTime()
+          ? new Date(a.dueDate).getTime()
           : Number.MAX_SAFE_INTEGER;
 
         const bTime = b.dueDate
-          ? new Date(
-              b.dueDate,
-            ).getTime()
+          ? new Date(b.dueDate).getTime()
           : Number.MAX_SAFE_INTEGER;
 
         return aTime - bTime;
       })
       .map((task) => {
-        const projectId =
-          projectIdOfTask(task);
+        const projectId = projectIdOfTask(task);
 
-        let status:
-          DashboardTask["status"] =
-          "TODO";
+        let status: DashboardTask["status"] = "TODO";
 
-        if (
-          task.status ===
-          "Completed"
-        ) {
+        if (task.status === "Completed") {
           status = "DONE";
-        } else if (
-          task.status ===
-          "In Progress"
-        ) {
-          status =
-            "IN_PROGRESS";
+        } else if (task.status === "In Progress") {
+          status = "IN_PROGRESS";
         }
 
         const progress =
-          status === "DONE"
-            ? 100
-            : status ===
-                "IN_PROGRESS"
-              ? 50
-              : 0;
+          status === "DONE" ? 100 : status === "IN_PROGRESS" ? 50 : 0;
 
         return {
           id:
             task.id ??
             task._id ??
             `${task.title}-${task.createdAt ?? ""}`,
-
-          title:
-            task.title,
-
-          projectName:
-            projectMap.get(
-              projectId,
-            ) ??
-            "Project",
-
-          deadline:
-            task.dueDate
-              ? new Date(
-                  task.dueDate,
-                ).toLocaleDateString()
-              : "No deadline",
-
-          dueDate:
-            task.dueDate ??
-            null,
-
+          title: task.title,
+          projectName: projectMap.get(projectId) ?? "Project",
+          deadline: task.dueDate
+            ? new Date(task.dueDate).toLocaleDateString()
+            : "No deadline",
+          dueDate: task.dueDate ?? null,
           progress,
-
           status,
         };
       });

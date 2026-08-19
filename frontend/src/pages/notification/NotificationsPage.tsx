@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-
 import {
   Avatar,
   Box,
@@ -9,6 +8,8 @@ import {
   IconButton,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -26,7 +27,6 @@ import EventRoundedIcon from "@mui/icons-material/EventRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { useNavigate } from "react-router-dom";
-
 import toast from "react-hot-toast";
 
 import {
@@ -41,84 +41,59 @@ import type {
 } from "../../types/notification.types";
 
 import { ROUTES } from "../../utils/routes";
+import { useSocket } from "../../hooks/useSocket";
 
 // ============================================================
-// NOTIFICATION TITLE
+// HELPER FUNCTIONS
 // ============================================================
 
 const getNotificationTitle = (type: NotificationType): string => {
   switch (type) {
     case "TASK_ASSIGNED":
       return "Task Assigned";
-
     case "TASK_UPDATED":
       return "Task Updated";
-
     case "COMMENT_ADDED":
       return "New Comment";
-
     case "DEADLINE_APPROACHING":
       return "Deadline Approaching";
-
     case "MEMBER_ADDED":
       return "New Member";
-
     case "MEETING_INVITATION":
       return "Meeting Invitation";
-
     case "SYSTEM_ALERT":
       return "System Alert";
-
     default:
       return "Notification";
   }
 };
 
-// ============================================================
-// NOTIFICATION ICON
-// ============================================================
-
 const getNotificationIcon = (type: NotificationType) => {
   switch (type) {
     case "TASK_ASSIGNED":
       return <TaskAltRoundedIcon />;
-
     case "TASK_UPDATED":
       return <UpdateRoundedIcon />;
-
     case "COMMENT_ADDED":
       return <CommentRoundedIcon />;
-
     case "DEADLINE_APPROACHING":
       return <WarningAmberRoundedIcon />;
-
     case "MEMBER_ADDED":
       return <GroupAddRoundedIcon />;
-
     case "MEETING_INVITATION":
       return <EventRoundedIcon />;
-
     case "SYSTEM_ALERT":
       return <InfoOutlinedIcon />;
-
     default:
       return <NotificationsNoneRoundedIcon />;
   }
 };
 
-// ============================================================
-// DATE FORMATTER
-// ============================================================
-
 const formatNotificationDate = (date: string | Date): string => {
   const notificationDate = new Date(date);
-
-  if (Number.isNaN(notificationDate.getTime())) {
-    return "";
-  }
+  if (Number.isNaN(notificationDate.getTime())) return "";
 
   const now = new Date();
-
   const diff = now.getTime() - notificationDate.getTime();
 
   if (diff < 0) {
@@ -130,26 +105,14 @@ const formatNotificationDate = (date: string | Date): string => {
   }
 
   const minutes = Math.floor(diff / 60000);
-
-  if (minutes < 1) {
-    return "Just now";
-  }
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
 
   const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
+  if (hours < 24) return `${hours}h ago`;
 
   const days = Math.floor(hours / 24);
-
-  if (days < 7) {
-    return `${days}d ago`;
-  }
+  if (days < 7) return `${days}d ago`;
 
   return notificationDate.toLocaleDateString(undefined, {
     year: "numeric",
@@ -158,266 +121,191 @@ const formatNotificationDate = (date: string | Date): string => {
   });
 };
 
-// ============================================================
-// SENDER NAME
-// ============================================================
-
 const getSenderName = (notification: AppNotification): string => {
   const sender = notification.sender;
-
-  if (!sender) {
-    return "System";
-  }
-
+  if (!sender) return "System";
   if (sender.firstName || sender.lastName) {
     return [sender.firstName, sender.lastName].filter(Boolean).join(" ");
   }
-
-  if (sender.name) {
-    return sender.name;
-  }
-
-  if (sender.email) {
-    return sender.email;
-  }
-
+  if (sender.name) return sender.name;
+  if (sender.email) return sender.email;
   return "System";
 };
 
-// ============================================================
-// AVATAR LETTER
-// ============================================================
-
 const getAvatarLetter = (notification: AppNotification): string => {
   const senderName = getSenderName(notification);
-
   return senderName.charAt(0).toUpperCase() || "S";
 };
 
 // ============================================================
-// PAGE
+// COMPONENT
 // ============================================================
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
-
-  // ==========================================================
-  // STATE
-  // ==========================================================
+  const socket = useSocket();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-
   const [loading, setLoading] = useState(true);
-
   const [processingId, setProcessingId] = useState<string | null>(null);
-
   const [markingAll, setMarkingAll] = useState(false);
+  const [activeTab, setActiveTab] = useState<"ALL" | "UNREAD">("ALL");
 
   // ==========================================================
-  // LOAD NOTIFICATIONS
+  // FETCH NOTIFICATIONS
   // ==========================================================
-
   const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
-
       const data = await getMyNotifications();
-
       setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load notifications:", error);
-
       setNotifications([]);
-
       toast.error("Failed to load notifications.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
-
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
 
   // ==========================================================
-  // UNREAD COUNT
+  // SOCKET REAL-TIME LISTENERS
   // ==========================================================
+  useEffect(() => {
+    if (!socket) return;
 
+    const handleNewNotification = (newNotification: AppNotification) => {
+      setNotifications((current) => {
+        const exists = current.some((item) => item._id === newNotification._id);
+        if (exists) return current;
+        return [newNotification, ...current];
+      });
+
+      if (newNotification?.message) {
+        toast(newNotification.message, { icon: "🔔" });
+      }
+    };
+
+    socket.on("notification:new", handleNewNotification);
+    socket.on("notification", handleNewNotification);
+
+    return () => {
+      socket.off("notification:new", handleNewNotification);
+      socket.off("notification", handleNewNotification);
+    };
+  }, [socket]);
+
+  // ==========================================================
+  // DERIVED STATE & FILTERING
+  // ==========================================================
   const unreadCount = useMemo(
-    () => notifications.filter((notification) => !notification.isRead).length,
+    () => notifications.filter((item) => !item.isRead).length,
     [notifications],
   );
 
-  // ==========================================================
-  // MARK ONE AS READ
-  // ==========================================================
-
-  const handleMarkAsRead = async (notification: AppNotification) => {
-    if (notification.isRead) {
-      return;
+  const displayedNotifications = useMemo(() => {
+    if (activeTab === "UNREAD") {
+      return notifications.filter((item) => !item.isRead);
     }
+    return notifications;
+  }, [notifications, activeTab]);
+
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
+  const handleMarkAsRead = async (notification: AppNotification) => {
+    if (notification.isRead) return;
+
+    // Optimistic UI Update
+    setNotifications((current) =>
+      current.map((item) =>
+        item._id === notification._id ? { ...item, isRead: true } : item,
+      ),
+    );
 
     try {
       setProcessingId(notification._id);
-
-      const updated = await markNotificationAsRead(notification._id);
-
-      setNotifications((current) =>
-        current.map((item) =>
-          item._id === updated._id
-            ? {
-                ...item,
-                isRead: updated.isRead,
-              }
-            : item,
-        ),
-      );
+      await markNotificationAsRead(notification._id);
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
 
+      // Revert Optimistic Update
+      setNotifications((current) =>
+        current.map((item) =>
+          item._id === notification._id ? { ...item, isRead: false } : item,
+        ),
+      );
       toast.error("Could not mark notification as read.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  // ==========================================================
-  // MARK ALL AS READ
-  // ==========================================================
-
   const handleMarkAllAsRead = async () => {
-    if (unreadCount === 0) {
-      return;
-    }
+    if (unreadCount === 0) return;
+
+    // Optimistic UI Update
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, isRead: true })),
+    );
 
     try {
       setMarkingAll(true);
-
       await markAllNotificationsAsRead();
-
-      setNotifications((current) =>
-        current.map((notification) => ({
-          ...notification,
-          isRead: true,
-        })),
-      );
-
       toast.success("All notifications marked as read.");
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
-
+      void loadNotifications(); // Reload state on failure
       toast.error("Could not mark all notifications as read.");
     } finally {
       setMarkingAll(false);
     }
   };
 
-  // ==========================================================
-  // OPEN RELATED ENTITY
-  // ==========================================================
-
   const openRelatedEntity = (notification: AppNotification) => {
     const entityId = notification.relatedEntityId;
-
-    /*
-     * If the backend notification doesn't contain a related
-     * entity, there is nowhere specific to navigate.
-     */
-    if (!entityId) {
-      return;
-    }
-
     const entityType = notification.relatedEntityType?.toUpperCase();
 
-    // ========================================================
-    // TASK
-    // ========================================================
+    if (!entityId) return;
 
     if (
       entityType === "TASK" ||
       notification.type === "TASK_ASSIGNED" ||
       notification.type === "TASK_UPDATED"
     ) {
-      navigate(ROUTES.TASKS);
-
+      navigate(ROUTES.TASKS || "/tasks");
       return;
     }
-
-    // ========================================================
-    // PROJECT
-    // ========================================================
 
     if (entityType === "PROJECT") {
       navigate(`/projects/${entityId}`);
-
       return;
     }
-
-    // ========================================================
-    // MEETING
-    // ========================================================
 
     if (
       entityType === "MEETING" ||
       notification.type === "MEETING_INVITATION"
     ) {
       navigate(`/meetings/${entityId}`);
-
       return;
     }
-
-    // ========================================================
-    // TEAM
-    // ========================================================
 
     if (entityType === "TEAM") {
-      navigate(ROUTES.TEAMS);
-
-      return;
-    }
-
-    // ========================================================
-    // COMMENT
-    // ========================================================
-
-    if (entityType === "COMMENT") {
-      /*
-       * There is currently no dedicated comment route in
-       * ROUTES, so we don't invent one.
-       */
+      navigate(ROUTES.TEAMS || "/teams");
       return;
     }
   };
-
-  // ==========================================================
-  // NOTIFICATION CLICK
-  // ==========================================================
 
   const handleNotificationClick = async (notification: AppNotification) => {
-    try {
-      /*
-       * Mark unread notifications as read before navigating.
-       */
-      await handleMarkAsRead(notification);
-
-      /*
-       * Then navigate to the relevant module.
-       */
-      openRelatedEntity(notification);
-    } catch (error) {
-      console.error("Failed to handle notification click:", error);
-
-      toast.error("Unable to open this notification.");
+    if (!notification.isRead) {
+      void handleMarkAsRead(notification);
     }
+    openRelatedEntity(notification);
   };
-
-  // ==========================================================
-  // LOADING
-  // ==========================================================
 
   if (loading) {
     return (
@@ -434,38 +322,21 @@ const NotificationsPage = () => {
     );
   }
 
-  // ==========================================================
-  // PAGE
-  // ==========================================================
-
   return (
     <Box
       sx={{
         width: "100%",
-        maxWidth: 1100,
+        maxWidth: 1000,
         mx: "auto",
-        px: {
-          xs: 2,
-          sm: 3,
-          md: 4,
-        },
+        px: { xs: 2, sm: 3, md: 4 },
         py: 4,
       }}
     >
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
+      {/* HEADER */}
       <Stack
-        direction={{
-          xs: "column",
-          sm: "row",
-        }}
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems={{
-          xs: "flex-start",
-          sm: "center",
-        }}
+        alignItems={{ xs: "flex-start", sm: "center" }}
         spacing={2}
         mb={3}
       >
@@ -483,16 +354,16 @@ const NotificationsPage = () => {
               {unreadCount > 0 && (
                 <Box
                   sx={{
-                    minWidth: 28,
-                    height: 28,
+                    minWidth: 26,
+                    height: 26,
                     px: 1,
                     borderRadius: 99,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    bgcolor: "primary.main",
-                    color: "primary.contrastText",
-                    fontSize: 13,
+                    bgcolor: "error.main",
+                    color: "error.contrastText",
+                    fontSize: 12,
                     fontWeight: 700,
                   }}
                 >
@@ -501,13 +372,8 @@ const NotificationsPage = () => {
               )}
             </Stack>
 
-            <Typography
-              color="text.secondary"
-              sx={{
-                mt: 0.5,
-              }}
-            >
-              Stay updated with your project activity.
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Stay updated with your latest workspace activity.
             </Typography>
           </Box>
         </Stack>
@@ -519,59 +385,58 @@ const NotificationsPage = () => {
           }
           onClick={handleMarkAllAsRead}
           disabled={markingAll || unreadCount === 0}
-          sx={{
-            textTransform: "none",
-            borderRadius: 2,
-          }}
+          sx={{ textTransform: "none", borderRadius: 2 }}
         >
           Mark all as read
         </Button>
       </Stack>
 
-      {/* =====================================================
-          EMPTY STATE
-      ===================================================== */}
+      {/* FILTER TABS */}
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, val) => setActiveTab(val)}
+          aria-label="Notification filters"
+        >
+          <Tab
+            label="All"
+            value="ALL"
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          />
+          <Tab
+            label={`Unread (${unreadCount})`}
+            value="UNREAD"
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          />
+        </Tabs>
+      </Box>
 
-      {notifications.length === 0 ? (
+      {/* EMPTY STATE */}
+      {displayedNotifications.length === 0 ? (
         <Paper
           elevation={0}
           sx={{
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 3,
-            p: {
-              xs: 4,
-              sm: 6,
-            },
+            p: { xs: 4, sm: 6 },
             textAlign: "center",
           }}
         >
           <NotificationsNoneRoundedIcon
-            sx={{
-              fontSize: 58,
-              color: "text.disabled",
-              mb: 1,
-            }}
+            sx={{ fontSize: 56, color: "text.disabled", mb: 1 }}
           />
-
           <Typography variant="h6" fontWeight={700}>
-            No notifications
+            No notifications found
           </Typography>
-
-          <Typography
-            color="text.secondary"
-            sx={{
-              mt: 1,
-            }}
-          >
-            You're all caught up.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {activeTab === "UNREAD"
+              ? "You have read all your notifications."
+              : "You're all caught up!"}
           </Typography>
         </Paper>
       ) : (
-        /* ===================================================
-           NOTIFICATION LIST
-        =================================================== */
-
+        /* NOTIFICATION LIST */
         <Paper
           elevation={0}
           sx={{
@@ -581,15 +446,11 @@ const NotificationsPage = () => {
             overflow: "hidden",
           }}
         >
-          {notifications.map((notification, index) => {
+          {displayedNotifications.map((notification, index) => {
             const senderName = getSenderName(notification);
-
             const avatarLetter = getAvatarLetter(notification);
-
             const title = getNotificationTitle(notification.type);
-
             const icon = getNotificationIcon(notification.type);
-
             const isProcessing = processingId === notification._id;
 
             return (
@@ -598,31 +459,21 @@ const NotificationsPage = () => {
                   onClick={() => void handleNotificationClick(notification)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
                       void handleNotificationClick(notification);
                     }
                   }}
                   sx={{
-                    px: {
-                      xs: 2,
-                      sm: 3,
-                    },
+                    px: { xs: 2, sm: 3 },
                     py: 2,
                     cursor: "pointer",
-
                     bgcolor: notification.isRead
                       ? "background.paper"
                       : "action.hover",
-
                     transition: "background-color 0.2s ease",
-
-                    "&:hover": {
-                      bgcolor: "action.selected",
-                    },
-
+                    "&:hover": { bgcolor: "action.selected" },
                     "&:focus-visible": {
                       outline: "2px solid",
                       outlineColor: "primary.main",
@@ -631,46 +482,26 @@ const NotificationsPage = () => {
                   }}
                 >
                   <Stack direction="row" spacing={2} alignItems="flex-start">
-                    {/* =================================================
-                          AVATAR
-                      ================================================= */}
-
                     <Avatar
                       sx={{
-                        width: 46,
-                        height: 46,
-
+                        width: 44,
+                        height: 44,
                         bgcolor: notification.isRead
                           ? "action.disabledBackground"
                           : "primary.main",
-
                         color: notification.isRead
                           ? "text.secondary"
                           : "primary.contrastText",
-
                         fontWeight: 700,
-
                         flexShrink: 0,
                       }}
                     >
                       {avatarLetter}
                     </Avatar>
 
-                    {/* =================================================
-                          CONTENT
-                      ================================================= */}
-
-                    <Box
-                      sx={{
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Stack
-                        direction={{
-                          xs: "column",
-                          sm: "row",
-                        }}
+                        direction={{ xs: "column", sm: "row" }}
                         justifyContent="space-between"
                         spacing={0.5}
                       >
@@ -679,7 +510,6 @@ const NotificationsPage = () => {
                             sx={{
                               display: "flex",
                               alignItems: "center",
-
                               color: notification.isRead
                                 ? "text.secondary"
                                 : "primary.main",
@@ -690,6 +520,7 @@ const NotificationsPage = () => {
 
                           <Typography
                             fontWeight={notification.isRead ? 600 : 800}
+                            variant="body1"
                           >
                             {title}
                           </Typography>
@@ -711,51 +542,36 @@ const NotificationsPage = () => {
                         </Typography>
                       </Stack>
 
-                      {/* MESSAGE */}
-
                       <Typography
                         variant="body2"
                         color="text.secondary"
-                        sx={{
-                          mt: 0.5,
-                          lineHeight: 1.6,
-                        }}
+                        sx={{ mt: 0.5, lineHeight: 1.5 }}
                       >
                         {notification.message}
                       </Typography>
 
-                      {/* SENDER */}
-
-                      <Typography
-                        variant="caption"
-                        color="text.disabled"
-                        sx={{
-                          display: "block",
-                          mt: 0.75,
-                        }}
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        sx={{ mt: 0.75 }}
                       >
-                        From {senderName}
-                      </Typography>
-
-                      {/* ENTITY */}
-
-                      {notification.relatedEntityType && (
-                        <Typography
-                          variant="caption"
-                          color="text.disabled"
-                          sx={{
-                            display: "block",
-                            mt: 0.25,
-                          }}
-                        >
-                          {notification.relatedEntityType}
+                        <Typography variant="caption" color="text.disabled">
+                          From {senderName}
                         </Typography>
-                      )}
-                    </Box>
 
-                    {/* =================================================
-                          MARK AS READ
-                      ================================================= */}
+                        {notification.relatedEntityType && (
+                          <>
+                            <Typography variant="caption" color="text.disabled">
+                              •
+                            </Typography>
+                            <Typography variant="caption" color="primary.main">
+                              {notification.relatedEntityType}
+                            </Typography>
+                          </>
+                        )}
+                      </Stack>
+                    </Box>
 
                     {!notification.isRead && (
                       <Tooltip title="Mark as read">
@@ -763,15 +579,8 @@ const NotificationsPage = () => {
                           <IconButton
                             size="small"
                             disabled={isProcessing}
-                            onClick={(event) => {
-                              /*
-                               * IMPORTANT:
-                               *
-                               * Prevent the click from
-                               * opening the notification.
-                               */
-                              event.stopPropagation();
-
+                            onClick={(e) => {
+                              e.stopPropagation();
                               void handleMarkAsRead(notification);
                             }}
                           >
@@ -787,7 +596,7 @@ const NotificationsPage = () => {
                   </Stack>
                 </Box>
 
-                {index < notifications.length - 1 && <Divider />}
+                {index < displayedNotifications.length - 1 && <Divider />}
               </Box>
             );
           })}

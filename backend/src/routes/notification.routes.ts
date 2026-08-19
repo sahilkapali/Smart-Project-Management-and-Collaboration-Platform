@@ -8,6 +8,7 @@ import {
   readAllNotifications,
   deleteMyNotification,
   clearReadNotifications,
+  deleteAllNotifications,
 } from "../controllers/notification.controller";
 
 import { authenticateUser } from "../middleware/auth.middleware";
@@ -28,6 +29,9 @@ router.patch("/:id/read", authenticateUser(), readNotification);
 
 // Mark all as read
 router.patch("/read-all", authenticateUser(), readAllNotifications);
+
+// Delete all notifications
+router.delete("/", authenticateUser(), deleteAllNotifications);
 
 // Delete one notification
 router.delete("/:id", authenticateUser(), deleteMyNotification);

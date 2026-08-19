@@ -1,5 +1,5 @@
+// activity.controller.ts
 import { Request, Response, NextFunction } from "express";
-
 import * as activityService from "../services/activity.service";
 
 // =====================================================
@@ -12,7 +12,6 @@ const getStringParam = (
   if (Array.isArray(value)) {
     return value[0];
   }
-
   return value;
 };
 

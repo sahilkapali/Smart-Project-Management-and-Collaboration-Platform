@@ -7,6 +7,11 @@ import Team from "../models/team.models";
 import { TASK_PRIORITY } from "../types/task.types";
 
 import * as aiService from "./gemini.service";
+import { createNotification } from "./notification.service";
+import {
+  NotificationType,
+  NotificationEntityType,
+} from "../types/notification.types";
 
 // ============================================================
 // HELPERS
@@ -42,17 +47,9 @@ export const requireTaskProjectAccess = async (
     throw createServiceError("Project not found.", 404);
   }
 
-  // --------------------------------------------------------
-  // Project creator
-  // --------------------------------------------------------
-
   if (project.createdBy?.toString() === userId) {
     return project;
   }
-
-  // --------------------------------------------------------
-  // Project members
-  // --------------------------------------------------------
 
   const isProjectMember = project.members?.some(
     (member) => member.toString() === userId,
@@ -61,10 +58,6 @@ export const requireTaskProjectAccess = async (
   if (isProjectMember) {
     return project;
   }
-
-  // --------------------------------------------------------
-  // Team owner/member
-  // --------------------------------------------------------
 
   if (project.team) {
     const team = await Team.findById(project.team);
@@ -155,10 +148,6 @@ export const createTaskService = async (data: CreateTaskInput) => {
     throw createServiceError("Task title is required.", 400);
   }
 
-  // --------------------------------------------------------
-  // Validate assigned user
-  // --------------------------------------------------------
-
   if (data.assignedTo) {
     if (!isValidObjectId(data.assignedTo)) {
       throw createServiceError("Invalid assigned user ID.", 400);
@@ -167,19 +156,11 @@ export const createTaskService = async (data: CreateTaskInput) => {
     await requireTaskProjectAccess(data.project, data.assignedTo);
   }
 
-  // --------------------------------------------------------
-  // Validate priority
-  // --------------------------------------------------------
-
   const priority = data.priority || "Medium";
 
   if (!["Low", "Medium", "High", "Critical"].includes(priority)) {
     throw createServiceError("Invalid task priority.", 400);
   }
-
-  // --------------------------------------------------------
-  // Validate due date
-  // --------------------------------------------------------
 
   let dueDate: Date | null = null;
 
@@ -192,10 +173,6 @@ export const createTaskService = async (data: CreateTaskInput) => {
 
     dueDate = parsed;
   }
-
-  // --------------------------------------------------------
-  // Create task
-  // --------------------------------------------------------
 
   const task = await Task.create({
     project: project._id,
@@ -216,6 +193,17 @@ export const createTaskService = async (data: CreateTaskInput) => {
   });
 
   await populateTask(task);
+
+  if (data.assignedTo && data.assignedTo.toString() !== data.createdBy) {
+    await createNotification(
+      data.assignedTo.toString(),
+      `You were assigned to task "${task.title}"`,
+      NotificationType.TASK_ASSIGNED,
+      data.createdBy,
+      task._id.toString(),
+      NotificationEntityType.TASK
+    );
+  }
 
   return task;
 };
@@ -307,21 +295,14 @@ export const updateTaskService = async (
 
   await requireTaskAccess(task, userId);
 
-  // --------------------------------------------------------
-  // Only creator or assignee can modify
-  // --------------------------------------------------------
-
   const isCreator = task.createdBy.toString() === userId;
-
   const isAssignee = task.assignedTo?.toString() === userId;
 
   if (!isCreator && !isAssignee) {
     throw createServiceError("You are not allowed to modify this task.", 403);
   }
 
-  // --------------------------------------------------------
-  // Title
-  // --------------------------------------------------------
+  const previousAssignee = task.assignedTo ? task.assignedTo.toString() : null;
 
   if (data.title !== undefined) {
     if (!String(data.title).trim()) {
@@ -331,17 +312,9 @@ export const updateTaskService = async (
     task.title = String(data.title).trim();
   }
 
-  // --------------------------------------------------------
-  // Description
-  // --------------------------------------------------------
-
   if (data.description !== undefined) {
     task.description = String(data.description).trim();
   }
-
-  // --------------------------------------------------------
-  // Status
-  // --------------------------------------------------------
 
   if (data.status !== undefined) {
     const allowedStatuses = ["Todo", "In Progress", "Completed"];
@@ -353,10 +326,6 @@ export const updateTaskService = async (
     task.status = data.status;
   }
 
-  // --------------------------------------------------------
-  // Priority
-  // --------------------------------------------------------
-
   if (data.priority !== undefined) {
     const allowedPriorities = ["Low", "Medium", "High", "Critical"];
 
@@ -366,10 +335,6 @@ export const updateTaskService = async (
 
     task.priority = data.priority;
   }
-
-  // --------------------------------------------------------
-  // Assigned user
-  // --------------------------------------------------------
 
   if (data.assignedTo !== undefined) {
     if (data.assignedTo === null || data.assignedTo === "") {
@@ -384,10 +349,6 @@ export const updateTaskService = async (
       task.assignedTo = data.assignedTo;
     }
   }
-
-  // --------------------------------------------------------
-  // Due date
-  // --------------------------------------------------------
 
   if (data.dueDate !== undefined) {
     if (data.dueDate === null || data.dueDate === "") {
@@ -406,6 +367,28 @@ export const updateTaskService = async (
   await task.save();
 
   await populateTask(task);
+
+  const newAssignee = task.assignedTo?._id?.toString() || task.assignedTo?.toString();
+
+  if (newAssignee && newAssignee !== previousAssignee && newAssignee !== userId) {
+    await createNotification(
+      newAssignee,
+      `You were assigned to task "${task.title}"`,
+      NotificationType.TASK_ASSIGNED,
+      userId,
+      task._id.toString(),
+      NotificationEntityType.TASK
+    );
+  } else if (newAssignee && newAssignee === previousAssignee && newAssignee !== userId) {
+    await createNotification(
+      newAssignee,
+      `Task "${task.title}" was updated`,
+      NotificationType.TASK_UPDATED,
+      userId,
+      task._id.toString(),
+      NotificationEntityType.TASK
+    );
+  }
 
   return task;
 };
@@ -465,23 +448,11 @@ export const autoPrioritizeProjectTasksService = async (
   projectId: string,
   userId: string,
 ) => {
-  // --------------------------------------------------------
-  // Validate project
-  // --------------------------------------------------------
-
   if (!isValidObjectId(projectId)) {
     throw createServiceError("Invalid project ID.", 400);
   }
 
-  // --------------------------------------------------------
-  // Check project access
-  // --------------------------------------------------------
-
   await requireTaskProjectAccess(projectId, userId);
-
-  // --------------------------------------------------------
-  // Get all project tasks
-  // --------------------------------------------------------
 
   const tasks = await Task.find({
     project: projectId,
@@ -490,23 +461,11 @@ export const autoPrioritizeProjectTasksService = async (
     createdAt: 1,
   });
 
-  // --------------------------------------------------------
-  // No tasks
-  // --------------------------------------------------------
-
   if (tasks.length === 0) {
     return [];
   }
 
-  // --------------------------------------------------------
-  // Current time
-  // --------------------------------------------------------
-
   const now = new Date();
-
-  // --------------------------------------------------------
-  // Build Gemini context
-  // --------------------------------------------------------
 
   const tasksContext = tasks
     .map((task, index) => {
@@ -552,31 +511,11 @@ ${task.assignedTo ? "YES" : "NO"}
     })
     .join("\n------------------------------\n");
 
-  console.log("\n========== GEMINI PROJECT TASK PRIORITIZATION ==========");
-
-  console.log(tasksContext);
-
-  // --------------------------------------------------------
-  // Ask Gemini
-  // --------------------------------------------------------
-
   const aiResults = await aiService.prioritizeProjectTasks(tasksContext);
-
-  console.log("\n========== GEMINI AI RESULTS ==========");
-  console.log(JSON.stringify(aiResults, null, 2));
-  console.log("========================================");
-
-  // --------------------------------------------------------
-  // Validate task IDs
-  // --------------------------------------------------------
 
   const validTaskIds = new Set(tasks.map((task) => task._id.toString()));
 
   const receivedTaskIds = new Set<string>();
-
-  // --------------------------------------------------------
-  // Validate every Gemini result
-  // --------------------------------------------------------
 
   for (const result of aiResults) {
     if (!validTaskIds.has(result.taskId)) {
@@ -603,10 +542,6 @@ ${task.assignedTo ? "YES" : "NO"}
     }
   }
 
-  // --------------------------------------------------------
-  // Gemini must return every task
-  // --------------------------------------------------------
-
   if (receivedTaskIds.size !== tasks.length) {
     const missingTaskIds = tasks
       .map((task) => task._id.toString())
@@ -618,15 +553,7 @@ ${task.assignedTo ? "YES" : "NO"}
     );
   }
 
-  // --------------------------------------------------------
-  // Create result map
-  // --------------------------------------------------------
-
   const resultMap = new Map(aiResults.map((result) => [result.taskId, result]));
-
-  // --------------------------------------------------------
-  // Update tasks
-  // --------------------------------------------------------
 
   for (const task of tasks) {
     const result = resultMap.get(task._id.toString());
@@ -635,22 +562,10 @@ ${task.assignedTo ? "YES" : "NO"}
       continue;
     }
 
-    console.log(
-      `Updating task ${task._id.toString()}: ${task.priority} -> ${result.priority}`,
-    );
-
     task.priority = result.priority;
 
     await task.save();
-
-    console.log(
-      `Saved task ${task._id.toString()} with priority: ${task.priority}`,
-    );
   }
-
-  // --------------------------------------------------------
-  // Get updated tasks
-  // --------------------------------------------------------
 
   const updatedTasks = await Task.find({
     project: projectId,
@@ -663,10 +578,6 @@ ${task.assignedTo ? "YES" : "NO"}
       createdAt: -1,
     })
     .lean();
-
-  // --------------------------------------------------------
-  // Add AI reason and overdue
-  // --------------------------------------------------------
 
   const updatedNow = new Date();
 

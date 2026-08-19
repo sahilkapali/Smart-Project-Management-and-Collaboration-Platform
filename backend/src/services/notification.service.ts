@@ -2,6 +2,8 @@ import { Types } from "mongoose";
 
 import Notification from "../models/notification.models";
 
+import { getIO } from "../utils/socket";
+
 import {
   NotificationType,
   NotificationEntityType,
@@ -17,25 +19,31 @@ export const createNotification = async (
   type: NotificationType,
   senderId?: string,
   relatedEntityId?: string,
-  relatedEntityType?: NotificationEntityType,
+  relatedEntityType?: NotificationEntityType
 ) => {
-  return Notification.create({
+  const notification = await Notification.create({
     recipient: new Types.ObjectId(recipientId),
-
     sender: senderId ? new Types.ObjectId(senderId) : undefined,
-
     type,
-
     message,
-
-    relatedEntityId: relatedEntityId
-      ? new Types.ObjectId(relatedEntityId)
-      : undefined,
-
+    relatedEntityId: relatedEntityId ? new Types.ObjectId(relatedEntityId) : undefined,
     relatedEntityType,
-
     isRead: false,
   });
+
+  // Populate sender fields so the frontend gets full context immediately
+  await notification.populate("sender", "firstName lastName email profileImage");
+
+  const io = getIO();
+  if (io) {
+    const targetRoom = recipientId.toString();
+    io.to(targetRoom).emit("notification:new", notification);
+    io.to(targetRoom).emit("notification", notification);
+    io.to(`user:${targetRoom}`).emit("notification:new", notification);
+    io.to(`user:${targetRoom}`).emit("notification", notification);
+  }
+
+  return notification;
 };
 
 // =====================================================
@@ -134,13 +142,21 @@ export const deleteNotification = async (
   });
 };
 
-// =====================================================
-// DELETE ALL READ NOTIFICATIONS
-// =====================================================
-
+// ============================================================
+// CLEAR READ NOTIFICATIONS
+// ============================================================
 export const clearReadNotifications = async (userId: string) => {
-  return Notification.deleteMany({
-    recipient: new Types.ObjectId(userId),
+  return await Notification.deleteMany({
+    recipient: userId,
     isRead: true,
+  });
+};
+
+// ============================================================
+// DELETE ALL NOTIFICATIONS
+// ============================================================
+export const deleteAllNotifications = async (userId: string) => {
+  return await Notification.deleteMany({
+    recipient: userId,
   });
 };
