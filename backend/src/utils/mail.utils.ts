@@ -1,11 +1,13 @@
-import transporter from "../config/mail";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendPasswordResetOTP = async (
   email: string,
   otp: string
 ) => {
-  await transporter.sendMail({
-    from: `"Smart Project Management" <${process.env.MAIL_USER}>`,
+  const { data, error } = await resend.emails.send({
+    from: "Smart Project Management <onboarding@resend.dev>",
     to: email,
     subject: "Password Reset OTP",
     html: `
@@ -32,4 +34,11 @@ export const sendPasswordResetOTP = async (
       </div>
     `,
   });
+
+  if (error) {
+    console.error("Resend email error:", error);
+    throw new Error("Failed to send password reset email.");
+  }
+
+  console.log("Password reset email sent:", data?.id);
 };
